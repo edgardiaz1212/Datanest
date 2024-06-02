@@ -1,3 +1,59 @@
 /* 
     General Styles used on every website (Don't Repeat Yourself)
 */
+/* ======= Hero Section ======= */
+.hero-section {
+    min-height: 500px;
+    background-image: ('../img/dch.jpg');
+    
+     ;
+  }
+  
+  .hero-main {
+    color: #e7dede;
+  }
+  .figure-holder-wrapper {
+    position: relative;
+  }
+  
+  .figure-holder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .main-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+  
+  .main-item .item-1 {
+    
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+  }
+  
+  .heading {
+    font-size: 30px;
+    line-height: 1.4;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 15px;
+  }
+  
+  .intro {
+    font-size: 18px;
+  }
+  
+  @media (max-width: 768px) {
+    .hero-main .row {
+        flex-direction: column-reverse;
+    }
+  
+    .figure-holder {
+        margin-top: 20px;
+    }
+  }

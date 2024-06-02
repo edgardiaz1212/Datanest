@@ -13,7 +13,7 @@ import { Footer } from "./component/footer";
 
 const Layout = () => {
     const basename = process.env.BASENAME_REACT || "";
-console.log(basename)
+
     if (!process.env.BACKEND_URL || process.env.BACKEND_URL === "") {
         return <BackendURL />;
     }
