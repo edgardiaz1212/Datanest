@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Context } from '../store/appContext'
 import heroback from '../../img/hero-1.jpg'
 import logorack from '../../img/OIG2.jpeg'
-
+import RegisterUser from "../component/RegisterUser.jsx";
 
 export const Home = () => {
 
@@ -29,7 +29,8 @@ export const Home = () => {
 									</div>
 								</div>
 								<div className="col-md-6 figure-holder">
-									<img className="figure-image img-fluid" src={logorack} alt="Hero Image" />
+									{/* <img className="figure-image img-fluid" src={logorack} alt="Hero Image" /> */}
+									<RegisterUser/> 
 								</div>
 							</div>
 						</div>

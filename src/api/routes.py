@@ -14,18 +14,20 @@ CORS(api)
 @api.route('/addUser', methods=['POST'])
 def addUser():
     if request.method == "POST":
-        data_form = request.form
+        data_form = request.get_json()
         data = {
             "email": data_form.get('email'),
             "coordination": data_form.get('coordination'),
             "username": data_form.get('username'),
             "clientName": data_form.get('clientName'),
+            
         }
         new_user = User(
             username=data.get('username'),
             coordination=data.get('coordination'),
             email=data.get('email'),
             clientName=data.get('clientName'),
+            
         )
         db.session.add(new_user)
         try:
@@ -37,12 +39,12 @@ def addUser():
                 "coordination": new_user.coordination,
                 "email": new_user.email,
                 "clientName": new_user.clientName,
+                
             }
             return jsonify(user_info), 201
         except Exception as error:
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to upload User", "error": str(error)}), 500
-        return jsonify([]), 200
 
 @api.route('/user/<int:user_id>', methods=['GET'])
 def get_current_user(user_id):
