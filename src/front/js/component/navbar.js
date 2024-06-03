@@ -1,19 +1,36 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router-dom";
+import { Context } from "../store/appContext";
+import logo from '../../img/CDHLogo.jpg';
 
 export const Navbar = () => {
-	return (
-		<nav className="navbar navbar-light bg-light">
-			<div className="container">
-				<Link to="/">
-					<span className="navbar-brand mb-0 h1">React Boilerplate</span>
-				</Link>
-				<div className="ml-auto">
-					<Link to="/demo">
-						<button className="btn btn-primary">Check the Context in action</button>
-					</Link>
-				</div>
-			</div>
-		</nav>
-	);
+  const { store, actions } = useContext(Context)
+  return (
+    <>
+      <header id="header" className="header">
+        <nav className="main-nav navbar-expand-md" role="navigation"    >
+          <div className="container-fluid position-relative">
+
+            <Link to="/" className="logo navbar-brand text-white" >
+              <span className="logo-icon-wrapper">
+                <img className="logo-icon" src={logo} alt="icon" />
+              </span>
+              <span className="text ">Planilla<span className="highlight">FOR-BA7D</span> </span>
+            </Link>
+
+            <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+              <span className="navbar-toggler-icon"></span>
+            </button>
+            <div className="collapse navbar-collapse" id="navbarNav">
+              <ul className="navbar-nav">
+
+
+              </ul>
+            </div>
+          </div>
+        </nav>
+      </header>
+    </>
+
+  );
 };

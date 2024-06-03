@@ -39,7 +39,7 @@ export const Home = () => {
 			</div>
 			
 			<div className="container text-center mt-5">
-				<h2>Estas son de las dudas mas comunes  </h2>
+				<h2>Dudas mas comunes  </h2>
 				<div className="accordion accordion-flush" id="accordionFlushHome">
 					<div className="accordion-item">
 						<h2 className="accordion-header">

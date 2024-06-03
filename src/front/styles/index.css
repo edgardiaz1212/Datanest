@@ -1,12 +1,123 @@
 /* 
     General Styles used on every website (Don't Repeat Yourself)
 */
+
+    /* ======= Header ======= */
+    .header {
+      position: fixed;
+      width: 100%;
+      z-index: 30;
+      height: 60px;
+      -webkit-transition: none;
+      -moz-transition: none;
+      -ms-transition: none;
+      -o-transition: none;
+    }
+    
+    .header.header-scrolled {
+      background: #fff;
+      -webkit-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      -moz-box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+    
+    .header.header-scrolled a {
+      color: #494d55;
+    }
+    
+    .header.header-scrolled .logo {
+      color: #40babd;
+      top: 0;
+    }
+    
+    .header.header-scrolled .logo:focus {
+      color: #494d55;
+    }
+    
+    .header.header-scrolled .logo .logo-icon-wrapper {
+      background: #40babd;
+      width: 40px;
+      height: 40px;
+      -webkit-border-radius: 50%;
+      -moz-border-radius: 50%;
+      -ms-border-radius: 50%;
+      -o-border-radius: 50%;
+      border-radius: 50%;
+      -moz-background-clip: padding;
+      -webkit-background-clip: padding-box;
+      background-clip: padding-box;
+      text-align: center;
+    }
+    
+    .header.header-scrolled .logo .logo-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 0;
+    }
+    
+    .header.header-scrolled .main-nav .nav .nav-link {
+      color: #616670;
+    }
+    
+    .header.header-scrolled .main-nav .nav .nav-link:hover {
+      color: #555963;
+    }
+    
+    .header.header-scrolled .main-nav .nav .active .nav-link {
+      color: #494d55;
+      border-bottom: 4px solid #40babd;
+    }
+    
+    .header a {
+      color: #fff;
+      -webkit-transition: none;
+      -moz-transition: none;
+      -ms-transition: none;
+      -o-transition: none;
+    }
+    
+    .header a:hover,
+    .header a:focus {
+      text-decoration: none;
+      color: white;
+    }
+    
+    .header .logo {
+      margin: 0;
+      font-size: 28px;
+      text-decoration: none;
+      position: absolute;
+      left: 1rem;
+      top: 8px;
+    }
+    
+    .header .logo:focus {
+      color: white;
+    }
+    
+    .header .logo .logo-icon-wrapper {
+      margin-right: 6px;
+      position: relative;
+      display: inline-block;
+      top: -3px;
+      line-height: 1.2;
+    }
+    
+    .header .logo .logo-icon {
+      width: 80px;
+      height: 50px;
+    }
+    
+    .header .logo .highlight {
+      font-weight: 800;
+    }
+    
+
 /* ======= Hero Section ======= */
 .hero-section {
     min-height: 500px;
     background-image: ('../img/dch.jpg');
-    
-     ;
+ 
   }
   
   .hero-main {
@@ -67,6 +178,7 @@
     padding: 20px;
     border-radius: 20px;
     position: relative;
+    margin-bottom: 20px;
   }
 
   .title {
