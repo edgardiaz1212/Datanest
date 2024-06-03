@@ -29,6 +29,31 @@ const getState = ({ getStore, getActions, setStore }) => {
                     console.log("Error adding user:", error.message);
                 }
 			},
+			getUserData: async () => {
+				const store = getStore();
+				const currentUser = store.currentUser;
+
+				try {
+
+					const response = await fetch(`${process.env.BACKEND_URL}/user/${currentUser.user_id}`, {
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+						},
+					});
+
+					if (response.ok) {
+						const responseData = await response.json();
+
+						setStore({ userData: responseData });
+						localStorage.setItem("userData", JSON.stringify(responseData));
+					} else {
+						console.log("Error fetching user data:", response.status);
+					}
+				} catch (error) {
+					console.log("Error fetching user data:", error);
+				}
+			},
 			
 		}
 	};

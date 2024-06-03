@@ -1,7 +1,9 @@
 import React, { useState, useContext } from "react";
 import { Context } from "../store/appContext";
+import { useNavigate } from "react-router-dom";
 
 function RegisterUser() {
+  const navigate = useNavigate()
   const { actions } = useContext(Context);
   const [formData, setFormData] = useState({
     username: "",
@@ -18,6 +20,7 @@ function RegisterUser() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await actions.addUser(formData);
+    navigate("/register-data")
   };
 
   return (
