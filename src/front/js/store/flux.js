@@ -1,7 +1,7 @@
 const getState = ({ getStore, getActions, setStore }) => {
 	return {
 		store: {
-			userData: JSON.parse(localStorage.getItem("userData")) || [],
+			currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
 		},
 		actions: {
 			// Use getActions to call a function within a fuction

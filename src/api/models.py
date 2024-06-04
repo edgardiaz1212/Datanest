@@ -37,7 +37,6 @@ class Description(db.Model):
     five_years_prevition = db.Column(db.String(255))
     observations = db.Column(db.String(255))
     componentType = db.Column(db.String(100), nullable=False)
-    contract = db.Column(db.String(100), nullable=False)
     service = db.Column(db.String(50))
 
     # Relaciones con Rack y Equipment (un equipo y un rack tienen una descripción)
@@ -57,7 +56,6 @@ class Description(db.Model):
             'five_years_prevition': self.five_years_prevition,
             'observations': self.observations,
             'componentType': self.componentType,
-            'contract': self.contract,
             'service': self.service,
         }
 class Rack(db.Model):

@@ -1,9 +1,22 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { Context } from "../store/appContext";
+import RackModal from "../component/RackModal.jsx"; // Importa el componente del modal de Rack
+import EquipmentModal from "../component/EquipmentModal.jsx"; // Importa el componente del modal de Equipment
 
 const DataTable = () => {
+  const { actions, store } = useContext(Context);
   const [entries, setEntries] = useState([
-    { requestType: "", brand: "", model: "", serial: "", componentType: "", partNumber: "" },
+    {
+      requestType: "",
+      brand: "",
+      model: "",
+      serial: "",
+      componentType: "",
+      partNumber: "",
+    },
   ]);
+
+  const [selectedComponent, setSelectedComponent] = useState(null); // Estado para controlar el tipo de componente seleccionado
 
   const handleChange = (index, e) => {
     const { name, value } = e.target;
@@ -13,16 +26,45 @@ const DataTable = () => {
   };
 
   const handleAddEntry = () => {
-    setEntries([...entries, { requestType: "", brand: "", model: "", serial: "", componentType: "", partNumber: "" }]);
+    setEntries([
+      ...entries,
+      {
+        requestType: "",
+        brand: "",
+        model: "",
+        serial: "",
+        componentType: "",
+        partNumber: "",
+      },
+    ]);
   };
 
   const handleRemoveEntry = (index) => {
     const updatedEntries = entries.filter((_, i) => i !== index);
-    setEntries(updatedEntries.length > 0 ? updatedEntries : [{ requestType: "", brand: "", model: "", serial: "", componentType: "", partNumber: "" }]);
+    setEntries(
+      updatedEntries.length > 0
+        ? updatedEntries
+        : [
+            {
+              requestType: "",
+              brand: "",
+              model: "",
+              serial: "",
+              componentType: "",
+              partNumber: "",
+            },
+          ]
+    );
   };
 
   const isFormFilled = (entry) => {
-    return entry.requestType && entry.brand && entry.model && entry.serial && entry.componentType;
+    return (
+      entry.requestType &&
+      entry.brand &&
+      entry.model &&
+      entry.serial &&
+      entry.componentType
+    );
   };
 
   const handleFinalize = () => {
@@ -33,11 +75,21 @@ const DataTable = () => {
     // Download logic
   };
 
+  const handleComplete = (index) => {
+    const selectedEntry = entries[index];
+    if (selectedEntry.componentType === "Rack") {
+      setSelectedComponent("Rack");
+    } else {
+      setSelectedComponent("Equipment");
+    }
+  };
+
   return (
     <>
       <div className="container mt-5 bg-success">
         <h1 className="pt-5">
-          Por favor NOMBRE llenar los campos con la informacion basica para el cliente CLIENTE{" "}
+          Por favor {store.currentUser.username} llenar los campos con la
+          informacion para el cliente {store.currentUser.clientName}
         </h1>
       </div>
       <div className="container mt-5">
@@ -106,15 +158,23 @@ const DataTable = () => {
                   />
                 </td>
                 <td>
-                  <input
-                    type="text"
+                  <select
                     className="form-control"
                     name="componentType"
                     value={entry.componentType}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Tipo de Componente"
                     required
-                  />
+                  >
+                    <option value="">Seleccionar tipo de componente</option>
+                    <option value="Rack">Rack</option>
+                    <option value="Switch">Switch</option>
+                    <option value="Server">Server</option>
+                    <option value="Router">Router</option>
+                    <option value="Firewall">Firewall</option>
+                    <option value="Caja Almacenamiento">
+                      Caja Almacenamiento
+                    </option>
+                  </select>
                 </td>
                 <td>
                   <input
@@ -127,14 +187,24 @@ const DataTable = () => {
                   />
                 </td>
                 <td>
-                  { isFormFilled(entry) && (
-                    <button type="button" className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>
+                  {isFormFilled(entry) && (
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => handleRemoveEntry(index)}
+                    >
                       Eliminar
                     </button>
                   )}
                   {isFormFilled(entry) && (
-                    <button type="button" className="btn btn-primary mt-2">
-                      Todos los Datos
+                    <button
+                      type="button"
+                      className="btn btn-primary mt-2"
+                      data-bs-toggle="modal"
+                      data-bs-target={selectedComponent === "Rack" ? "#rackModal" : "#equipmentModal"}
+                      onClick={() => handleComplete(index)}
+                    >
+                      Completar
                     </button>
                   )}
                 </td>
@@ -144,18 +214,32 @@ const DataTable = () => {
         </table>
         <div className="mt-3">
           {isFormFilled(entries[entries.length - 1]) && (
-            <button type="button" className="btn btn-success mr-2" onClick={handleAddEntry}>
+            <button
+              type="button"
+              className="btn btn-success mr-2"
+              onClick={handleAddEntry}
+            >
               Agregar Otro
             </button>
           )}
-          <button type="button" className="btn btn-primary mr-2" onClick={handleFinalize}>
+          <button
+            type="button"
+            className="btn btn-primary mr-2"
+            onClick={handleFinalize}
+          >
             Finalizar
           </button>
-          <button type="button" className="btn btn-secondary" onClick={handleDownload}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleDownload}
+          >
             Descargar Todo
           </button>
         </div>
       </div>
+      <RackModal /> {/* Modal para Rack */}
+      <EquipmentModal /> {/* Modal para Equipment */}
     </>
   );
 };
