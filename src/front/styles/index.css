@@ -225,7 +225,6 @@
     border-radius: 10px;
   }
   
-
   .form select  {
     position: relative;
     width: 100%;
@@ -294,3 +293,4 @@
   .submit:hover {
     background-color: rgb(56, 90, 194);
   }
+
