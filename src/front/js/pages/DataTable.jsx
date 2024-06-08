@@ -1,7 +1,6 @@
 import React, { useContext, useState } from "react";
 import { Context } from "../store/appContext";
-import RackModal from "../component/RackModal.jsx"; // Importa el componente del modal de Rack
-import EquipmentModal from "../component/EquipmentModal.jsx"; // Importa el componente del modal de Equipment
+import { useNavigate } from "react-router-dom"; // Importa useNavigate para redireccionar
 
 const DataTable = () => {
   const { actions, store } = useContext(Context);
@@ -16,7 +15,7 @@ const DataTable = () => {
     },
   ]);
 
-  const [selectedComponent, setSelectedComponent] = useState(null); // Estado para controlar el tipo de componente seleccionado
+  const navigate = useNavigate(); // Instancia useNavigate para redireccionar
 
   const handleChange = (index, e) => {
     const { name, value } = e.target;
@@ -75,13 +74,9 @@ const DataTable = () => {
     // Download logic
   };
 
-  const handleComplete = (index) => {
-    const selectedEntry = entries[index];
-    if (selectedEntry.componentType === "Rack") {
-      setSelectedComponent("Rack");
-    } else {
-      setSelectedComponent("Equipment");
-    }
+  const handleComplete = (componentType, requestType) => {
+    // Redirecciona a la página CompletData y pasa los datos como state
+    navigate("/complete-data", { state: { componentType, requestType } });
   };
 
   return (
@@ -93,7 +88,7 @@ const DataTable = () => {
         </h1>
       </div>
       <div className="container mt-5">
-        <h2>DataTable</h2>
+        <h2>Equipamiento</h2>
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -168,9 +163,10 @@ const DataTable = () => {
                     <option value="">Seleccionar tipo de componente</option>
                     <option value="Rack">Rack</option>
                     <option value="Switch">Switch</option>
-                    <option value="Server">Server</option>
+                    <option value="Servidor">Servidor</option>
                     <option value="Router">Router</option>
                     <option value="Firewall">Firewall</option>
+                    <option value="Monitor">Monitor</option>
                     <option value="Caja Almacenamiento">
                       Caja Almacenamiento
                     </option>
@@ -187,6 +183,15 @@ const DataTable = () => {
                   />
                 </td>
                 <td>
+                {isFormFilled(entry) && (
+                    <button
+                      type="button"
+                      className="btn btn-primary mt-2"
+                      onClick={() => handleComplete(entry.componentType, entry.requestType)}
+                    >
+                      Completar
+                    </button>
+                  )}
                   {isFormFilled(entry) && (
                     <button
                       type="button"
@@ -196,17 +201,7 @@ const DataTable = () => {
                       Eliminar
                     </button>
                   )}
-                  {isFormFilled(entry) && (
-                    <button
-                      type="button"
-                      className="btn btn-primary mt-2"
-                      data-bs-toggle="modal"
-                      data-bs-target={selectedComponent === "Rack" ? "#rackModal" : "#equipmentModal"}
-                      onClick={() => handleComplete(index)}
-                    >
-                      Completar
-                    </button>
-                  )}
+                  
                 </td>
               </tr>
             ))}
@@ -238,8 +233,6 @@ const DataTable = () => {
           </button>
         </div>
       </div>
-      <RackModal /> {/* Modal para Rack */}
-      <EquipmentModal /> {/* Modal para Equipment */}
     </>
   );
 };

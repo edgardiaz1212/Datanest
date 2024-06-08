@@ -4,7 +4,7 @@
 
     /* ======= Header ======= */
     .header {
-      position: fixed;
+    background-color: #26282c;
       width: 100%;
       z-index: 30;
       height: 60px;
@@ -294,3 +294,17 @@
     background-color: rgb(56, 90, 194);
   }
 
+/* ====== Footer ====== */
+.footer {
+  background: #26282c;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 15px 0;
+}
+
+.footer a {
+  color: #40babd;
+}
+
+.footer .fa-heart {
+  color: #EA5395;
+}

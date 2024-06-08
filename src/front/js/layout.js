@@ -11,6 +11,7 @@ import injectContext from "./store/appContext";
 import { Navbar } from "./component/navbar";
 import { Footer } from "./component/footer";
 import DataTable from "./pages/DataTable.jsx";
+import CompleteData from "./pages/CompleteData.jsx";
 
 const Layout = () => {
     const basename = process.env.BASENAME_REACT || "";
@@ -28,6 +29,7 @@ const Layout = () => {
                         <Route path="/" element={<Home />} />
                         <Route path="/demo" element={<Demo />} />
                         <Route path="/register-data" element={<DataTable />} />
+                        <Route path="/complete-data" element={<CompleteData />} />
                         <Route path="/single/:theid" element={<Single />} />
                         <Route path="*" element={<h1>Not found!</h1>} />
                     </Routes>
