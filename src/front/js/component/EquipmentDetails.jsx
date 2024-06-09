@@ -41,7 +41,7 @@ function EquipmentDetails({ requestType }) {
       };
       
       const isInstallationOrRelocation =
-        requestType === "Instalacion" || requestType === "Mudanza";
+        requestType === "Instalación" || requestType === "Mudanza";
   
     return (
     <>

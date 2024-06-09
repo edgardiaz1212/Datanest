@@ -1,8 +1,8 @@
-import React , {useState} from "react";
+import React, { useState } from "react";
 
 function RackDetails({ requestType }) {
   const [data, setData] = useState({
-    has_cabinet: false,
+    has_cabinet: true,
     leased: false,
     total_cabinets: "",
     open_closed: false,
@@ -30,10 +30,21 @@ function RackDetails({ requestType }) {
 
   const handleFieldChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setData((prevData) => ({
-      ...prevData,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    if (type !== "checkbox" && type !== "radio") {
+      setData((prevFormData) => ({
+        ...prevFormData,
+        [name]: value,
+      }));
+    } else {
+      // Manejar los campos de tipo checkbox y radio como booleanos
+      const newValue =
+        type === "checkbox" ? checked : value === "true" ? true : false;
+
+      setData((prevFormData) => ({
+        ...prevFormData,
+        [name]: newValue,
+      }));
+    }
   };
 
   const isInstallationOrRelocation =
@@ -356,7 +367,7 @@ function RackDetails({ requestType }) {
                 onChange={handleFieldChange}
               />
             </div>
-            {!isInstallationService && (
+            {!isInstallationOrRelocation && (
               <div className=" col-lg-2 col-sm-12">
                 <label htmlFor="rack_position" className="form-label">
                   Ubicación en losa en el DC
@@ -471,7 +482,7 @@ function RackDetails({ requestType }) {
           </>
         )}
       </div>
-
+      {/* consulta de energia */}
       {isInstallationOrRelocation && (
         <>
           <h2 className="mt-4">Requerimiento de energia para el rack</h2>
@@ -566,6 +577,7 @@ function RackDetails({ requestType }) {
           </div>
         </>
       )}
+      
     </>
   );
 }

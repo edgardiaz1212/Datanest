@@ -120,9 +120,9 @@ const DataTable = () => {
                     required
                   >
                     <option value="">Seleccionar</option>
-                    <option value="Instalacion">Instalacion</option>
+                    <option value="Instalación">Instalación</option>
                     <option value="Retiro">Retiro</option>
-                    <option value="Desincorporacion">Desincorporacion</option>
+                    <option value="Desincorporación">Desincorporación</option>
                     <option value="Mudanza">Mudanza</option>
                   </select>
                 </td>
@@ -239,6 +239,7 @@ const DataTable = () => {
           </button>
         </div>
       </div>
+      
     </>
   );
 };
