@@ -62,7 +62,7 @@ function RegisterUser() {
           value={formData.coordination}
           onChange={handleChange}
         />
-        <span>Cordinacion</span>
+        <span>Coordinacion</span>
       </label>
       <label>
         <input

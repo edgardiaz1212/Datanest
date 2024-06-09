@@ -1,11 +1,21 @@
-import React from 'react'
+import React from 'react';
+import RackDetails from '../component/RackDetails.jsx';
+import EquipmentDetails from '../component/EquipmentDetails.jsx';
+import { useLocation } from "react-router-dom";
 
-function CompleteData(componentType={componentType}, requestType={requestType}) {
+function CompleteData() {
+  const location = useLocation();
+  const { entry } = location.state || {};
+  const { componentType, requestType, brand, model, serial, partNumber } = entry || {};
+
   return (
     <>
-    hola 
+el {componentType} modelo {model}
+
+      {componentType === 'Rack' && <RackDetails requestType={requestType} brand={brand} model={model} serial={serial} partNumber={partNumber} />}
+      {componentType !== 'Rack' && <EquipmentDetails requestType={requestType} brand={brand} model={model} serial={serial} partNumber={partNumber} />}
     </>
-  )
+  );
 }
 
-export default CompleteData
+export default CompleteData;

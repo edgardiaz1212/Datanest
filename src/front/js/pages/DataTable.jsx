@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { Context } from "../store/appContext";
-import { useNavigate } from "react-router-dom"; // Importa useNavigate para redireccionar
+import { useNavigate } from "react-router-dom";
 
 const DataTable = () => {
   const { actions, store } = useContext(Context);
@@ -15,13 +15,16 @@ const DataTable = () => {
     },
   ]);
 
-  const navigate = useNavigate(); // Instancia useNavigate para redireccionar
+  const [formData, setFormData] = useState({}); // Estado local para almacenar los datos del formulario
+
+  const navigate = useNavigate();
 
   const handleChange = (index, e) => {
     const { name, value } = e.target;
     const updatedEntries = [...entries];
     updatedEntries[index][name] = value;
     setEntries(updatedEntries);
+    setFormData(updatedEntries[index]); // Actualiza el estado local con los datos del formulario actual
   };
 
   const handleAddEntry = () => {
@@ -74,9 +77,13 @@ const DataTable = () => {
     // Download logic
   };
 
-  const handleComplete = (componentType, requestType) => {
-    // Redirecciona a la página CompletData y pasa los datos como state
-    navigate("/complete-data", { state: { componentType, requestType } });
+  const handleComplete = () => {
+    if (isFormFilled(formData)) {
+      navigate("/complete-data", { state: { entry: formData } });
+    } else {
+      console.log("Formulario no está completo.");
+      // Puedes manejar el caso de formulario incompleto aquí
+    }
   };
 
   return (
@@ -183,7 +190,7 @@ const DataTable = () => {
                   />
                 </td>
                 <td>
-                {isFormFilled(entry) && (
+                  {isFormFilled(entry) && (
                     <button
                       type="button"
                       className="btn btn-primary mt-2"
@@ -201,7 +208,6 @@ const DataTable = () => {
                       Eliminar
                     </button>
                   )}
-                  
                 </td>
               </tr>
             ))}
