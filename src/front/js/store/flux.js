@@ -98,26 +98,30 @@ const getState = ({ getStore, getActions, setStore }) => {
                 }
             },
             addEquipment: async (equipment) => {
-                try {
-                    const response = await fetch(`${process.env.BACKEND_URL}/addEquipment`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(equipment),
-                    });
-
-                    if (response.ok) {
-                        const responseData = await response.json();
-                        // Aquí podrías actualizar el store con el nuevo equipment si lo necesitas
-                        return responseData;
-                    } else {
-                        console.log("Error adding equipment:", response.statusText);
-                    }
-                } catch (error) {
-                    console.log("Error adding equipment:", error.message);
-                }
-            },
+				try {
+					const response = await fetch(`${process.env.BACKEND_URL}/addEquipment`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(equipment),
+					});
+			
+					if (response.ok) {
+						const responseData = await response.json();
+						// Aquí podrías actualizar el store con el nuevo equipment si lo necesitas
+						return responseData;
+					} else {
+						// Error en la respuesta del servidor
+						console.log("Error adding equipment:", response.statusText);
+						throw new Error("Error adding equipment: Unexpected response from server");
+					}
+				} catch (error) {
+					// Error de conexión o error en la solicitud
+					console.log("Error adding equipment:", error.message);
+					throw new Error("Error adding equipment: Connection error or request error");
+				}
+			},
 			
 		}
 	};

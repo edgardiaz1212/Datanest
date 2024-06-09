@@ -1,48 +1,9 @@
 import React, {useState} from "react";
 
 
-function EquipmentDetails({ requestType }) {
+function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
   
-    const [data, setData] = useState({
-        equipment_width: "",
-        equipment_length: "",
-        equipment_height: "",
-        weight: "",
-        anchor_type: "",
-        service_area: false,
-        service_frontal: false,
-        service_back: false,
-        service_lateral: false,
-        rack_number: "",
-        equip_rack_ubication: "",
-        rack_unit_position: "",
-        total_rack_units: "",
-        packaging_width: "",
-        packaging_length: "",
-        packaging_height: "",
-        access_length: "",
-        access_width: "",
-        access_inclination: "",
-        ac_dc: "",
-        input_current: "",
-        power: "",
-        power_supply: "",
-        operation_temp: "",
-        thermal_disipation: "",
-        power_config: "1",
-      });
-      
-      const handleFieldChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        setData((prevData) => ({
-          ...prevData,
-          [name]: type === "checkbox" ? checked : value,
-        }));
-      };
-      
-      const isInstallationOrRelocation =
-        requestType === "Instalación" || requestType === "Mudanza";
-  
+   
     return (
     <>
       <div className="mt-4  titles">

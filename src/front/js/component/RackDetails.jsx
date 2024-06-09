@@ -1,55 +1,7 @@
 import React, { useState } from "react";
 
-function RackDetails({ requestType }) {
-  const [data, setData] = useState({
-    has_cabinet: true,
-    leased: false,
-    total_cabinets: "",
-    open_closed: false,
-    security: false,
-    type_security: "",
-    has_extractors: false,
-    extractors_ubication: "",
-    modular: false,
-    lateral_doors: false,
-    lateral_ubication: "",
-    rack_unit: "",
-    rack_position: "",
-    rack_ubication: "",
-    has_accessory: false,
-    accessory_description: "",
-    rack_width: "",
-    rack_length: "",
-    rack_height: "",
-    internal_pdu: "",
-    input_connector: "",
-    fases: "",
-    output_connector: "",
-    neutro: false,
-  });
-
-  const handleFieldChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    if (type !== "checkbox" && type !== "radio") {
-      setData((prevFormData) => ({
-        ...prevFormData,
-        [name]: value,
-      }));
-    } else {
-      // Manejar los campos de tipo checkbox y radio como booleanos
-      const newValue =
-        type === "checkbox" ? checked : value === "true" ? true : false;
-
-      setData((prevFormData) => ({
-        ...prevFormData,
-        [name]: newValue,
-      }));
-    }
-  };
-
-  const isInstallationOrRelocation =
-    requestType === "Instalación" || requestType === "Mudanza";
-
+function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
+  
   return (
     <>
       <div className="mb-3 ">
@@ -369,7 +321,7 @@ function RackDetails({ requestType }) {
             </div>
             {!isInstallationOrRelocation && (
               <div className=" col-lg-2 col-sm-12">
-                <label htmlFor="rack_position" className="form-label">
+                <label htmlFor="rack_ubication" className="form-label">
                   Ubicación en losa en el DC
                 </label>
                 <input

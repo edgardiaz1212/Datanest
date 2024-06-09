@@ -64,11 +64,11 @@ def add_description():
             brand=data_form.get('brand'),
             model=data_form.get('model'),
             serial=data_form.get('serial'),
-            number_part=data_form.get('partNumber'),
+            partNumber=data_form.get('partNumber'),
             five_years_prevition=data_form.get('five_years_prevition'),
             observations=data_form.get('observations'),
             componentType=data_form.get('componentType'),
-            service=data_form.get('service')
+            requestType=data_form.get('requestType')
         )
         db.session.add(new_description)
         try:
@@ -84,6 +84,17 @@ def add_description():
 def add_rack():
     if request.method == "POST":
         data_form = request.get_json()
+
+        # Check if user_id is provided in the request
+        user_id = data_form.get('user_id')
+        if not user_id:
+            return jsonify({"msg": "user_id is required"}), 400
+
+        # Validate if the user exists in the database
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"msg": "User not found"}), 404
+
         new_rack = Rack(
             has_cabinet=data_form.get('has_cabinet'),
             leased=data_form.get('leased'),
@@ -110,7 +121,7 @@ def add_rack():
             output_connector=data_form.get('output_connector'),
             neutro=data_form.get('neutro'),
             description_id=data_form.get('description_id'),
-            user_id=data_form.get('user_id')
+            user_id=user_id
         )
         db.session.add(new_rack)
         try:
@@ -165,4 +176,8 @@ def add_equipment():
             return jsonify(equipment_info), 201
         except Exception as error:
             db.session.rollback()
-            return jsonify({"msg": "Error occurred while trying to upload Equipment", "error": str(error)}), 500
+            # Log the detailed error message
+            import traceback
+            error_message = traceback.format_exc()
+            print(f"Error occurred while trying to upload Equipment: {error_message}")
+            return jsonify({"msg": "Error occurred while trying to upload Equipment", "error": error_message}), 500
