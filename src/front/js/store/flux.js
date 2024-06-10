@@ -2,6 +2,7 @@ const getState = ({ getStore, getActions, setStore }) => {
 	return {
 		store: {
 			currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
+			descriptions:""
 		},
 		actions: {
 			// Use getActions to call a function within a fuction
@@ -122,6 +123,28 @@ const getState = ({ getStore, getActions, setStore }) => {
 					throw new Error("Error adding equipment: Connection error or request error");
 				}
 			},
+			getDescriptionsByUser: async () => {
+				const store = getStore();
+				const currentUser = store.currentUser;
+			  
+				try {
+				  const response = await fetch(`${process.env.BACKEND_URL}/description/${currentUser.user_id}`, {
+					method: "GET",
+					headers: {
+					  "Content-Type": "application/json",
+					},
+				  });
+			  
+				  if (response.ok) {
+					const responseData = await response.json();
+					setStore({ descriptions: responseData });
+				  } else {
+					console.log("Failed to fetch descriptions:", response.statusText);
+				  }
+				} catch (error) {
+				  console.log("Error fetching user data:", error);
+				}
+			  },
 			
 		}
 	};

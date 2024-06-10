@@ -181,3 +181,13 @@ def add_equipment():
             error_message = traceback.format_exc()
             print(f"Error occurred while trying to upload Equipment: {error_message}")
             return jsonify({"msg": "Error occurred while trying to upload Equipment", "error": error_message}), 500
+        
+@api.route('/description/<int:user_id>', methods=['GET'])
+def get_all_descriptions_by_user(user_id):
+    user = User.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    descriptions = Description.query.all()
+    descriptions_data = [description.serialize() for description in descriptions]
+    return jsonify(descriptions_data), 200
+

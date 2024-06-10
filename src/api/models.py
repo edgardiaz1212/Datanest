@@ -57,6 +57,7 @@ class Description(db.Model):
             'observations': self.observations,
             'componentType': self.componentType,
             'requestType': self.requestType,
+           
         }
 class Rack(db.Model):
     id = db.Column(db.Integer, primary_key=True)

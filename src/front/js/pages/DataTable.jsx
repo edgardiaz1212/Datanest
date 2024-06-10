@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +14,26 @@ const DataTable = () => {
       partNumber: "",
     },
   ]);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Obtener equipos y racks de la base de datos
+        const equipmentResponse = await actions.getEquipments();
+        const rackResponse = await actions.getRacks();
+        const equipmentData = equipmentResponse.data;
+        const rackData = rackResponse.data;
+
+        // Combinar equipos y racks en una sola lista para mostrar en la tabla
+        const combinedEntries = [...equipmentData, ...rackData];
+        setEntries(combinedEntries);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+
+    fetchData();
+  }, [actions]);
 
   const [formData, setFormData] = useState({}); // Estado local para almacenar los datos del formulario
 
