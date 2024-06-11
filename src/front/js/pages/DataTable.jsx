@@ -35,7 +35,7 @@ const DataTable = () => {
         setSavedEntries(store.descriptions); // Actualizar savedEntries con los datos del store
         return;
       }
-  
+
       try {
         const response = await actions.getDescriptionsByUser();
         if (!response) {
@@ -53,7 +53,7 @@ const DataTable = () => {
         console.log("Error fetching user data:", error);
       }
     }
-  
+
     fetchData();
   }, [actions, store.descriptions]);
   
@@ -108,8 +108,17 @@ const DataTable = () => {
     // Download logic
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (isFormFilled(formData)) {
+      try {
+        const response = await actions.addDescription(formData); // Guardar los datos
+        if (response) {
+          await actions.getDescriptionsByUser(); // Obtener descripciones actualizadas
+          setEntries([...entries, formData]); // Agregar el nuevo dato a la tabla localmente si es necesario
+        }
+      } catch (error) {
+        console.log("Error adding description:", error);
+      }
       navigate("/complete-data", { state: { entry: formData } });
     } else {
       console.log("Formulario no está completo.");

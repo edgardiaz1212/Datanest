@@ -108,9 +108,11 @@ function CompleteData() {
       const descriptionId = descriptionResponse.id;
       const userId = store.currentUser.user_id
 
+      
+
       if (componentType === "Rack") {
         const rackData = {
-          description_id: descriptionId, // Este campo debe llenarse con el ID de la descripción previamente creada
+          description_id: descriptionId, 
           user_id: userId,
           has_cabinet: data.has_cabinet,
           leased: data.leased,

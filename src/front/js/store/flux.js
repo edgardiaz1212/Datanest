@@ -162,24 +162,28 @@ const getState = ({ getStore, getActions, setStore }) => {
       },
       deleteDescription: async (id) => {
         try {
-          const response = await fetch(
-            `${process.env.BACKEND_URL}/descriptions/${id}`,
-            {
-              method: "DELETE",
-            }
-          );
+          const response = await fetch(`${process.env.BACKEND_URL}/descriptions/${id}`, {
+            method: "DELETE",
+          });
           if (response.ok) {
-            // Aquí podrías retornar algo si es necesario
-            return true;
+            const updatedDescriptions = getStore().descriptions.filter(
+              (desc) => desc.id !== id
+            );
+            setStore({ descriptions: updatedDescriptions });
           } else {
             console.error("Failed to delete description");
-            return false;
           }
         } catch (error) {
           console.error("Error deleting description:", error);
-          return false;
         }
       },
+      setDescriptions: (descriptions) => {
+        setStore((prevState) => ({
+          ...prevState,
+          descriptions: descriptions,
+        }));
+      },
+
     },
   };
 };
