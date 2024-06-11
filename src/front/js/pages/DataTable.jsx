@@ -15,27 +15,8 @@ const DataTable = () => {
     },
   ]);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        // Obtener equipos y racks de la base de datos
-        const equipmentResponse = await actions.getEquipments();
-        const rackResponse = await actions.getRacks();
-        const equipmentData = equipmentResponse.data;
-        const rackData = rackResponse.data;
-
-        // Combinar equipos y racks en una sola lista para mostrar en la tabla
-        const combinedEntries = [...equipmentData, ...rackData];
-        setEntries(combinedEntries);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
-
-    fetchData();
-  }, [actions]);
-
   const [formData, setFormData] = useState({}); // Estado local para almacenar los datos del formulario
+  const [savedEntries, setSavedEntries] = useState([]);
 
   const navigate = useNavigate();
 
@@ -46,6 +27,36 @@ const DataTable = () => {
     setEntries(updatedEntries);
     setFormData(updatedEntries[index]); // Actualiza el estado local con los datos del formulario actual
   };
+
+  useEffect(() => {
+    async function fetchData() {
+      // Verificar si las descripciones ya están en el store
+      if (store.descriptions.length > 0) {
+        setSavedEntries(store.descriptions); // Actualizar savedEntries con los datos del store
+        return;
+      }
+  
+      try {
+        const response = await actions.getDescriptionsByUser();
+        if (!response) {
+          console.log("Empty response received.");
+          return;
+        }
+        if (response.ok) {
+          const data = await response.json();
+          actions.setDescriptions(data); // Actualizar las descripciones en el store
+          setSavedEntries(data);
+        } else {
+          console.log("Failed to fetch descriptions:", response.statusText);
+        }
+      } catch (error) {
+        console.log("Error fetching user data:", error);
+      }
+    }
+  
+    fetchData();
+  }, [actions, store.descriptions]);
+  
 
   const handleAddEntry = () => {
     setEntries([
@@ -106,16 +117,29 @@ const DataTable = () => {
     }
   };
 
+  const handleDeleteEntry = async (id) => {
+    try {
+      await actions.deleteDescription(id);
+      const updatedDescriptions = store.descriptions.filter(
+        (desc) => desc.id !== id
+      );
+      setSavedEntries(updatedDescriptions);
+    } catch (error) {
+      console.log("Error deleting description:", error);
+    }
+  };
+  
+console.log(store.descriptions)
   return (
     <>
-      <div className="container mt-5 bg-success">
+      <div className="container mt-5 border border-danger">
         <h1 className="pt-5">
           Por favor {store.currentUser.username} llenar los campos con la
           informacion para el cliente {store.currentUser.clientName}
         </h1>
       </div>
       <div className="container mt-5">
-        <h2>Equipamiento</h2>
+        <h2>Registro</h2>
         <table className="table table-bordered">
           <thead>
             <tr>
@@ -214,7 +238,9 @@ const DataTable = () => {
                     <button
                       type="button"
                       className="btn btn-primary mt-2"
-                      onClick={() => handleComplete(entry.componentType, entry.requestType)}
+                      onClick={() =>
+                        handleComplete(entry.componentType, entry.requestType)
+                      }
                     >
                       Completar
                     </button>
@@ -233,6 +259,48 @@ const DataTable = () => {
             ))}
           </tbody>
         </table>
+        {store.descriptions.length > 0 && (
+          <>
+            <h2>Equipamiento Cargado</h2>
+            <table className="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Tipo de Solicitud</th>
+                  <th>Marca</th>
+                  <th>Modelo</th>
+                  <th>Serial</th>
+                  <th>Tipo de Componente</th>
+                  <th>Número de Parte</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savedEntries.map((entry, index) => (
+                  <tr key={index}>
+                    <td>{entry.requestType}</td>
+                    <td>{entry.brand}</td>
+                    <td>{entry.model}</td>
+                    <td>{entry.serial}</td>
+                    <td>{entry.componentType}</td>
+                    <td>{entry.partNumber}</td>
+                    <td>
+                      <>
+                        <button>Editar</button>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => handleDeleteEntry(entry.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
         <div className="mt-3">
           {isFormFilled(entries[entries.length - 1]) && (
             <button
@@ -243,23 +311,28 @@ const DataTable = () => {
               Agregar Otro
             </button>
           )}
+
+          {store.descriptions.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleDownload}
+              >
+                Descargar Todo
+              </button>
+            </>
+          )}
+
           <button
             type="button"
-            className="btn btn-primary mr-2"
+            className="btn btn-primary ms-2"
             onClick={handleFinalize}
           >
             Finalizar
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleDownload}
-          >
-            Descargar Todo
-          </button>
         </div>
       </div>
-      
     </>
   );
 };

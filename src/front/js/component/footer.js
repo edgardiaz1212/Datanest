@@ -9,8 +9,7 @@ export const Footer = () => (
 				Designed with 
 				<span className="sr-only">love</span>
 				<i className="fa-solid fa-heart"></i> by 
-				<a href="https://themes.3rdwavemedia.com/" target="_blank">
-					Xiaoying Riley</a> for developers
+				Infraestructura Centro de Datos El Hatillo for developers
 					</small>
             
             

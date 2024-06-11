@@ -38,7 +38,7 @@ export const Home = () => {
 				</div>
 			</div>
 			
-			<div className="container text-center mt-5">
+			<div className="container text-center mt-5 mb-5">
 				<h2>Dudas mas comunes  </h2>
 				<div className="accordion accordion-flush" id="accordionFlushHome">
 					<div className="accordion-item">
@@ -49,12 +49,12 @@ export const Home = () => {
 								data-bs-target="#collapseOne"
 								aria-expanded="false"
 								aria-controls="collapseOne">
-								Cual es la diferencia entre Desincorporacion y Retiro
+								Cual es la diferencia entre Desincorporación y Retiro
 							</button>
 						</h2>
 						<div id="collapseOne" className="accordion-collapse collapse" data-bs-parent="#accordionFlushHome">
 							<div className="accordion-body">
-								<p>La desincorporacion implica resguardo en depositos del Data Center, solo para elementos en hosting</p>
+								<p>La desincorporación implica resguardo en depositos del Data Center, solo para elementos en hosting</p>
 								<p>El retiro, el equipamiento sale de las instalaciones del Data Center</p>
 							</div>
 						</div>

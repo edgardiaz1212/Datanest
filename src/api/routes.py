@@ -191,3 +191,14 @@ def get_all_descriptions_by_user(user_id):
     descriptions_data = [description.serialize() for description in descriptions]
     return jsonify(descriptions_data), 200
 
+@api.route('/descriptions/<int:description_id>', methods=['DELETE'])
+def delete_description(description_id):
+    description = Description.query.get(description_id)
+    if description:
+        db.session.delete(description)
+        db.session.commit()
+        return jsonify({'message': 'Description and related entities deleted successfully'}), 200
+    else:
+        return jsonify({'message': 'Description not found'}), 404
+
+

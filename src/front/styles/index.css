@@ -174,13 +174,16 @@
     flex-direction: column;
     gap: 10px;
     max-width: 350px;
-    background-color: #fff;
+    background-color: #eae7ee;
     padding: 20px;
     border-radius: 20px;
     position: relative;
     margin-bottom: 20px;
   }
 
+  .form .message{
+    color: #042b7a;
+  }
   .title {
     font-size: 28px;
     color: royalblue;

@@ -38,7 +38,7 @@ class Description(db.Model):
     observations = db.Column(db.String(255))
     componentType = db.Column(db.String(100), nullable=False)
     requestType = db.Column(db.String(50))
-
+    
     # Relaciones con Rack y Equipment (un equipo y un rack tienen una descripción)
     rack = db.relationship('Rack', uselist=False, back_populates='description', cascade='all, delete-orphan')
     equipment = db.relationship('Equipment', uselist=False, back_populates='description', cascade='all, delete-orphan')

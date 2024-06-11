@@ -183,8 +183,7 @@ function CompleteData() {
       toast.error("Llene los campos necesarios")
     }
   };
-console.log(data)
-console.log(store.currentUser)
+
   return (
     <>
     <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
