@@ -244,7 +244,7 @@ function CompleteData() {
         </div>
       )}
 
-      <button onClick={handleSave}>Guardar</button>
+      <button className=" btn btn-primary m-3" onClick={handleSave}>Guardar</button>
     </>
   );
 }

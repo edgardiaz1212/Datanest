@@ -56,7 +56,6 @@ const DataTable = () => {
 
     fetchData();
   }, [actions, store.descriptions]);
-  
 
   const handleAddEntry = () => {
     setEntries([
@@ -100,14 +99,6 @@ const DataTable = () => {
     );
   };
 
-  const handleFinalize = () => {
-    // Finalize logic
-  };
-
-  const handleDownload = () => {
-    // Download logic
-  };
-
   const handleComplete = async () => {
     if (isFormFilled(formData)) {
       try {
@@ -137,8 +128,19 @@ const DataTable = () => {
       console.log("Error deleting description:", error);
     }
   };
-  
-console.log(store.descriptions)
+
+  const handleEdit = (entry) => {
+    navigate("/edit-data", { state: { entry } });
+  }
+
+  const handleFinalize = () => {
+    // Finalize logic
+  };
+
+  const handleDownload = () => {
+    // Download logic
+  };
+
   return (
     <>
       <div className="container mt-5 border border-danger">
@@ -294,7 +296,14 @@ console.log(store.descriptions)
                     <td>{entry.partNumber}</td>
                     <td>
                       <>
-                        <button>Editar</button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => handleEdit(entry)}
+                        >
+                          Editar
+                        </button>
+
                         <button
                           type="button"
                           className="btn btn-danger"
@@ -335,7 +344,7 @@ console.log(store.descriptions)
 
           <button
             type="button"
-            className="btn btn-primary ms-2"
+            className="btn btn-primary ms-2 mb-4"
             onClick={handleFinalize}
           >
             Finalizar

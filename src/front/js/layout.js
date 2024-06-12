@@ -12,6 +12,7 @@ import { Navbar } from "./component/navbar";
 import { Footer } from "./component/footer";
 import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
+import EditData from "./pages/EditData.jsx";
 
 const Layout = () => {
     const basename = process.env.BASENAME_REACT || "";
@@ -30,7 +31,7 @@ const Layout = () => {
                         <Route path="/demo" element={<Demo />} />
                         <Route path="/register-data" element={<DataTable />} />
                         <Route path="/complete-data" element={<CompleteData />} />
-                        <Route path="/single/:theid" element={<Single />} />
+                        <Route path="/edit-data" element={<EditData />} />
                         <Route path="*" element={<h1>Not found!</h1>} />
                     </Routes>
                     <Footer />

@@ -201,4 +201,87 @@ def delete_description(description_id):
     else:
         return jsonify({'message': 'Description not found'}), 404
 
+@api.route('/description/<int:description_id>', methods=['PUT'])
+def update_description(description_id):
+    data_form = request.get_json()
+    description = Description.query.get(description_id)
+    
+    if not description:
+        return jsonify({"message": "Description not found"}), 404
 
+    description.brand = data_form.get('brand', description.brand)
+    description.model = data_form.get('model', description.model)
+    description.serial = data_form.get('serial', description.serial)
+    description.partNumber = data_form.get('partNumber', description.partNumber)
+    description.five_years_prevition = data_form.get('five_years_prevition', description.five_years_prevition)
+    description.observations = data_form.get('observations', description.observations)
+    description.componentType = data_form.get('componentType', description.componentType)
+    description.requestType = data_form.get('requestType', description.requestType)
+
+    try:
+        db.session.commit()
+        return jsonify(description.serialize()), 200
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"msg": "Error occurred while trying to update description", "error": str(error)}), 500
+
+@api.route('/rack/<int:rack_id>', methods=['PUT'])
+def update_rack(rack_id):
+    data_form = request.get_json()
+    rack = Rack.query.get(rack_id)
+    
+    if not rack:
+        return jsonify({"message": "Rack not found"}), 404
+
+    rack.has_cabinet = data_form.get('has_cabinet', rack.has_cabinet)
+    rack.leased = data_form.get('leased', rack.leased)
+    rack.total_cabinets = data_form.get('total_cabinets', rack.total_cabinets)
+    rack.open_closed = data_form.get('open_closed', rack.open_closed)
+    rack.security = data_form.get('security', rack.security)
+    rack.type_security = data_form.get('type_security', rack.type_security)
+    rack.has_extractors = data_form.get('has_extractors', rack.has_extractors)
+    rack.extractors_ubication = data_form.get('extractors_ubication', rack.extractors_ubication)
+    rack.modular = data_form.get('modular', rack.modular)
+    rack.lateral_doors = data_form.get('lateral_doors', rack.lateral_doors)
+    rack.lateral_ubication = data_form.get('lateral_ubication', rack.lateral_ubication)
+    rack.rack_unit = data_form.get('rack_unit', rack.rack_unit)
+    rack.rack_position = data_form.get('rack_position', rack.rack_position)
+    rack.rack_ubication = data_form.get('rack_ubication', rack.rack_ubication)
+    rack.has_accessory = data_form.get('has_accessory', rack.has_accessory)
+    rack.accessory_description = data_form.get('accessory_description', rack.accessory_description)
+    rack.rack_width = data_form.get('rack_width', rack.rack_width)
+    rack.rack_length = data_form.get('rack_length', rack.rack_length)
+    rack.rack_height = data_form.get('rack_height', rack.rack_height)
+    rack.internal_pdu = data_form.get('internal_pdu', rack.internal_pdu)
+    rack.input_connector = data_form.get('input_connector', rack.input_connector)
+    rack.fases = data_form.get('fases', rack.fases)
+    rack.output_connector = data_form.get('output_connector', rack.output_connector)
+    rack.neutro = data_form.get('neutro', rack.neutro)
+
+    try:
+        db.session.commit()
+        return jsonify(rack.serialize()), 200
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"msg": "Error occurred while trying to update rack", "error": str(error)}), 500
+
+@api.route('/editEquipment/<int:equipment_id>', methods=['PUT'])
+def edit_equipment(equipment_id):
+    if request.method == 'PUT':
+        data_form = request.get_json()
+        equipment = Equipment.query.get(equipment_id)
+        if not equipment:
+            return jsonify({'message': 'Equipment not found'}), 404
+
+        # Actualizar los campos del equipo
+        equipment.equipment_width = data_form.get('equipment_width', equipment.equipment_width)
+        equipment.equipment_height = data_form.get('equipment_height', equipment.equipment_height)
+        equipment.equipment_length = data_form.get('equipment_length', equipment.equipment_length)
+        # Actualiza otros campos según sea necesario
+
+        try:
+            db.session.commit()
+            return jsonify(equipment.serialize()), 200
+        except Exception as error:
+            db.session.rollback()
+            return jsonify({"msg": "Error occurred while trying to update Equipment", "error": str(error)}), 500

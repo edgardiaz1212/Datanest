@@ -2,7 +2,7 @@ import React, { Component } from "react";
 
 export const Footer = () => (
 	<>
-	<footer className="footer text-center">
+	<footer className="footer text-center ">
         <div className="container">
            
             <small className="copyright">
