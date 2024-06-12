@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import RackDetails from "../component/RackDetails.jsx";
 import EquipmentDetails from "../component/EquipmentDetails.jsx";
 import { Context } from "../store/appContext.js";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function EditData() {
   const location = useLocation();
@@ -10,7 +12,7 @@ function EditData() {
   const { entry } = location.state;
   const [formData, setFormData] = useState(entry);
   const [emptyFields, setEmptyFields] = useState({});
-  const { actions } = useContext(Context);
+  const { actions,store } = useContext(Context);
 
   useEffect(() => {
     if (!entry) {
@@ -32,15 +34,17 @@ function EditData() {
 
   const handleSave = async () => {
     try {
+      await actions.editDescription(entry.description.id, formData)
       if (componentType === "Rack") {
         await actions.editRack(entry.id, formData);
       } else {
         await actions.editEquipment(entry.id, formData);
       }
-      await actions.editDescription(entry.id, formData);
+      toast.success("Edicion Completa");
       navigate("/register-data");
     } catch (error) {
       console.error("Error saving changes:", error);
+      toast.error("Llene los campos necesarios")
     }
   };
 
@@ -60,6 +64,7 @@ function EditData() {
 
   return (
     <>
+    <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
       <div className="container mt-5">
         <h1>Datos para editar</h1>
         <form>

@@ -161,9 +161,11 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      getRackByDescriptionId : async (descriptionId) => {
+      getRackByDescriptionId: async (descriptionId) => {
         try {
-          const response = await fetch(`${process.env.BACKEND_URL}/rack/${descriptionId}`);
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/rack/${descriptionId}`
+          );
           if (response.ok) {
             return await response.json();
           }
@@ -171,11 +173,13 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.error("Error fetching rack data:", error);
         }
         return {};
-      } ,
+      },
 
-      getEquipmentByDescriptionId : async (descriptionId) => {
+      getEquipmentByDescriptionId: async (descriptionId) => {
         try {
-          const response = await fetch(`${process.env.BACKEND_URL}/equipment/${descriptionId}`);
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/equipment/${descriptionId}`
+          );
           if (response.ok) {
             return await response.json();
           }
@@ -224,7 +228,6 @@ const getState = ({ getStore, getActions, setStore }) => {
               body: JSON.stringify(updatedDescription),
             }
           );
-
           if (response.ok) {
             const responseData = await response.json();
             const updatedDescriptions = getStore().descriptions.map((desc) =>

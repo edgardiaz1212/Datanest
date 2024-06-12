@@ -215,7 +215,7 @@ def delete_description(description_id):
     else:
         return jsonify({'message': 'Description not found'}), 404
 
-@api.route('/description/<int:description_id>', methods=['PUT'])
+@api.route('/editDescription/<int:description_id>', methods=['PUT'])
 def update_description(description_id):
     data_form = request.get_json()
     description = Description.query.get(description_id)
