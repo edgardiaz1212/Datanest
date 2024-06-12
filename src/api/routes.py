@@ -191,6 +191,20 @@ def get_all_descriptions_by_user(user_id):
     descriptions_data = [description.serialize() for description in descriptions]
     return jsonify(descriptions_data), 200
 
+@api.route('/rack/<int:description_id>', methods=['GET'])
+def get_rack_by_description(description_id):
+    rack = Rack.query.filter_by(description_id=description_id).first()
+    if not rack:
+        return jsonify({"message": "Rack not found"}), 404
+    return jsonify(rack.serialize()), 200
+
+@api.route('/equipment/<int:description_id>', methods=['GET'])
+def get_equipment_by_description(description_id):
+    equipment = Equipment.query.filter_by(description_id=description_id).first()
+    if not equipment:
+        return jsonify({"message": "Equipment not found"}), 404
+    return jsonify(equipment.serialize()), 200
+
 @api.route('/descriptions/<int:description_id>', methods=['DELETE'])
 def delete_description(description_id):
     description = Description.query.get(description_id)
@@ -225,7 +239,7 @@ def update_description(description_id):
         db.session.rollback()
         return jsonify({"msg": "Error occurred while trying to update description", "error": str(error)}), 500
 
-@api.route('/rack/<int:rack_id>', methods=['PUT'])
+@api.route('/editRack/<int:rack_id>', methods=['PUT'])
 def update_rack(rack_id):
     data_form = request.get_json()
     rack = Rack.query.get(rack_id)

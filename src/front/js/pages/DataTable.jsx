@@ -129,9 +129,15 @@ const DataTable = () => {
     }
   };
 
-  const handleEdit = (entry) => {
-    navigate("/edit-data", { state: { entry } });
-  }
+  const handleEdit = async (entry) => {
+    let additionalData = {};
+    if (entry.componentType === "Rack") {
+      additionalData = await actions.getRackByDescriptionId(entry.id);
+    } else {
+      additionalData = await actions.getEquipmentByDescriptionId(entry.id);
+    }
+    navigate("/edit-data", { state: { entry: { ...entry, ...additionalData } } });
+  };
 
   const handleFinalize = () => {
     // Finalize logic

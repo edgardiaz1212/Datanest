@@ -160,6 +160,31 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error fetching user data:", error);
         }
       },
+
+      getRackByDescriptionId : async (descriptionId) => {
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/rack/${descriptionId}`);
+          if (response.ok) {
+            return await response.json();
+          }
+        } catch (error) {
+          console.error("Error fetching rack data:", error);
+        }
+        return {};
+      } ,
+
+      getEquipmentByDescriptionId : async (descriptionId) => {
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/equipment/${descriptionId}`);
+          if (response.ok) {
+            return await response.json();
+          }
+        } catch (error) {
+          console.error("Error fetching equipment data:", error);
+        }
+        return {};
+      },
+
       deleteDescription: async (id) => {
         try {
           const response = await fetch(
