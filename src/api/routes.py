@@ -273,11 +273,33 @@ def edit_equipment(equipment_id):
         if not equipment:
             return jsonify({'message': 'Equipment not found'}), 404
 
-        # Actualizar los campos del equipo
         equipment.equipment_width = data_form.get('equipment_width', equipment.equipment_width)
         equipment.equipment_height = data_form.get('equipment_height', equipment.equipment_height)
         equipment.equipment_length = data_form.get('equipment_length', equipment.equipment_length)
-        # Actualiza otros campos según sea necesario
+        equipment.packaging_width= data_form.get('packaging_width', equipment.packaging_width)
+        equipment.packaging_length= data_form.get('packaging_length',equipment.packaging_length)
+        equipment.packaging_height= data_form.get('packaging_height',equipment.packaging_height)
+        equipment.weight= data_form.get('weight',equipment.weight)
+        equipment.anchor_type= data_form.get('anchor_type',equipment.anchor_type)
+        equipment.service_area= data_form.get('service_area',equipment.service_area)
+        equipment.service_frontal= data_form.get('service_frontal',equipment.service_frontal)
+        equipment.service_back= data_form.get('service_back',equipment.service_back)
+        equipment.service_lateral= data_form.get('service_lateral',equipment.service_lateral)
+        equipment.access_width= data_form.get('access_width',equipment.access_width)
+        equipment.access_inclination= data_form.get('access_inclination',equipment.access_inclination)
+        equipment.access_length= data_form.get('access_length',equipment.access_length)
+        equipment.rack_number= data_form.get('rack_number',equipment.rack_number)
+        equipment.equip_rack_ubication= data_form.get('equip_rack_ubication',equipment.equip_rack_ubication)
+        equipment.rack_unit_position= data_form.get('rack_unit_position',equipment.rack_unit_position)
+        equipment.total_rack_units= data_form.get('total_rack_units',equipment.total_rack_units)
+        equipment.ac_dc= data_form.get('ac_dc',equipment.ac_dc)
+        equipment.input_current= data_form.get('input_current',equipment.input_current)
+        equipment.power= data_form.get('power',equipment.power)
+        equipment.power_supply= data_form.get('power_supply',equipment.power_supply)
+        equipment.operation_temp= data_form.get('operation_temp',equipment.operation_temp)
+        equipment.thermal_disipation= data_form.get('thermal_disipation',equipment.thermal_disipation)
+        equipment.power_config= data_form.get('power_config',equipment.power_config)
+
 
         try:
             db.session.commit()

@@ -162,9 +162,12 @@ const getState = ({ getStore, getActions, setStore }) => {
       },
       deleteDescription: async (id) => {
         try {
-          const response = await fetch(`${process.env.BACKEND_URL}/descriptions/${id}`, {
-            method: "DELETE",
-          });
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/descriptions/${id}`,
+            {
+              method: "DELETE",
+            }
+          );
           if (response.ok) {
             const updatedDescriptions = getStore().descriptions.filter(
               (desc) => desc.id !== id
@@ -184,6 +187,83 @@ const getState = ({ getStore, getActions, setStore }) => {
         }));
       },
 
+      editDescription: async (descriptionId, updatedDescription) => {
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/editDescription/${descriptionId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updatedDescription),
+            }
+          );
+
+          if (response.ok) {
+            const responseData = await response.json();
+            const updatedDescriptions = getStore().descriptions.map((desc) =>
+              desc.id === descriptionId ? responseData : desc
+            );
+            setStore({ descriptions: updatedDescriptions });
+            return responseData;
+          } else {
+            console.log("Error editing description:", response.statusText);
+          }
+        } catch (error) {
+          console.log("Error editing description:", error.message);
+        }
+      },
+
+      editRack: async (rackId, updatedRack) => {
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/editRack/${rackId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updatedRack),
+            }
+          );
+
+          if (response.ok) {
+            const responseData = await response.json();
+            // Aquí podrías actualizar el store con el rack editado si lo necesitas
+            return responseData;
+          } else {
+            console.log("Error editing rack:", response.statusText);
+          }
+        } catch (error) {
+          console.log("Error editing rack:", error.message);
+        }
+      },
+
+      editEquipment: async (equipmentId, updatedEquipment) => {
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/editEquipment/${equipmentId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(updatedEquipment),
+            }
+          );
+
+          if (response.ok) {
+            const responseData = await response.json();
+            // Aquí podrías actualizar el store con el equipo editado si lo necesitas
+            return responseData;
+          } else {
+            console.log("Error editing equipment:", response.statusText);
+          }
+        } catch (error) {
+          console.log("Error editing equipment:", error.message);
+        }
+      },
     },
   };
 };

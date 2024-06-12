@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import RackDetails from "../component/RackDetails.jsx";
 import EquipmentDetails from "../component/EquipmentDetails.jsx";
+import { Context } from "../store/appContext.js";
 
 function EditData() {
   const location = useLocation();
@@ -9,10 +10,11 @@ function EditData() {
   const { entry } = location.state;
   const [formData, setFormData] = useState(entry);
   const [emptyFields, setEmptyFields] = useState({});
+  const {actions}=useContext(Context)
 
   useEffect(() => {
     if (!entry) {
-      navigate("/datatable");
+      navigate("/register-data");
     }
   }, [entry, navigate]);
 
@@ -24,7 +26,21 @@ function EditData() {
     });
   };
 
-  const handleSave = async () => {}
+  const handleSave = async () => {
+  try {
+    if (componentType === "Rack") {
+      await actions.editRack(entry.id, formData);
+    } else {
+      await actions.editEquipment(entry.id, formData);
+    }
+    await actions.editDescription(entry.id, formData);
+    navigate("/datatable");
+  } catch (error) {
+    console.error("Error saving changes:", error);
+  }
+};
+
+
   const { requestType, brand, model, serial, componentType, partNumber, observations, five_years_prevition } = formData;
 
   const isInstallationOrRelocation = requestType === "Instalación" || requestType === "Mudanza";
@@ -186,7 +202,10 @@ function EditData() {
         </div>
       )}
       </form>
-    </div></>
+
+      <button onClick={handleSave}>Guardar Cambios</button>
+    </div>
+    </>
   )
 }
 
