@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
+import DownloadModal from "../component/DownloadModal.jsx";
 
 const DataTable = () => {
   const { actions, store } = useContext(Context);
@@ -143,9 +144,7 @@ const DataTable = () => {
     // Finalize logic
   };
 
-  const handleDownload = () => {
-    // Download logic
-  };
+ 
 
   return (
     <>
@@ -338,13 +337,7 @@ const DataTable = () => {
 
           {store.descriptions.length > 0 && (
             <>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleDownload}
-              >
-                Descargar Todo
-              </button>
+              <DownloadModal/>
             </>
           )}
 

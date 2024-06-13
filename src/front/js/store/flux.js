@@ -175,7 +175,7 @@ const getState = ({ getStore, getActions, setStore }) => {
         return {};
       },
 
-      getEquipmentByDescriptionId: async (descriptionId) => {
+      getRackByDescriptionId: async (descriptionId) => {
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/equipment/${descriptionId}`
