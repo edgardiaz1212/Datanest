@@ -234,6 +234,7 @@ const DataTable = () => {
                     <option value="Router">Router</option>
                     <option value="Firewall">Firewall</option>
                     <option value="Monitor">Monitor</option>
+                    <option value="Consola">Consola</option>
                     <option value="Caja Almacenamiento">
                       Caja Almacenamiento
                     </option>

@@ -89,7 +89,7 @@ function DownloadModal() {
       <div
         className="modal fade"
         id="exampleModal"
-        tabindex="-1"
+        tabIndex="-1"
         aria-labelledby="exampleModalLabel"
         aria-hidden="true"
       >
@@ -107,7 +107,7 @@ function DownloadModal() {
               ></button>
             </div>
             <div className="modal-body">
-              Si ya realizo la carga de todos ahora puede descargarlo todo para
+              Si ya realizo la carga de todos ahora puede descargarlo para
               enviarlo a requerimientosdcce@cantv.com.ve conjunto a los
               datasheets de los equipos
             </div>
