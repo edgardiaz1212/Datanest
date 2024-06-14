@@ -11,8 +11,8 @@ function EditData() {
   const navigate = useNavigate();
   const { entry } = location.state;
   const [formData, setFormData] = useState(entry);
-  const [emptyFields, setEmptyFields] = useState({}); 
-  const { actions,store } = useContext(Context);
+  const [emptyFields, setEmptyFields] = useState({});
+  const { actions, store } = useContext(Context);
 
   useEffect(() => {
     if (!entry) {
@@ -22,10 +22,10 @@ function EditData() {
 
   const handleFieldChange = (e) => {
     const { name, value, type, checked } = e.target;
-  
+
     // Manejar checkbox y radio como booleanos
     const newValue = type === "checkbox" ? checked : value;
-  
+
     setFormData({
       ...formData,
       [name]: newValue,
@@ -40,11 +40,11 @@ function EditData() {
       } else {
         await actions.editEquipment(entry.id, formData);
       }
-      toast.success("Edicion Completa");
+      toast.success("Edición Completa");
       navigate("/register-data");
     } catch (error) {
       console.error("Error saving changes:", error);
-      toast.error("Llene los campos necesarios")
+      toast.error("Llene los campos necesarios");
     }
   };
 
@@ -64,7 +64,13 @@ function EditData() {
 
   return (
     <>
-    <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
+      <ToastContainer
+        theme="dark"
+        position="top-center"
+        pauseOnFocusLoss={false}
+        autoClose={3000}
+        hideProgressBar
+      />
       <div className="container mt-5">
         <h1>Datos para editar</h1>
         <form>

@@ -5,11 +5,11 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
   
    
     return (
-    <>
-      <div className="mt-4  titles">
+    <div className="container">
+      <div className="mt-4  titles text-center">
         <h2>ESPECIFICACIONES FÍSICAS DEL EQUIPO</h2>
       </div>
-      <div className="container">
+      <div className="container ">
         <h4>Caracteristicas del Equipo</h4>
         <div className="row justify-content-center">
           <div className="col-lg-3 col-sm-12">
@@ -436,7 +436,7 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }
 

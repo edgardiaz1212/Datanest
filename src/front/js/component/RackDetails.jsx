@@ -3,8 +3,8 @@ import React, { useState } from "react";
 function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
   
   return (
-    <>
-      <div className="mb-3 ">
+    <div className="container">
+      <div className="mb-5 text-center">
         <h2>Caracteristicas del Gabinete</h2>
       </div>
       <div className="row gy-5 justify-content-center">
@@ -17,7 +17,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
               name="has_cabinet"
               id="siGabinete"
               value={true}
-              checked={data.has_cabinet === true}
+              checked={data.has_cabinet}
               onChange={handleFieldChange}
             />
             <label className="form-check-label" htmlFor="siGabinete">
@@ -31,7 +31,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
               name="has_cabinet"
               id="noGabinete"
               value={false}
-              checked={data.has_cabinet === false}
+              checked={!data.has_cabinet}
               onChange={handleFieldChange}
             />
             <label className="form-check-label" htmlFor="noGabinete">
@@ -50,7 +50,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="leased"
                   id="noLeased"
                   value={false}
-                  checked={data.leased === false}
+                  checked={!data.leased}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noLeased">
@@ -64,7 +64,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="leased"
                   id="yesleased"
                   value={true}
-                  checked={data.leased === true}
+                  checked={data.leased}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="leased">
@@ -95,7 +95,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="open_closed"
                   id="open"
                   value={true}
-                  checked={data.open_closed === true}
+                  checked={data.open_closed}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="open">
@@ -109,7 +109,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="open_closed"
                   id="close"
                   value={false}
-                  checked={data.open_closed === false}
+                  checked={!data.open_closed}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="close">
@@ -127,7 +127,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="security"
                   id="secured"
                   value={true}
-                  checked={data.security === true}
+                  checked={data.security}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="secured">
@@ -141,7 +141,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="security"
                   id="nosecured"
                   value={false}
-                  checked={data.security === false}
+                  checked={!data.security}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="nosecured">
@@ -173,7 +173,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="has_extractors"
                   id="yesExtractor"
                   value={true}
-                  checked={data.has_extractors === true}
+                  checked={data.has_extractors}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="yesExtractor">
@@ -187,7 +187,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="has_extractors"
                   id="noExtractor"
                   value={false}
-                  checked={data.has_extractors === false}
+                  checked={!data.has_extractors}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noExtractor">
@@ -221,7 +221,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="modular"
                   id="yesModular"
                   value={true}
-                  checked={data.modular === true}
+                  checked={data.modular}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="yesModular">
@@ -235,7 +235,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="modular"
                   id="noModular"
                   value={false}
-                  checked={data.modular === false}
+                  checked={!data.modular}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noModular">
@@ -252,7 +252,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="lateral_doors"
                   value={true}
                   id="yesLateralDoors"
-                  checked={data.lateral_doors === true}
+                  checked={data.lateral_doors}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="yesLateralDoors">
@@ -266,7 +266,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="lateral_doors"
                   value={false}
                   id="noLateralDoors"
-                  checked={data.lateral_doors === false}
+                  checked={!data.lateral_doors}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noLateralDoors">
@@ -345,7 +345,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   value={true}
                   id="yesAccessories"
                   onChange={handleFieldChange}
-                  checked={data.has_accessory === true}
+                  checked={data.has_accessory}
                 />
                 <label className="form-check-label" htmlFor="yesAccessories">
                   Sí
@@ -358,7 +358,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="has_accessory"
                   id="noAccessories"
                   value={false}
-                  checked={data.has_accessory === false}
+                  checked={!data.has_accessory}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noAccessories">
@@ -504,7 +504,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="neutro"
                   id="yesNeutro"
                   value={true}
-                  checked={data.neutro === true}
+                  checked={data.neutro}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="yesNeutro">
@@ -518,7 +518,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   name="neutro"
                   id="noNeutro"
                   value={false}
-                  checked={data.neutro === false}
+                  checked={!data.neutro}
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noNeutro">
@@ -530,7 +530,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
         </>
       )}
       
-    </>
+    </div>
   );
 }
 

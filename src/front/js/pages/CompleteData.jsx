@@ -191,9 +191,9 @@ function CompleteData() {
   
 
   return (
-    <>
+    <div className="container">
     <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
-      <h1>
+      <h1 className="m-3 text-center">
         Datos para {requestType} del {componentType} modelo {model} con serial: {serial}
       </h1>
 
@@ -223,6 +223,7 @@ function CompleteData() {
       )}
 
       {/* Observaciones */}
+      <div className="container">
       <div className="input-group mb-3 mt-3">
         <span className="input-group-text">Observaciones</span>
         <textarea
@@ -249,7 +250,8 @@ function CompleteData() {
       )}
 
       <button className=" btn btn-primary m-3" onClick={handleSave}>Guardar</button>
-    </>
+      </div>
+    </div>
   );
 }
 
