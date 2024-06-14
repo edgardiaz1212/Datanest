@@ -58,28 +58,24 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      addDescription: async (description) => {
+      addDescription: async (descriptionData) => {
         try {
-          const response = await fetch(
-            `${process.env.BACKEND_URL}/addDescription`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(description),
-            }
-          );
-
-          if (response.ok) {
-            const responseData = await response.json();
-            // Aquí podrías actualizar el store con la nueva descripción si lo necesitas
-            return responseData;
-          } else {
-            console.log("Error adding description:", response.statusText);
-          }
+          const response = await fetch(`${process.env.BACKEND_URL}/addDescription`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(descriptionData),
+          });
+      
+          if (!response.ok) throw new Error("Error creating description");
+      
+          const newDescription = await response.json();
+          await getActions().getDescriptionsByUser(); // Obtener descripciones actualizadas
+          return newDescription;
         } catch (error) {
-          console.log("Error adding description:", error.message);
+          console.error("Error in addDescription action:", error);
+          throw error;
         }
       },
       addRack: async (rack) => {

@@ -31,19 +31,17 @@ const DataTable = () => {
 
   useEffect(() => {
     async function fetchData() {
-      // Si las descripciones ya están en el store, actualiza savedEntries y termina
       if (store.descriptions.length > 0) {
         setSavedEntries(store.descriptions);
         console.log("Using descriptions from store:", store.descriptions);
         return;
       }
   
-      // Intenta obtener las descripciones desde el backend
       try {
         const data = await actions.getDescriptionsByUser();
         if (data) {
           console.log("Fetched data from backend:", data);
-          setSavedEntries(data); // Actualiza savedEntries con los datos obtenidos
+          setSavedEntries(data);
         } else {
           console.log("Empty response received or failed to fetch.");
         }
@@ -54,6 +52,8 @@ const DataTable = () => {
   
     fetchData();
   }, [actions, store.descriptions]);
+  
+
   const handleAddEntry = () => {
     setEntries([
       ...entries,

@@ -12,6 +12,7 @@ function CompleteData() {
   const navigate = useNavigate();
   const { entry } = location.state || {};
   const { componentType, requestType, brand, model, serial, partNumber } = entry || {};
+  
   const [data, setData] = useState({
     observations: "",
     five_years_prevition: "",
@@ -172,6 +173,9 @@ function CompleteData() {
         };
         await actions.addEquipment(equipmentData);
       }
+  
+      // Obtener descripciones actualizadas
+      await actions.getDescriptionsByUser();
   
       toast.success("Equipo registrado");
       console.log("Equipo añadido");
