@@ -7,8 +7,7 @@ import pdfBase from '../../pdf/FOR BA7D ED5.pdf'
 
 function DownloadModal() {
     const { actions, store } = useContext(Context);
-console.log("store",store.currentUser)
-console.log("storedesc",store.descriptions)
+
 
 const fillField = (field, value) => {
   if (field instanceof PDFTextField) {
@@ -101,7 +100,7 @@ const handleDownload = async () => {
            fillField(form.getTextField('Toma_Entrada'), data.input_connector);
            fillField(form.getTextField('Fases'), data.fases);
            fillField(form.getTextField('Receptaculos'), data.output_connector);
-           fillField(form.getRadioGroup('NEUTRO'), data.neutro ? "SI" : "NO");
+           fillField(form.getRadioGroup('NEUTRO'), data.neutro ? "si" : "no");
       }
 
       // Equipment fields
@@ -114,7 +113,7 @@ const handleDownload = async () => {
           fillField(form.getTextField('Profundidad embalaje'), data.packaging_length);
           fillField(form.getTextField('Peso_Maximo'), data.weight);
           fillField(form.getTextField('Tipo_Anclaje'), data.anchor_type);
-          // fillField(form.getRadioGroup('SERVICIO'), data.service_area ? "Sí" : "no");
+          fillField(form.getRadioGroup('SERVICIO'), data.service_area ? "Sí" : "no");
           // fillField(form.getCheckBox('frontal'), data.service_frontal ? "Yes" : "no");
           // fillField(form.getCheckBox('posterior'), data.service_back ? "Yes" : "no");
           // fillField(form.getCheckBox('lateral'), data.service_lateral ? "Yes" : "no");

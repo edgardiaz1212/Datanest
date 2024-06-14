@@ -103,13 +103,12 @@ function CompleteData() {
         componentType,
         requestType,
       };
-
+  
+      // Crear la descripción
       const descriptionResponse = await actions.addDescription(descriptionData);
       const descriptionId = descriptionResponse.id;
-      const userId = store.currentUser.user_id
-
-      
-
+      const userId = store.currentUser.user_id;
+  
       if (componentType === "Rack") {
         const rackData = {
           description_id: descriptionId, 
@@ -173,18 +172,19 @@ function CompleteData() {
         };
         await actions.addEquipment(equipmentData);
       }
-
+  
       toast.success("Equipo registrado");
-    console.log("Equipo añadido");
-    setTimeout(() => {
-      navigate("/register-data");
-    }, 1000);
-
+      console.log("Equipo añadido");
+      setTimeout(() => {
+        navigate("/register-data");
+      }, 1000);
+  
     } catch (error) {
       console.error("Error saving data:", error);
-      toast.error("Llene los campos necesarios")
+      toast.error("Llene los campos necesarios");
     }
   };
+  
 
   return (
     <>

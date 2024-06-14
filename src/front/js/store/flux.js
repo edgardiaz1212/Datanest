@@ -138,7 +138,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       getDescriptionsByUser: async () => {
         const store = getStore();
         const currentUser = store.currentUser;
-
+      
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/description/${currentUser.user_id}`,
@@ -149,17 +149,21 @@ const getState = ({ getStore, getActions, setStore }) => {
               },
             }
           );
-
+      
           if (response.ok) {
             const responseData = await response.json();
             setStore({ descriptions: responseData });
+            return responseData; // Retornar los datos obtenidos
           } else {
             console.log("Failed to fetch descriptions:", response.statusText);
+            return null; // Retornar null en caso de error
           }
         } catch (error) {
           console.log("Error fetching user data:", error);
+          return null; // Retornar null en caso de error
         }
       },
+      
 
       getRackByDescriptionId: async (descriptionId) => {
         try {
@@ -213,7 +217,8 @@ const getState = ({ getStore, getActions, setStore }) => {
         setStore((prevState) => ({
           ...prevState,
           descriptions: descriptions,
-        }));
+        }))
+        console.log("descrip flux",descriptions);
       },
 
       editDescription: async (descriptionId, updatedDescription) => {

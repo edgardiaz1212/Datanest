@@ -31,33 +31,29 @@ const DataTable = () => {
 
   useEffect(() => {
     async function fetchData() {
-      // Verificar si las descripciones ya están en el store
+      // Si las descripciones ya están en el store, actualiza savedEntries y termina
       if (store.descriptions.length > 0) {
-        setSavedEntries(store.descriptions); // Actualizar savedEntries con los datos del store
+        setSavedEntries(store.descriptions);
+        console.log("Using descriptions from store:", store.descriptions);
         return;
       }
-
+  
+      // Intenta obtener las descripciones desde el backend
       try {
-        const response = await actions.getDescriptionsByUser();
-        if (!response) {
-          console.log("Empty response received.");
-          return;
-        }
-        if (response.ok) {
-          const data = await response.json();
-          actions.setDescriptions(data); // Actualizar las descripciones en el store
-          setSavedEntries(data);
+        const data = await actions.getDescriptionsByUser();
+        if (data) {
+          console.log("Fetched data from backend:", data);
+          setSavedEntries(data); // Actualiza savedEntries con los datos obtenidos
         } else {
-          console.log("Failed to fetch descriptions:", response.statusText);
+          console.log("Empty response received or failed to fetch.");
         }
       } catch (error) {
         console.log("Error fetching user data:", error);
       }
     }
-
+  
     fetchData();
   }, [actions, store.descriptions]);
-
   const handleAddEntry = () => {
     setEntries([
       ...entries,
@@ -100,17 +96,8 @@ const DataTable = () => {
     );
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (isFormFilled(formData)) {
-      try {
-        const response = await actions.addDescription(formData); // Guardar los datos
-        if (response) {
-          await actions.getDescriptionsByUser(); // Obtener descripciones actualizadas
-          setEntries([...entries, formData]); // Agregar el nuevo dato a la tabla localmente si es necesario
-        }
-      } catch (error) {
-        console.log("Error adding description:", error);
-      }
       navigate("/complete-data", { state: { entry: formData } });
     } else {
       console.log("Formulario no está completo.");

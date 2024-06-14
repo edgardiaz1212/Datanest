@@ -198,6 +198,18 @@ def get_rack_by_description(description_id):
         return jsonify({"message": "Rack not found"}), 404
     return jsonify(rack.serialize()), 200
 
+@api.route('/rack', methods=['GET'])
+def get_rack():
+    try:
+        racks = Rack.query.all()
+        if not racks:
+            return jsonify({"message": "Racks not found"}), 404
+        
+        serialized_racks = [rack.serialize() for rack in racks]
+        return jsonify(serialized_racks), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @api.route('/equipment/<int:description_id>', methods=['GET'])
 def get_equipment_by_description(description_id):
     equipment = Equipment.query.filter_by(description_id=description_id).first()
