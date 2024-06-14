@@ -11,7 +11,7 @@ function EditData() {
   const navigate = useNavigate();
   const { entry } = location.state;
   const [formData, setFormData] = useState(entry);
-  const [emptyFields, setEmptyFields] = useState({});
+  const [emptyFields, setEmptyFields] = useState({}); 
   const { actions,store } = useContext(Context);
 
   useEffect(() => {
@@ -163,7 +163,7 @@ function EditData() {
                 className="form-control"
                 name="componentType"
                 value={componentType}
-                onChange={(e) => handleFieldChange(index, e)}
+                onChange={handleFieldChange}
                 required
               >
                 <option value="">Seleccionar tipo de componente</option>

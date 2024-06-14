@@ -31,7 +31,19 @@ module.exports = {
             loader: 'file-loader',
             options: { name: '[name].[ext]' }
           }
-        }, //for images
+        },
+        {
+          test: /\.(pdf)$/,
+          use: [
+            {
+              loader: 'file-loader', // o 'url-loader'
+              options: {
+                name: '[name].[ext]', // Puedes personalizar el nombre y la extensión del archivo de salida
+              },
+            },
+          ],
+        },
+        //for images
         { test: /\.woff($|\?)|\.woff2($|\?)|\.ttf($|\?)|\.eot($|\?)|\.svg($|\?)/, use: ['file-loader'] } //for fonts
     ]
   },
