@@ -161,6 +161,41 @@ function DownloadModal() {
         fillField(form.getTextField("Fases"), data.fases);
         fillField(form.getTextField("Receptaculos"), data.output_connector);
         fillField(form.getRadioGroup("NEUTRO"), data.neutro ? "si" : "no");
+      //Rellenar más campos de Equipment con "N/A"
+      fillField(form.getTextField("Alto_Equipo"), "N/A");
+        fillField(form.getTextField("Ancho_Equipo"), "N/A");
+        fillField(
+          form.getTextField("Profundidad_Equipo"),
+          "N/A"
+        );
+        fillField(form.getTextField("Alto_Embalaje"), "N/A");
+        fillField(form.getTextField("Ancho_Embalaje"), "N/A");
+        fillField(
+          form.getTextField("Profundidad embalaje"),
+          "N/A"
+        );
+        fillField(form.getTextField("Peso_Maximo"), "N/A");
+        fillField(form.getTextField("Tipo_Anclaje"), "N/A");
+        fillField(form.getTextField("Altura_Puerta"), "N/A");
+        fillField(form.getTextField("Ancho_Puerta"), "N/A");
+        fillField(
+          form.getTextField("Inclinacion_Puerta"),
+          "N/A"
+        );
+        fillField(
+          form.getTextField("Ubicacion_fila_Numero_Rack"),
+          "N/A"
+        );
+        fillField(form.getTextField("Posicion_U"), "N/A");
+        fillField(form.getTextField("Total_Unidades"), "N/A");
+        fillField(form.getTextField("ACDC"), "N/A");
+        fillField(form.getTextField("Voltios"), "N/A");
+        fillField(form.getTextField("Potencia"), "N/A");
+        fillField(form.getTextField("Fuentes_Alimentacion"), "N/A");
+        fillField(form.getTextField("Temperatura"), "N/A");
+        fillField(form.getTextField("BTUHr"), "N/A");
+        fillField(form.getDropdown("Fuentes"), "N/A");
+      
       }
 
       if (modelType !== "Rack") {
@@ -180,7 +215,7 @@ function DownloadModal() {
         fillField(form.getTextField("Tipo_Anclaje"), data.anchor_type);
         fillField(
           form.getRadioGroup("SERVICIO"),
-          data.service_area ? "Sí" : "no"
+          data.service_area ? "si" : "no"
         );
         fillField(
           form.getCheckBox("frontal"),
@@ -213,12 +248,36 @@ function DownloadModal() {
         fillField(form.getTextField("Temperatura"), data.operation_temp);
         fillField(form.getTextField("BTUHr"), data.thermal_disipation);
         fillField(form.getDropdown("Fuentes"), data.power_config);
+        // Rellenar Racks con N/A
+        fillField(form.getTextField("Total_Gabinetes"), 'N/A');
+        fillField(form.getTextField("Tipo_Seguridad"), 'N/A')
+        fillField(
+          form.getTextField("Ubicacion_Extractores"),
+          'N/A'
+        );
+        fillField(
+          form.getTextField("Ubicacion_Puertas"),
+          'N/A'
+        );
+        fillField(form.getTextField("Total_RU"), 'N/A');
+        fillField(form.getTextField("Posicion_Rack"), "N/A");
+        fillField(
+          form.getTextField("Tipo_Accesorio"),
+          data.accessory_description
+        );
+        fillField(form.getTextField("Alto_Rack"), "N/A");
+        fillField(form.getTextField("Ancho_Rack"),"N/A");
+        fillField(form.getTextField("Profundo_Rack"), "N/A");
+        fillField(form.getTextField("PDU_Internos"), "N/A");
+        fillField(form.getTextField("Toma_Entrada"), "N/A");
+        fillField(form.getTextField("Fases"), "N/A");
+        fillField(form.getTextField("Receptaculos"), "N/A");
       }
 
-      let pdfName = 'FOR BA7D'`${modelType}`;
+      let pdfName = `FOR-BA7D_${modelType}`;
       let count = 1;
       while (zip.file(`${pdfName}.pdf`)) {
-        pdfName = 'FOR BA7D'`${modelType}_${count}`;
+        pdfName = `FOR-BA7D_${modelType}_${count}`;
         count++;
       }
 
@@ -232,7 +291,6 @@ function DownloadModal() {
 
   return (
     <>
-    
       <button
         type="button"
         className="btn btn-primary me-2"
@@ -273,10 +331,26 @@ function DownloadModal() {
               >
                 Cancelar
               </button>
-              <button className="button-download" type="button" onClick={handleDownload}>
-  <span className="button__text">Descargar</span>
-  <span className="button__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35 35" id="bdd05811-e15d-428c-bb53-8661459f9307" data-name="Layer 2" className="svg"><path d="M17.5,22.131a1.249,1.249,0,0,1-1.25-1.25V2.187a1.25,1.25,0,0,1,2.5,0V20.881A1.25,1.25,0,0,1,17.5,22.131Z"></path><path d="M17.5,22.693a3.189,3.189,0,0,1-2.262-.936L8.487,15.006a1.249,1.249,0,0,1,1.767-1.767l6.751,6.751a.7.7,0,0,0,.99,0l6.751-6.751a1.25,1.25,0,0,1,1.768,1.767l-6.752,6.751A3.191,3.191,0,0,1,17.5,22.693Z"></path><path d="M31.436,34.063H3.564A3.318,3.318,0,0,1,.25,30.749V22.011a1.25,1.25,0,0,1,2.5,0v8.738a.815.815,0,0,0,.814.814H31.436a.815.815,0,0,0,.814-.814V22.011a1.25,1.25,0,1,1,2.5,0v8.738A3.318,3.318,0,0,1,31.436,34.063Z"></path></svg></span>
-</button>
+              <button
+                className="button-download"
+                type="button"
+                onClick={handleDownload}
+              >
+                <span className="button__text">Descargar</span>
+                <span className="button__icon">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 35 35"
+                    id="bdd05811-e15d-428c-bb53-8661459f9307"
+                    data-name="Layer 2"
+                    className="svg"
+                  >
+                    <path d="M17.5,22.131a1.249,1.249,0,0,1-1.25-1.25V2.187a1.25,1.25,0,0,1,2.5,0V20.881A1.25,1.25,0,0,1,17.5,22.131Z"></path>
+                    <path d="M17.5,22.693a3.189,3.189,0,0,1-2.262-.936L8.487,15.006a1.249,1.249,0,0,1,1.767-1.767l6.751,6.751a.7.7,0,0,0,.99,0l6.751-6.751a1.25,1.25,0,0,1,1.768,1.767l-6.752,6.751A3.191,3.191,0,0,1,17.5,22.693Z"></path>
+                    <path d="M31.436,34.063H3.564A3.318,3.318,0,0,1,.25,30.749V22.011a1.25,1.25,0,0,1,2.5,0v8.738a.815.815,0,0,0,.814.814H31.436a.815.815,0,0,0,.814-.814V22.011a1.25,1.25,0,1,1,2.5,0v8.738A3.318,3.318,0,0,1,31.436,34.063Z"></path>
+                  </svg>
+                </span>
+              </button>
               {/* <button
                 type="button"
                 className="btn btn-primary"

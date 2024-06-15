@@ -70,7 +70,6 @@ function EditData() {
     }
   };
   
-
   const {
     requestType,
     brand,

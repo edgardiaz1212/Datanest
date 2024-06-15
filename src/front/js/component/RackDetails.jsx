@@ -54,7 +54,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="noLeased">
-                  Propio
+                  Arrendado
                 </label>
               </div>
               <div className="form-check">
@@ -68,7 +68,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                   onChange={handleFieldChange}
                 />
                 <label className="form-check-label" htmlFor="leased">
-                  Arrendado
+                  Propio
                 </label>
               </div>
             </div>
