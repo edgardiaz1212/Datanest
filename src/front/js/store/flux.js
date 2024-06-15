@@ -293,6 +293,36 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error editing equipment:", error.message);
         }
       },
+      deleteAll: async () => {
+        const store = getStore();
+        const actions = getActions();
+        
+        try {
+          // Eliminar currentUser y descriptions del local storage
+          localStorage.removeItem('currentUser');
+          
+          // Realizar la solicitud DELETE al backend
+          let response = await fetch(`${process.env.BACKEND_URL}/delete_all`, {
+            method: 'DELETE',
+          });
+      
+          if (response.ok) {
+            // Actualizar el store eliminando currentUser y descriptions
+            setStore({
+              ...store,
+              currentUser: null,
+              descriptions: []
+            });
+          } else {
+            console.log("Error en la solicitud de eliminación");
+          }
+      
+          return response;
+        } catch (error) {
+          console.log("Error borrando todo", error);
+        }
+      }
+      
     },
   };
 };

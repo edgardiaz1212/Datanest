@@ -13,12 +13,14 @@ import pdfBase from "../../pdf/FOR BA7D ED5.pdf";
 
 function DownloadModal() {
   const { actions, store } = useContext(Context);
-
+  const FONT_SIZE = 12
   const fillField = (field, value) => {
     if (field instanceof PDFTextField) {
       field.setText(value || "N/A");
+      field.setFontSize(FONT_SIZE);
     } else if (field instanceof PDFDropdown) {
       field.select(value || "N/A");
+      field.setFontSize(FONT_SIZE);
     } else if (field instanceof PDFCheckBox) {
       if (value === "Yes" || value === true) {
         field.check();
@@ -27,6 +29,7 @@ function DownloadModal() {
       }
     } else if (field instanceof PDFRadioGroup) {
       field.select(value || "N/A");
+      
     }
   };
 
@@ -286,7 +289,7 @@ function DownloadModal() {
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, "forms.zip");
+    saveAs(zipBlob, `Planillas ${store.currentUser.clientName}.zip` );
   };
 
   return (

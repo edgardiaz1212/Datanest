@@ -20,13 +20,14 @@ class User(db.Model):
         return f'<User {self.email}>'
 
     def serialize(self):
+        created_at_formatted = self.created_at.strftime('%d/%m/%Y')
         return {
             "id": self.id,
             "email": self.email,
             "coordination": self.coordination,
             "username": self.username,
             "clientName": self.clientName,
-            "created_at": self.created_at,
+            "created_at": created_at_formatted,
         }
 class Description(db.Model):
     id = db.Column(db.Integer, primary_key=True)

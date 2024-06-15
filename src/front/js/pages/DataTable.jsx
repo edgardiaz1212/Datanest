@@ -332,7 +332,9 @@ const DataTable = () => {
           <button
             type="button"
             className="btn btn-success "
-            onClick={handleFinalize}
+            onClick={() => {
+              actions.deleteAll()
+              navigate('/')}}
           >
             Finalizar
           </button>

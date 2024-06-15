@@ -333,3 +333,25 @@ def edit_equipment(equipment_id):
         except Exception as error:
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to update Equipment", "error": str(error)}), 500
+        
+@api.route('/delete_all' , methods=['DELETE'])
+def delete_all():
+    users= User.query.all()
+    descriptions=Description.query.all()
+    racks = Rack.query.all()
+    equipments= Equipment.query.all()
+    
+    for rack in racks:
+        db.session.delete(rack)
+    for eq in equipments:
+        db.session.delete(eq)
+    for user in users:
+        db.session.delete(user) 
+    for desc in descriptions:
+        db.session.delete(desc)
+   
+    try:
+        db.session.commit()
+        return jsonify({"msg": "All Deleted"}), 200
+    except Exception as error:
+        return jsonify({"msg": error.args}), 500
