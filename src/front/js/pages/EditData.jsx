@@ -20,33 +20,56 @@ function EditData() {
     }
   }, [entry, navigate]);
 
-  const handleFieldChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleFieldChange = (event) => {
+    const { name, type, checked, value } = event.target;
 
-    // Manejar checkbox y radio como booleanos
-    const newValue = type === "checkbox" ? checked : value;
+    // Manejar los campos de entrada de texto como cadenas
+    if (type !== "checkbox" && type !== "radio") {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        [name]: value,
+      }));
+    } else {
+      // Manejar los campos de tipo checkbox y radio como booleanos
+      const newValue = type === "checkbox" ? checked : value === "true" ? true : false;
 
-    setFormData({
-      ...formData,
-      [name]: newValue,
-    });
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        [name]: newValue,
+      }));
+    }
   };
+
 
   const handleSave = async () => {
     try {
-      await actions.editDescription(entry.description.id, formData)
+      // Editar la descripción primero
+      await actions.editDescription(entry.description.id, formData);
+  
+      // Editar los detalles del rack o del equipo según el tipo de componente
       if (componentType === "Rack") {
         await actions.editRack(entry.id, formData);
       } else {
         await actions.editEquipment(entry.id, formData);
       }
+  
+      // Mostrar un mensaje de éxito
       toast.success("Edición Completa");
-      navigate("/register-data");
+  
+      // Navegar a la página de registro de datos
+      setTimeout(() => {
+        navigate("/register-data")
+      }, 1000)
+      // navigate("/register-data");
     } catch (error) {
+      // Registrar el error en la consola
       console.error("Error saving changes:", error);
+  
+      // Mostrar un mensaje de error
       toast.error("Llene los campos necesarios");
     }
   };
+  
 
   const {
     requestType,
