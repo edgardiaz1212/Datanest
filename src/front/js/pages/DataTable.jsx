@@ -137,8 +137,8 @@ const DataTable = () => {
   return (
     <div className="mb-5">
       <div
-        className=" fondoData bg "
-        style={{ backgroundImage: `url(${fondo})` }}
+        className=" fondoData "
+        
       >
         <h1 className=" text-center p-5">
           Por favor {store.currentUser.username} llenar los campos para el
@@ -331,7 +331,7 @@ const DataTable = () => {
 
           <button
             type="button"
-            className="btn btn-success "
+            className="btn-exit "
             onClick={() => {
               actions.deleteAll()
               navigate('/')}}
