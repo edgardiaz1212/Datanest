@@ -32,28 +32,31 @@ const DataTable = () => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+  
     async function fetchData() {
-      if (store.descriptions.length > 0) {
-        setSavedEntries(store.descriptions);
-        console.log("Using descriptions from store:", store.descriptions);
-        return;
-      }
-
       try {
-        const data = await actions.getDescriptionsByUser();
-        if (data) {
-          console.log("Fetched data from backend:", data);
-          setSavedEntries(data);
+        if (store.descriptions.length > 0) {
+          if (isMounted) {
+            setSavedEntries(store.descriptions);
+            console.log("Using descriptions from store:", store.descriptions);
+          }
         } else {
-          console.log("Empty response received or failed to fetch.");
+          console.log("No descriptions in store.");
         }
       } catch (error) {
         console.log("Error fetching user data:", error);
       }
     }
-
-    fetchData();
-  }, [actions, store.descriptions]);
+  
+    if (isMounted && (store.descriptions.length === 0 || savedEntries.length === 0)) {
+      fetchData();
+    }
+  
+    return () => {
+      isMounted = false;
+    };
+  }, [actions, store.descriptions.length, savedEntries.length]);
 
   const handleAddEntry = () => {
     setEntries([
@@ -135,7 +138,7 @@ const DataTable = () => {
   };
 
   return (
-    <div className="mb-5">
+    <div className="mb-5 vh-100">
       <div
         className=" fondoData "
         

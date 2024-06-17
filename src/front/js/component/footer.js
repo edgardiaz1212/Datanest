@@ -6,10 +6,10 @@ export const Footer = () => (
         <div className="container">
            
             <small className="copyright">
-				Designed with 
-				<span className="sr-only">love</span>
-				<i className="fa-solid fa-heart"></i> by 
-				Infraestructura Centro de Datos El Hatillo for developers
+				Disenado  
+				
+				<i className="fa-solid fa-code"></i> por 
+				Area Infraestructura Centro de Datos El Hatillo
 					</small>
             
             
