@@ -191,12 +191,13 @@ function CompleteData() {
   
 
   return (
-    <div className="container">
+    <div className="container mt-3">
+      
     <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
-      <h1 className="m-3 text-center">
+      <h1 className="formulario-header m-3 text-center">
         Datos para {requestType} del {componentType} modelo {model} con serial: {serial}
       </h1>
-
+<div className="formulario">
       {componentType === "Rack" && (
         <RackDetails
           requestType={requestType}
@@ -223,8 +224,8 @@ function CompleteData() {
       )}
 
       {/* Observaciones */}
-      <div className="container">
-      <div className="input-group mb-3 mt-3">
+      <div className="container ps-5 pe-5 ">
+      <div className="input-group mb-3 mt-3  ">
         <span className="input-group-text">Observaciones</span>
         <textarea
           className="form-control"
@@ -236,7 +237,7 @@ function CompleteData() {
         ></textarea>
       </div>
       {isInstallationOrRelocation && (
-        <div className="input-group mb-5">
+        <div className="input-group mb-1 pb-3">
           <span className="input-group-text">Previsión de 5 años</span>
           <textarea
             className="form-control"
@@ -248,9 +249,9 @@ function CompleteData() {
           ></textarea>
         </div>
       )}
-
+</div></div>
       <button className=" btn btn-primary m-3" onClick={handleSave}>Guardar</button>
-      </div>
+      
     </div>
   );
 }

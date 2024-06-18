@@ -31,7 +31,8 @@ function EditData() {
       }));
     } else {
       // Manejar los campos de tipo checkbox y radio como booleanos
-      const newValue = type === "checkbox" ? checked : value === "true" ? true : false;
+      const newValue =
+        type === "checkbox" ? checked : value === "true" ? true : false;
 
       setFormData((prevFormData) => ({
         ...prevFormData,
@@ -40,36 +41,45 @@ function EditData() {
     }
   };
 
-
+  
   const handleSave = async () => {
+    // Verificar si los campos obligatorios están vacíos
+    if (!formData.requestType || !formData.brand || !formData.model || !formData.serial || !formData.componentType) {
+      toast.error("Por favor, complete los campos obligatorios.", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return; // Detener la función si los campos están vacíos
+    }
+
     try {
       // Editar la descripción primero
       await actions.editDescription(entry.description.id, formData);
-  
+
       // Editar los detalles del rack o del equipo según el tipo de componente
-      if (componentType === "Rack") {
+      if (formData.componentType === "Rack") {
         await actions.editRack(entry.id, formData);
       } else {
         await actions.editEquipment(entry.id, formData);
       }
-  
+
       // Mostrar un mensaje de éxito
       toast.success("Edición Completa");
-  
+
       // Navegar a la página de registro de datos
       setTimeout(() => {
-        navigate("/register-data")
-      }, 1000)
-      // navigate("/register-data");
+        navigate("/register-data");
+      }, 1000);
     } catch (error) {
-      // Registrar el error en la consola
       console.error("Error saving changes:", error);
-  
-      // Mostrar un mensaje de error
-      toast.error("Llene los campos necesarios");
+      toast.error("Ocurrió un error al guardar los cambios.");
     }
   };
-  
   const {
     requestType,
     brand,
@@ -93,10 +103,10 @@ function EditData() {
         autoClose={3000}
         hideProgressBar
       />
-      <div className="container mt-5">
+      <div className="formulario container text-center mt-5">
         <h1>Datos para editar</h1>
         <form>
-          <div className="col-lg-6 col-sm-8 ">
+          <div className="col-lg-6 col-sm-8 mx-auto ">
             <div
               className={`m-auto ${
                 emptyFields.requestType ? "is-invalid" : ""
@@ -230,34 +240,37 @@ function EditData() {
               data={formData}
             />
           )}
-
-          <div className="input-group mb-3 mt-3">
-            <span className="input-group-text">Observaciones</span>
-            <textarea
-              className="form-control"
-              aria-label="With textarea"
-              id="observations"
-              name="observations"
-              value={observations}
-              onChange={handleFieldChange}
-            ></textarea>
-          </div>
-          {isInstallationOrRelocation && (
-            <div className="input-group mb-5">
-              <span className="input-group-text">Previsión de 5 años</span>
+          <div className="container ps-5 pe-5">
+            <div className="input-group mb-3 mt-3">
+              <span className="input-group-text">Observaciones</span>
               <textarea
                 className="form-control"
                 aria-label="With textarea"
-                id="five_years_prevition"
-                name="five_years_prevition"
-                value={five_years_prevition}
+                id="observations"
+                name="observations"
+                value={observations}
                 onChange={handleFieldChange}
               ></textarea>
             </div>
-          )}
+            {isInstallationOrRelocation && (
+              <div className="input-group mb-5">
+                <span className="input-group-text">Previsión de 5 años</span>
+                <textarea
+                  className="form-control"
+                  aria-label="With textarea"
+                  id="five_years_prevition"
+                  name="five_years_prevition"
+                  value={five_years_prevition}
+                  onChange={handleFieldChange}
+                ></textarea>
+              </div>
+            )}
+          </div>
         </form>
 
-        <button onClick={handleSave}>Guardar Cambios</button>
+        <button className="btn btn-success" onClick={handleSave}>
+          Guardar Cambios
+        </button>
       </div>
     </>
   );

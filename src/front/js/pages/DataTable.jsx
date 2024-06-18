@@ -314,7 +314,7 @@ const DataTable = () => {
           </>
         )}
         <div className="mt-3 gap-3">
-          {isFormFilled(entries[entries.length - 1]) && (
+          {/* {isFormFilled(entries[entries.length - 1]) && (
             <div>
             <button
               type="button"
@@ -324,7 +324,7 @@ const DataTable = () => {
               Agregar Otro
             </button>
             </div>
-          )}
+          )} */}
 
           {store.descriptions.length > 0 && (
             <>

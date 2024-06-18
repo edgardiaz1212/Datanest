@@ -1,17 +1,15 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 
-
-function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
-  
-   
-    return (
+function EquipmentDetails({
+  data,
+  handleFieldChange,
+  isInstallationOrRelocation,
+}) {
+  return (
     <div className="container">
-      <div className="mt-4  titles text-center">
-        <h2>ESPECIFICACIONES FÍSICAS DEL EQUIPO</h2>
-      </div>
-      <div className="container ">
-        <h4>Caracteristicas del Equipo</h4>
-        <div className="row justify-content-center">
+      <div className="mt-3 mb-5 text-center ">
+        <h2>Caracteristicas del Equipo</h2>
+        <div className="row gy-5 justify-content-center">
           <div className="col-lg-3 col-sm-12">
             <label htmlFor="equipment_width" className="form-label">
               Ancho (en cm):
@@ -55,7 +53,7 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
             />
           </div>
         </div>
-        <div className="row mt-5 gy-3 justify-content-center">
+        <div className="row mt-5 gy-3 justify-content-center ">
           <div className=" col-lg-3 col-sm-12 ">
             <label htmlFor="weight" className="form-label">
               Peso Máximo del equipo
@@ -84,11 +82,11 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
               onChange={handleFieldChange}
             />
           </div>
-          <div className=" col-lg-4 col-sm-12">
+          <div className=" col-lg-2 col-sm-12">
             <p>Requiere área de servicio</p>
             <div className="form-check">
               <input
-                className="form-check-input"
+                className="form-check-input "
                 type="radio"
                 id="serviceAreaYes"
                 name="service_area"
@@ -114,6 +112,8 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
                 No
               </label>
             </div>
+          </div>
+          <div className=" col-lg-2 col-sm-12 ">
             Ubicacion área de servicio
             <div className="form-check">
               <input
@@ -137,7 +137,6 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
                 name="service_back"
                 id="service_back"
                 value={data.service_back}
-                //checked
                 onChange={handleFieldChange}
                 disabled={data.service_area === false}
               />
@@ -152,7 +151,6 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
                 name="service_lateral"
                 id="service_lateral"
                 value={data.service_lateral}
-                //checked
                 onChange={handleFieldChange}
                 disabled={data.service_area === false}
               />
@@ -161,6 +159,8 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
               </label>
             </div>
           </div>
+        </div>
+        <div className="row mt-5 gy-3">
           <div className="col-lg-3 col-sm-12">
             <label htmlFor="rack_number" className="form-label">
               Numero de Rack donde estara ubicado *
@@ -220,6 +220,7 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
             />
           </div>
         </div>
+
         <div className="container mt-5">
           <h4>Dimensiones de la caja del equipo</h4>
           <div className="row justify-content-center">
@@ -322,9 +323,9 @@ function EquipmentDetails({ data, handleFieldChange, isInstallationOrRelocation 
 
       {isInstallationOrRelocation && (
         <>
-          <div className="container row mt-2">
+          <div className="container row  pb-3 ">
             <div className="p-3 mb-2 titles">
-              <h2 className="mt-4">Requerimiento de energia para el Equipo</h2>
+              <h2 className="mt-4 text-center">Requerimiento de energia para el Equipo</h2>
             </div>
             <div className=" col-lg-3 col-sm-12">
               <label htmlFor="ac_dc" className="form-label">

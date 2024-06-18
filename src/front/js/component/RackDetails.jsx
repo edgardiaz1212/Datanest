@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 
 function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
-  
   return (
-    <div className="container">
-      <div className="mb-5 text-center">
+    <div className=" container">
+      <div className="mt-3 mb-5 text-center">
         <h2>Caracteristicas del Gabinete</h2>
       </div>
       <div className="row gy-5 justify-content-center">
@@ -82,7 +81,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                 id="total_cabinets"
                 name="total_cabinets"
                 value={data.total_cabinets}
-                placeholder="Total gabinetes que requieren instalarse"
+                placeholder="Total gabinetes"
                 onChange={handleFieldChange}
               />
             </div>
@@ -382,8 +381,8 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
               />
             </div>
 
-            <div className="mt-5 mb-3">
-              <h4 className="">Dimensiones del Rack</h4>
+            <div className="mt-5 mb-3 text-center">
+              <h3 className="">Dimensiones del Rack</h3>
               <div className="row justify-content-center">
                 <div className="col-lg-3 col-sm-12">
                   <label htmlFor="rack_width" className="form-label">
@@ -437,8 +436,10 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
       {/* consulta de energia */}
       {isInstallationOrRelocation && (
         <>
-          <h2 className="mt-4">Requerimiento de energia para el rack</h2>
-          <div className="row gx-5">
+          <h2 className=" text-center mt-4">
+            Requerimiento de energia para el rack
+          </h2>
+          <div className="row justify-content-center">
             <div className="mb-3 me-2 col-lg-4 col-sm-12">
               <label htmlFor="internal_pdu" className="form-label">
                 Unidades de Distribución de Energía (PDU):
@@ -453,7 +454,7 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                 onChange={handleFieldChange}
               />
             </div>
-            <div className="mb-3 col-lg-3 col-sm-12">
+            <div className="mb-3 col-lg-4 col-sm-12">
               <label htmlFor="input_connector" className="form-label">
                 Tipo de conector del PDU:
               </label>
@@ -529,7 +530,6 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
           </div>
         </>
       )}
-      
     </div>
   );
 }
