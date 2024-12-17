@@ -583,3 +583,11 @@ background: linear-gradient(180deg, rgba(45,44,44,1) 16%, rgba(8,31,77,0.9408983
   background-color: #042b7a;
   color: red;
 }
+
+.has-validation-error textarea {
+  border-color: red;
+}
+
+.is-invalid {
+  border-color: red !important;
+}

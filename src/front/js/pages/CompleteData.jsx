@@ -70,17 +70,27 @@ function CompleteData() {
     power_config: ""
   });
 
+  const [validationErrors, setValidationErrors] = useState({});
+
   const isInstallationOrRelocation = requestType === "Instalación" || requestType === "Mudanza";
 
   const handleFieldChange = (event) => {
     const { name, value, type, checked } = event.target;
+    
+    // Remove validation error when field is modified
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: false
+      }));
+    }
+
     if (type !== "checkbox" && type !== "radio") {
       setData((prevFormData) => ({
         ...prevFormData,
         [name]: value,
       }));
     } else {
-      // Manejar los campos de tipo checkbox y radio como booleanos
       const newValue =
         type === "checkbox" ? checked : value === "true" ? true : false;
 
@@ -90,8 +100,36 @@ function CompleteData() {
       }));
     }
   };
+  const validateRequiredFields = () => {
+    const errors = {};
+    
+    // Add your required fields here
+    const requiredFields = [
+      // Add fields that are required and marked with *
+      // Example:
+      'rack_number',
+      'rack_position',
+      // 'equipment_width',
+      // Add all fields that should be mandatory
+    ];
+
+    requiredFields.forEach(field => {
+      if (!data[field] || data[field].toString().trim() === '') {
+        errors[field] = true;
+      }
+    });
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSave = async () => {
+    const isValid = validateRequiredFields();
+    
+    if (!isValid) {
+      toast.error("Por favor complete todos los campos requeridos");
+      return;
+    }
     try {
       const { observations, five_years_prevition } = data;
       const descriptionData = {
@@ -208,6 +246,7 @@ function CompleteData() {
           handleFieldChange={handleFieldChange}
           isInstallationOrRelocation={isInstallationOrRelocation}
           data={data}
+          validationErrors={validationErrors}
         />
       )}
       {componentType !== "Rack" && (
@@ -220,6 +259,7 @@ function CompleteData() {
           handleFieldChange={handleFieldChange}
           isInstallationOrRelocation={isInstallationOrRelocation}
           data={data}
+          validationErrors={validationErrors}
         />
       )}
 

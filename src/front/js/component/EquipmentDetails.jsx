@@ -3,7 +3,7 @@ import React, { useState } from "react";
 function EquipmentDetails({
   data,
   handleFieldChange,
-  isInstallationOrRelocation,
+  isInstallationOrRelocation, validationErrors
 }) {
   return (
     <div className="container">
@@ -161,13 +161,13 @@ function EquipmentDetails({
           </div>
         </div>
         <div className="row mt-5 gy-3">
-          <div className="col-lg-3 col-sm-12">
+          <div className={`col-lg-3 col-sm-12 ${validationErrors.rack_number ? 'has-validation-error' : ''}`}>
             <label htmlFor="rack_number" className="form-label">
               Numero de Rack donde estara ubicado *
             </label>
             <input
               type="text"
-              className="form-control"
+              className={`form-control ${validationErrors.rack_number ? 'is-invalid' : ''}`}
               id="rack_number"
               name="rack_number"
               value={data.rack_number}

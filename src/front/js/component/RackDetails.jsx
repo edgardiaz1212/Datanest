@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
+function RackDetails({ data, handleFieldChange, isInstallationOrRelocation, validationErrors }) {
   return (
     <div className=" container">
       <div className="mt-3 mb-5 text-center">
@@ -304,13 +304,13 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation }) {
                 onChange={handleFieldChange}
               />
             </div>
-            <div className="col-lg-3 col-sm-12">
+            <div className={`col-lg-3 col-sm-12 ${validationErrors.rack_position ? 'has-validation-error' : ''}`}>
               <label htmlFor="rack_position" className="form-label">
                 Posición del rack en la fila*
               </label>
               <input
                 type="text"
-                className="form-control"
+                className={`form-control ${validationErrors.rack_position ? 'is-invalid' : ''}`}
                 id="rack_position"
                 name="rack_position"
                 value={data.rack_position}
