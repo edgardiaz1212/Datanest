@@ -85,6 +85,27 @@ function CompleteData() {
       }));
     }
 
+    if (name === 'service_area') {
+      setData((prevFormData) => {
+        // Si cambia a false, resetea los campos de ubicación de servicio
+        if (value === 'false') {
+          return {
+            ...prevFormData,
+            [name]: false,
+            service_frontal: false,
+            service_back: false,
+            service_lateral: false
+          };
+        }
+        // Si cambia a true, solo actualiza service_area
+        return {
+          ...prevFormData,
+          [name]: true
+        };
+      });
+      return;
+    }
+
     if (type !== "checkbox" && type !== "radio") {
       setData((prevFormData) => ({
         ...prevFormData,

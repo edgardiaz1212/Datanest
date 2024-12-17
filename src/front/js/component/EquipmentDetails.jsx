@@ -121,7 +121,7 @@ function EquipmentDetails({
                 type="checkbox"
                 name="service_frontal"
                 id="service_frontal"
-                value={data.service_frontal}
+                checked={data.service_frontal}
                 //checked
                 onChange={handleFieldChange}
                 disabled={data.service_area === false}

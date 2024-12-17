@@ -9,10 +9,8 @@ export const Footer = () => (
 				Disenado  
 				
 				<i className="fa-solid fa-code"></i> por 
-				Area Infraestructura Centro de Datos El Hatillo
+				Ediazm01 Centro de Datos El Hatillo
 					</small>
-            
-            
         </div>
     </footer>
 	</>
