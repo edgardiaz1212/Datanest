@@ -11,7 +11,7 @@ import CompleteData from "./pages/CompleteData.jsx";
 import EditData from "./pages/EditData.jsx";
 
 const Layout = () => {
-    const basename = process.env.BASENAME_REACTs || "";
+    const basename = process.env.BASENAME_REACT || "";
 
     if (!process.env.BACKEND_URL || process.env.BACKEND_URL === "") {
         return <BackendURL />;
@@ -19,7 +19,7 @@ const Layout = () => {
 
     return (
         <div>
-            <BrowserRouter basename={basename}>
+            <BrowserRouter basename={basename}future={{ v7_startTransition: true }}>
                 <ScrollToTop>
                     <Navbar />
                     <Routes>
