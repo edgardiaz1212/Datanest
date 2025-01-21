@@ -161,13 +161,15 @@ function EquipmentDetails({
           </div>
         </div>
         <div className="row mt-5 gy-3">
-          <div className={`col-lg-3 col-sm-12 ${validationErrors.rack_number ? 'has-validation-error' : ''}`}>
+          <div className="col-lg-3 col-sm-12">
+                    {/* {`col-lg-3 col-sm-12 ${validationErrors.rack_number ? 'has-validation-error' : ''}`} */}
             <label htmlFor="rack_number" className="form-label">
               Numero de Rack donde estara ubicado *
             </label>
             <input
               type="text"
-              className={`form-control ${validationErrors.rack_number ? 'is-invalid' : ''}`}
+              className="form-control"
+              //{`form-control ${validationErrors.rack_number ? 'is-invalid' : ''}`}
               id="rack_number"
               name="rack_number"
               value={data.rack_number}

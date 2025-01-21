@@ -304,13 +304,15 @@ function RackDetails({ data, handleFieldChange, isInstallationOrRelocation, vali
                 onChange={handleFieldChange}
               />
             </div>
-            <div className={`col-lg-3 col-sm-12 ${validationErrors.rack_position ? 'has-validation-error' : ''}`}>
+            <div className="col-lg-3 col-sm-12">
+            {/* {`col-lg-3 col-sm-12 ${validationErrors.rack_position ? 'has-validation-error' : ''}`} */}
               <label htmlFor="rack_position" className="form-label">
                 Posición del rack en la fila*
               </label>
               <input
                 type="text"
-                className={`form-control ${validationErrors.rack_position ? 'is-invalid' : ''}`}
+                className="form-control col-lg-2 col-sm-12"
+                //{`form-control ${validationErrors.rack_position ? 'is-invalid' : ''}`}
                 id="rack_position"
                 name="rack_position"
                 value={data.rack_position}
