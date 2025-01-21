@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 function RegisterUser() {
   const navigate = useNavigate()
   const { actions } = useContext(Context);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -18,9 +19,14 @@ function RegisterUser() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    await actions.addUser(formData);
-    navigate("/register-data")
+    e.preventDefault()
+    setError(null);
+    try {
+      await actions.addUser(formData);
+      navigate("/register-data");
+    } catch (err) {
+      setError("Error al registrar usuario. Por favor intente nuevamente.");
+    }
   };
 
   return (
@@ -76,7 +82,7 @@ function RegisterUser() {
         />
         <span>Cliente Final</span>
       </label>
-     
+      {error && <div className="error-message">{error}</div>}
       <button className="submit" type="submit">Continuar</button>
     </form>
   );
