@@ -6,7 +6,7 @@ const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 module.exports = merge(common, {
     mode: 'production',
     output: {
-        publicPath: '/'
+        publicPath: '/forba7d/'
     },
     
     plugins: [

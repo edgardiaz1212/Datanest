@@ -187,7 +187,7 @@ const DataTable = () => {
                     name="brand"
                     value={entry.brand}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Marca"
+                    placeholder="Marca*"
                     required
                   />
                 </td>
@@ -198,7 +198,7 @@ const DataTable = () => {
                     name="model"
                     value={entry.model}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Modelo"
+                    placeholder="Modelo*"
                     required
                   />
                 </td>
@@ -209,7 +209,7 @@ const DataTable = () => {
                     name="serial"
                     value={entry.serial}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Serial"
+                    placeholder="Serial*"
                     required
                   />
                 </td>
