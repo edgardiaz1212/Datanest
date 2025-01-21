@@ -126,13 +126,13 @@ function CompleteData() {
     
     // Add your required fields here
     const requiredFields = [
-      // Add fields that are required and marked with *
-      // Example:
-      //'rack_number',
-      //'rack_position',
-      // 'equipment_width',
-      // Add all fields that should be mandatory
     ];
+    if (requestType === "Instalación" && componentType === "Rack") {
+      requiredFields.push('rack_position');
+    }
+    if (requestType === "Instalación" && componentType !== "Rack") {
+      requiredFields.push('rack_number');
+    }
 
     requiredFields.forEach(field => {
       if (!data[field] || data[field].toString().trim() === '') {
@@ -148,7 +148,18 @@ function CompleteData() {
     const isValid = validateRequiredFields();
     
     if (!isValid) {
-      toast.error("Por favor complete todos los campos requeridos");
+      // Mensaje específico según el tipo de error
+      if (requestType === "Instalación") {
+        if (componentType === "Rack" && validationErrors.rack_position) {
+          toast.error("Para instalaciones de Rack, la posición del rack es obligatoria");
+        } else if (componentType !== "Rack" && validationErrors.rack_number) {
+          toast.error("Para instalaciones de Equipo, el número de rack es obligatorio");
+        } else {
+          toast.error("Por favor complete todos los campos requeridos");
+        }
+      } else {
+        toast.error("Por favor complete todos los campos requeridos");
+      }
       return;
     }
     try {
@@ -169,7 +180,7 @@ function CompleteData() {
       const descriptionId = descriptionResponse.id;
       const userId = store.currentUser.user_id;
   
-      if (componentType === "Rack") {
+      if (componentType === "Rack" ) {
         const rackData = {
           description_id: descriptionId, 
           user_id: userId,
@@ -286,10 +297,10 @@ function CompleteData() {
 
       {/* Observaciones */}
       <div className="container ps-5 pe-5 ">
-      <div className="input-group mb-3 mt-3  ">
-        <span className="input-group-text">Observaciones</span>
+      <div className="input-group mt-3  ">
+        <span className="input-group-text mb-2">Observaciones</span>
         <textarea
-          className="form-control"
+          className="form-control mb-2"
           aria-label="With textarea"
           id="observations"
           name="observations"
