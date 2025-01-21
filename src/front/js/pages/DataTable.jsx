@@ -250,7 +250,7 @@ const DataTable = () => {
                       type="button"
                       className="btn btn-primary "
                       onClick={() =>
-                        handleComplete(entry.componentType, entry.requestType)
+                        handleComplete(entry.componentType, entry.requestType, store.currentUser.id)
                       }
                     >
                       Completar

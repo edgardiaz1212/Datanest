@@ -7,7 +7,7 @@ const getState = ({ getStore, getActions, setStore }) => {
     actions: {
       // Use getActions to call a function within a fuction
 
-      addUser: async (user) => {
+      addUser: async (userData) => {
         const store = getStore();
         try {
           const response = await fetch(`${process.env.BACKEND_URL}/addUser`, {
@@ -15,13 +15,14 @@ const getState = ({ getStore, getActions, setStore }) => {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(user),
+            body: JSON.stringify(userData),
           });
 
           if (response.ok) {
             const responseData = await response.json();
             setStore({ currentUser: responseData });
             localStorage.setItem("currentUser", JSON.stringify(responseData));
+            console.log("User added successfully: ", responseData);
             return responseData;
           } else {
             console.log("Error adding user:", response.statusText);
@@ -29,6 +30,9 @@ const getState = ({ getStore, getActions, setStore }) => {
         } catch (error) {
           console.log("Error adding user:", error.message);
         }
+      },
+      getCurrentUser: () => {
+        return store.currentUser;
       },
       getUserData: async () => {
         const store = getStore();

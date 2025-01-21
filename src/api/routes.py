@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, User, Equipment, Description, Rack
+from api.models import db, User, Equipment, Description, Rack
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 
@@ -355,3 +355,15 @@ def delete_all():
         return jsonify({"msg": "All Deleted"}), 200
     except Exception as error:
         return jsonify({"msg": error.args}), 500
+    
+@api.route('/users', methods=['GET'])
+def get_users():
+    try:
+        users = User.query.all()
+        users_list = [user.serialize() for user in users]
+        return jsonify(users_list), 200
+    except Exception as error:
+        return jsonify({
+            "msg": "Error occurred while trying to fetch users",
+            "error": str(error)
+        }), 500

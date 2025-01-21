@@ -128,8 +128,8 @@ function CompleteData() {
     const requiredFields = [
       // Add fields that are required and marked with *
       // Example:
-      'rack_number',
-      'rack_position',
+      //'rack_number',
+      //'rack_position',
       // 'equipment_width',
       // Add all fields that should be mandatory
     ];
