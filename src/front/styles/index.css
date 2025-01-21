@@ -305,13 +305,14 @@
   background: #26282c;
   color: rgba(255, 255, 255, 0.6);
   height: 75px;
+  margin-top: auto
  }
 
 
 .footer .fa-code {
   color: #EA5395;
 }
-/* dataTable */
+/*======== dataTable ==========*/
 .fondoData{
   display: flex;
   height:150px;

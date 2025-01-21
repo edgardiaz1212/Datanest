@@ -11,8 +11,9 @@ function CompleteData() {
   const location = useLocation();
   const navigate = useNavigate();
   const { entry } = location.state || {};
-  const { componentType, requestType, brand, model, serial, partNumber } = entry || {};
-  
+  const { componentType, requestType, brand, model, serial, partNumber } =
+    entry || {};
+
   const [data, setData] = useState({
     observations: "",
     five_years_prevition: "",
@@ -67,40 +68,41 @@ function CompleteData() {
     power_supply: "",
     operation_temp: "",
     thermal_disipation: "",
-    power_config: ""
+    power_config: "",
   });
 
   const [validationErrors, setValidationErrors] = useState({});
 
-  const isInstallationOrRelocation = requestType === "Instalación" || requestType === "Mudanza";
+  const isInstallationOrRelocation =
+    requestType === "Instalación" || requestType === "Mudanza";
 
   const handleFieldChange = (event) => {
     const { name, value, type, checked } = event.target;
-    
+
     // Remove validation error when field is modified
     if (validationErrors[name]) {
-      setValidationErrors(prev => ({
+      setValidationErrors((prev) => ({
         ...prev,
-        [name]: false
+        [name]: false,
       }));
     }
 
-    if (name === 'service_area') {
+    if (name === "service_area") {
       setData((prevFormData) => {
         // Si cambia a false, resetea los campos de ubicación de servicio
-        if (value === 'false') {
+        if (value === "false") {
           return {
             ...prevFormData,
             [name]: false,
             service_frontal: false,
             service_back: false,
-            service_lateral: false
+            service_lateral: false,
           };
         }
         // Si cambia a true, solo actualiza service_area
         return {
           ...prevFormData,
-          [name]: true
+          [name]: true,
         };
       });
       return;
@@ -123,19 +125,18 @@ function CompleteData() {
   };
   const validateRequiredFields = () => {
     const errors = {};
-    
+
     // Add your required fields here
-    const requiredFields = [
-    ];
+    const requiredFields = [];
     if (requestType === "Instalación" && componentType === "Rack") {
-      requiredFields.push('rack_position');
+      requiredFields.push("rack_position");
     }
     if (requestType === "Instalación" && componentType !== "Rack") {
-      requiredFields.push('rack_number');
+      requiredFields.push("rack_number");
     }
 
-    requiredFields.forEach(field => {
-      if (!data[field] || data[field].toString().trim() === '') {
+    requiredFields.forEach((field) => {
+      if (!data[field] || data[field].toString().trim() === "") {
         errors[field] = true;
       }
     });
@@ -146,14 +147,18 @@ function CompleteData() {
 
   const handleSave = async () => {
     const isValid = validateRequiredFields();
-    
+
     if (!isValid) {
       // Mensaje específico según el tipo de error
       if (requestType === "Instalación") {
         if (componentType === "Rack" && validationErrors.rack_position) {
-          toast.error("Para instalaciones de Rack, la posición del rack es obligatoria");
+          toast.error(
+            "Para instalaciones de Rack, la posición del rack es obligatoria"
+          );
         } else if (componentType !== "Rack" && validationErrors.rack_number) {
-          toast.error("Para instalaciones de Equipo, el número de rack es obligatorio");
+          toast.error(
+            "Para instalaciones de Equipo, el número de rack donde se instalara es obligatorio"
+          );
         } else {
           toast.error("Por favor complete todos los campos requeridos");
         }
@@ -174,15 +179,15 @@ function CompleteData() {
         componentType,
         requestType,
       };
-  
+
       // Crear la descripción
       const descriptionResponse = await actions.addDescription(descriptionData);
       const descriptionId = descriptionResponse.id;
       const userId = store.currentUser.user_id;
-  
-      if (componentType === "Rack" ) {
+
+      if (componentType === "Rack") {
         const rackData = {
-          description_id: descriptionId, 
+          description_id: descriptionId,
           user_id: userId,
           has_cabinet: data.has_cabinet,
           leased: data.leased,
@@ -243,87 +248,93 @@ function CompleteData() {
         };
         await actions.addEquipment(equipmentData);
       }
-  
+
       // Obtener descripciones actualizadas
       await actions.getDescriptionsByUser();
-  
+
       toast.success("Equipo registrado");
       console.log("Equipo añadido");
       setTimeout(() => {
         navigate("/register-data");
       }, 1000);
-  
     } catch (error) {
       console.error("Error saving data:", error);
       toast.error("Llene los campos necesarios");
     }
   };
-  
 
   return (
     <div className="container mt-3">
-      
-    <ToastContainer theme="dark" position="top-center" pauseOnFocusLoss={false} autoClose={3000} hideProgressBar />
+      <ToastContainer
+        theme="dark"
+        position="top-center"
+        pauseOnFocusLoss={false}
+        autoClose={3000}
+        hideProgressBar
+      />
       <h1 className="formulario-header m-3 text-center">
-        Datos para {requestType} del {componentType} modelo {model} con serial: {serial}
+        Datos para {requestType} del {componentType} modelo {model} con serial:{" "}
+        {serial}
       </h1>
-<div className="formulario">
-      {componentType === "Rack" && (
-        <RackDetails
-          requestType={requestType}
-          brand={brand}
-          model={model}
-          serial={serial}
-          partNumber={partNumber}
-          handleFieldChange={handleFieldChange}
-          isInstallationOrRelocation={isInstallationOrRelocation}
-          data={data}
-          validationErrors={validationErrors}
-        />
-      )}
-      {componentType !== "Rack" && (
-        <EquipmentDetails
-          requestType={requestType}
-          brand={brand}
-          model={model}
-          serial={serial}
-          partNumber={partNumber}
-          handleFieldChange={handleFieldChange}
-          isInstallationOrRelocation={isInstallationOrRelocation}
-          data={data}
-          validationErrors={validationErrors}
-        />
-      )}
+      <div className="formulario">
+        {componentType === "Rack" && (
+          <RackDetails
+            requestType={requestType}
+            brand={brand}
+            model={model}
+            serial={serial}
+            partNumber={partNumber}
+            handleFieldChange={handleFieldChange}
+            isInstallationOrRelocation={isInstallationOrRelocation}
+            data={data}
+            validationErrors={validationErrors}
+          />
+        )}
+        {componentType !== "Rack" && (
+          <EquipmentDetails
+            requestType={requestType}
+            brand={brand}
+            model={model}
+            serial={serial}
+            partNumber={partNumber}
+            handleFieldChange={handleFieldChange}
+            isInstallationOrRelocation={isInstallationOrRelocation}
+            data={data}
+            validationErrors={validationErrors}
+          />
+        )}
 
-      {/* Observaciones */}
-      <div className="container ps-5 pe-5 ">
-      <div className="input-group mt-3  ">
-        <span className="input-group-text mb-2">Observaciones</span>
-        <textarea
-          className="form-control mb-2"
-          aria-label="With textarea"
-          id="observations"
-          name="observations"
-          value={data.observations}
-          onChange={handleFieldChange}
-        ></textarea>
-      </div>
-      {isInstallationOrRelocation && (
-        <div className="input-group mb-1 pb-3">
-          <span className="input-group-text">Previsión de 5 años</span>
-          <textarea
-            className="form-control"
-            aria-label="With textarea"
-            id="five_years_prevition"
-            name="five_years_prevition"
-            value={data.five_years_prevition}
-            onChange={handleFieldChange}
-          ></textarea>
+        {/* Observaciones */}
+        <div className="container ps-5 pe-5 ">
+          <div className="input-group mt-3  ">
+            <span className="input-group-text mb-2">Observaciones</span>
+            <textarea
+              className="form-control mb-2"
+              aria-label="With textarea"
+              id="observations"
+              name="observations"
+              value={data.observations}
+              onChange={handleFieldChange}
+            ></textarea>
+          </div>
+          {isInstallationOrRelocation && (
+            <div className="input-group mb-1 pb-3">
+              <span className="input-group-text">Previsión de 5 años</span>
+              <textarea
+                className="form-control"
+                aria-label="With textarea"
+                id="five_years_prevition"
+                name="five_years_prevition"
+                value={data.five_years_prevition}
+                onChange={handleFieldChange}
+              ></textarea>
+            </div>
+          )}
         </div>
-      )}
-</div></div>
-      <button className=" btn btn-primary m-3" onClick={handleSave}>Guardar</button>
-      
+      </div>
+      <button className=" btn btn-primary m-3" onClick={handleSave}>
+        Guardar
+      </button>
     </div>
   );
 }

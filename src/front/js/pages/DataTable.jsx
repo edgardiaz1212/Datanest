@@ -138,7 +138,7 @@ const DataTable = () => {
   };
 
   return (
-    <div className="mb-5 vh-100">
+    <div className="mb-5 ">
       <div
         className=" fondoData "
         
@@ -268,7 +268,7 @@ const DataTable = () => {
           </tbody>
         </table>
         {store.descriptions.length > 0 && (
-          <>
+          <div className="tableregister mb-3">
             <h2>Equipamiento Cargado</h2>
             <table className="table table-bordered">
               <thead>
@@ -311,7 +311,7 @@ const DataTable = () => {
                 ))}
               </tbody>
             </table>
-          </>
+          </div>
         )}
         <div className="mt-3 gap-3">
           {/* {isFormFilled(entries[entries.length - 1]) && (
@@ -326,7 +326,8 @@ const DataTable = () => {
             </div>
           )} */}
 
-          {store.descriptions.length > 0 && (
+          <div className="end&download mb-2"></div>
+            {store.descriptions.length > 0 && (
             <>
               <DownloadModal />
             </>
@@ -341,6 +342,7 @@ const DataTable = () => {
           >
             Finalizar
           </button>
+          
         </div>
       </div>
     </div>
