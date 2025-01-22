@@ -69,11 +69,19 @@ function DownloadModal() {
         data.user ? data.user.coordination : null
       );
       fillField(
+        form.getTextField("Consultor"),
+        data.user ? data.user.coordination : null
+      );
+      fillField(
         form.getTextField("PERSONA_SOLICITANTE"),
         data.user ? data.user.username : null
       );
       fillField(
         form.getTextField("FECHA_SOLICITUD"),
+        data.user ? data.user.created_at : null
+      );
+      fillField(
+        form.getTextField("FECHA_CONSULTOR"),
         data.user ? data.user.created_at : null
       );
       fillField(
