@@ -2,7 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { Context } from "../store/appContext";
 import { useNavigate } from "react-router-dom";
 import DownloadModal from "../component/DownloadModal.jsx";
-import fondo from "../../img/racks1.jpeg";
 import DeleteButton from "../component/DeleteButton.jsx";
 
 const DataTable = () => {
