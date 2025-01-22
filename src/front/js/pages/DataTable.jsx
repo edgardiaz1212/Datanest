@@ -152,11 +152,11 @@ const DataTable = () => {
         <table className="table table-bordered">
           <thead>
             <tr>
-              <th>Tipo de Solicitud</th>
-              <th>Marca</th>
-              <th>Modelo</th>
-              <th>Serial</th>
-              <th>Tipo de Componente</th>
+              <th>Tipo de Solicitud*</th>
+              <th>Marca*</th>
+              <th>Modelo*</th>
+              <th>Serial*</th>
+              <th>Tipo de Componente*</th>
               <th>Número de Parte</th>
               <th>Acciones</th>
             </tr>
@@ -186,7 +186,7 @@ const DataTable = () => {
                     name="brand"
                     value={entry.brand}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Marca*"
+                    placeholder="Marca"
                     required
                   />
                 </td>
@@ -197,7 +197,7 @@ const DataTable = () => {
                     name="model"
                     value={entry.model}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Modelo*"
+                    placeholder="Modelo"
                     required
                   />
                 </td>
@@ -208,7 +208,7 @@ const DataTable = () => {
                     name="serial"
                     value={entry.serial}
                     onChange={(e) => handleChange(index, e)}
-                    placeholder="Serial*"
+                    placeholder="Serial"
                     required
                   />
                 </td>
