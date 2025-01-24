@@ -21,13 +21,28 @@ function RegisterUser() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null);
-    try {
-      await actions.addUser(formData);
-      navigate("/register-data");
-    } catch (err) {
-      setError("Error al registrar usuario. Por favor intente nuevamente.");
-    }
-  };
+    const emailAvailable = await actions.checkemails(formData.email);
+
+    if (emailAvailable) {
+      try {
+          // Si el correo está disponible, agregar el usuario
+          const responseData = await actions.addUser(formData);
+          if (responseData && responseData.user_id) {
+              setTimeout(() => {
+                  navigate(`/register-data/${responseData.user_id}`);
+              }, 1000);
+          } else {
+              setError("Error: User ID is undefined.");
+          }
+      } catch (err) {
+          console.log(err);
+          setError("Error al registrar usuario. Por favor intente nuevamente.");
+      }
+  } else {
+      // Si el correo ya está registrado, mostrar un mensaje de error
+      setError("El correo electrónico ya está registrado.");
+  }
+};
 
   return (
     <form className="form" onSubmit={handleSubmit}>

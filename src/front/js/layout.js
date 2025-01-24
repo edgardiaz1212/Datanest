@@ -24,9 +24,9 @@ const Layout = () => {
                     <Navbar />
                     <Routes>
                         <Route path="/" element={<Home />} />
-                        <Route path="/register-data" element={<DataTable />} />
+                        <Route path="/register-data/:user_id" element={<DataTable />} />
                         <Route path="/complete-data" element={<CompleteData />} />
-                        <Route path="/edit-data" element={<EditData />} />
+                        <Route path="/edit-data/" element={<EditData />} />
                         <Route path="*" element={<h1>Not found!</h1>} />
                     </Routes>
                     <Footer />

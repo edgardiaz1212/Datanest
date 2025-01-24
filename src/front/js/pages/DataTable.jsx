@@ -1,10 +1,11 @@
 import React, { useContext, useState, useEffect } from "react";
 import { Context } from "../store/appContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import DownloadModal from "../component/DownloadModal.jsx";
 import DeleteButton from "../component/DeleteButton.jsx";
 
 const DataTable = () => {
+  const {user_id} = useParams();
   const { actions, store } = useContext(Context);
   const [entries, setEntries] = useState([
     {
@@ -32,13 +33,16 @@ const DataTable = () => {
 
   useEffect(() => {
     let isMounted = true;
-  
+
     async function fetchData() {
       try {
         if (store.descriptions.length > 0) {
           if (isMounted) {
-            setSavedEntries(store.descriptions);
-            console.log("Using descriptions from store:", store.descriptions);
+            const userEntries = store.descriptions.filter(
+              (desc) => desc.userId === store.currentUser.id // Filtrar por usuario actual
+            );
+            setSavedEntries(userEntries);
+            console.log("Filtered descriptions for current user:", userEntries);
           }
         } else {
           console.log("No descriptions in store.");
@@ -47,15 +51,18 @@ const DataTable = () => {
         console.log("Error fetching user data:", error);
       }
     }
-  
-    if (isMounted && (store.descriptions.length === 0 || savedEntries.length === 0)) {
+
+    if (
+      isMounted &&
+      (store.descriptions.length === 0 || savedEntries.length === 0)
+    ) {
       fetchData();
     }
-  
+
     return () => {
       isMounted = false;
     };
-  }, [actions, store.descriptions.length, savedEntries.length]);
+  }, [actions, store.descriptions, store.currentUser.id, savedEntries.length]);
 
   const handleAddEntry = () => {
     setEntries([
@@ -131,17 +138,14 @@ const DataTable = () => {
       state: { entry: { ...entry, ...additionalData } },
     });
   };
-
+  console.log("de aca137", store.descriptions);
   const handleFinalize = () => {
     // Finalize logic
   };
 
   return (
     <div className="mb-5 ">
-      <div
-        className=" fondoData "
-        
-      >
+      <div className=" fondoData ">
         <h1 className=" text-center p-5">
           Por favor {store.currentUser.username} llenar los campos para el
           cliente {store.currentUser.clientName}
@@ -249,7 +253,11 @@ const DataTable = () => {
                       type="button"
                       className="btn btn-primary "
                       onClick={() =>
-                        handleComplete(entry.componentType, entry.requestType, store.currentUser.id)
+                        handleComplete(
+                          entry.componentType,
+                          entry.requestType,
+                          store.currentUser.id
+                        )
                       }
                     >
                       Completar
@@ -292,8 +300,10 @@ const DataTable = () => {
                     <td>{entry.partNumber}</td>
                     <td className="d-flex ">
                       <>
-                        
-                        <button className="Btn-edit me-2 ms-3" onClick={() => handleEdit(entry)}>
+                        <button
+                          className="Btn-edit me-2 ms-3"
+                          onClick={() => handleEdit(entry)}
+                        >
                           Editar
                           <svg viewBox="0 0 512 512" className="svg">
                             <path d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1v32c0 8.8 7.2 16 16 16h32zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4 6.2-22.6 0s-6.2-16.4 0-22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z"></path>
@@ -312,6 +322,7 @@ const DataTable = () => {
             </table>
           </div>
         )}
+
         <div className="mt-3 gap-3">
           {/* {isFormFilled(entries[entries.length - 1]) && (
             <div>
@@ -326,7 +337,7 @@ const DataTable = () => {
           )} */}
 
           <div className="end&download mb-2"></div>
-            {store.descriptions.length > 0 && (
+          {store.descriptions.length > 0 && (
             <>
               <DownloadModal />
             </>
@@ -336,12 +347,12 @@ const DataTable = () => {
             type="button"
             className="btn-exit "
             onClick={() => {
-              actions.deleteAll()
-              navigate('/')}}
+              actions.deleteAll();
+              navigate("/");
+            }}
           >
             Finalizar
           </button>
-          
         </div>
       </div>
     </div>

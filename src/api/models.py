@@ -44,8 +44,17 @@ class Description(db.Model):
     rack = db.relationship('Rack', uselist=False, back_populates='description', cascade='all, delete-orphan')
     equipment = db.relationship('Equipment', uselist=False, back_populates='description', cascade='all, delete-orphan')
 
+    @property
+    def user_id(self):
+        if self.rack:
+            return self.rack.user_id
+        elif self.equipment:
+            return self.equipment.user_id
+        return None
+
     def __repr__(self):
         return f'<Description {self.id}>'
+
 
     def serialize(self):
         return {
@@ -58,6 +67,7 @@ class Description(db.Model):
             'observations': self.observations,
             'componentType': self.componentType,
             'requestType': self.requestType,
+            'user_id': self.user_id 
            
         }
 class Rack(db.Model):

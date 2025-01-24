@@ -255,7 +255,7 @@ function CompleteData() {
       toast.success("Equipo registrado");
       console.log("Equipo añadido");
       setTimeout(() => {
-        navigate("/register-data");
+        navigate(`/register-data/${user_id}`);
       }, 1000);
     } catch (error) {
       console.error("Error saving data:", error);

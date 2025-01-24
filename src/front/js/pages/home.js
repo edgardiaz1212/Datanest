@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from '../store/appContext'
 import heroback from '../../img/hero-1.jpg'
-import logorack from '../../img/OIG2.jpeg'
 import RegisterUser from "../component/RegisterUser.jsx";
 
 export const Home = () => {

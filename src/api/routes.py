@@ -46,6 +46,13 @@ def addUser():
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to upload User", "error": str(error)}), 500
 
+@api.route('/user/email/<string:email>', methods=['GET'])
+def check_email(email):
+    user = User.query.filter_by(email=email).first()
+    if user:
+        return jsonify({"message": "El correo ya está registrado."}), 400
+    return jsonify({"message": "Correo disponible."}), 200
+
 @api.route('/user/<int:user_id>', methods=['GET'])
 def get_current_user(user_id):
     if request.method == "GET":

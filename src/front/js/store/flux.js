@@ -1,7 +1,7 @@
 const getState = ({ getStore, getActions, setStore }) => {
   return {
     store: {
-      currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
+      //currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
       descriptions: "",
     },
     actions: {
@@ -21,7 +21,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (response.ok) {
             const responseData = await response.json();
             setStore({ currentUser: responseData });
-            localStorage.setItem("currentUser", JSON.stringify(responseData));
+            //localStorage.setItem("currentUser", JSON.stringify(responseData));
             console.log("User added successfully: ", responseData);
             return responseData;
           } else {
@@ -31,6 +31,33 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error adding user:", error.message);
         }
       },
+checkemails: async (email) => {
+        const store = getStore();
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/user/email/${email}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (response.ok) {
+            const responseData = await response.json();
+            console.log(responseData.message); // Si el correo está disponible, lo muestra
+      return true; // Correo disponible
+          }else {
+          const responseData = await response.json();
+          console.log(responseData.message); // Si ya está registrado
+          return false; // Correo no disponible
+        
+        } }catch (error) {
+          console.log("Error checking email:", error.message);
+        }
+      },
+
       getCurrentUser: () => {
         return store.currentUser;
       },
