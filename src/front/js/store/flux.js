@@ -167,17 +167,19 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
     
         try {
-            console.log(`Fetching descriptions for user ${user_id} from ${process.env.BACKEND_URL}/description/${user_id}`);
-            
-            const response = await fetch(`${process.env.BACKEND_URL}/description/${user_id}`, {
+           
+            const response = await fetch(`${process.env.BACKEND_URL}/description/${user_id || ''}`, {
+
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
                 },
             });
     
-            if (!response.ok) {
-                console.log(`Failed to fetch descriptions: ${response.status} - ${response.statusText}`);
+        if (!response.ok || user_id === undefined) {
+            console.log(`Failed to fetch descriptions: ${response.status} - ${response.statusText}`);
+            return { error: true, message: "User ID is undefined or fetch failed." };
+
                 return { error: true, message: `Failed to fetch descriptions: ${response.statusText}` };
             }
     

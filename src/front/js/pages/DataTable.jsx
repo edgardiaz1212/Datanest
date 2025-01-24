@@ -32,36 +32,37 @@ const DataTable = () => {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    if (!user_id) {
-      console.warn("User ID is undefined.");
-      return;
-    }
+    let isMounted = true; // Evita actualizaciones innecesarias si el componente se desmonta
+  
     const fetchData = async () => {
+      if (!user_id) {
+        console.warn("User ID is undefined.");
+        return;
+      }
+  
       try {
-        if (user_id) {
-          console.log(user_id);
-          const userEntries = await actions.getDescriptionsByUser(user_id); // Pasar el user_id como parámetro
-          if (isMounted && userEntries) {
-            setSavedEntries(
-              userEntries.filter((desc) => desc.userId === user_id)
-            );
-            console.log("Filtered descriptions for current user:", userEntries);
-          }
-        } else {
-          console.log("User ID is undefined.");
+        const userEntries = await actions.getDescriptionsByUser(user_id);
+  
+        if (isMounted && userEntries?.length > 0) {
+          const filteredEntries = userEntries.filter(
+            (desc) => parseInt(desc.user_id) === parseInt(user_id)
+          );
+  
+          setSavedEntries(filteredEntries); // Actualiza solo si hay cambios
+          console.log("Filtered descriptions:", filteredEntries);
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
     };
-
+  
     fetchData();
-
+  
     return () => {
-      isMounted = false;
+      isMounted = false; // Limpieza para evitar llamadas redundantes
     };
-  }, [actions, user_id]);
+  }, [user_id]); // Evita incluir `actions` como dependencia a menos que sea necesario
+  
 
   const handleAddEntry = () => {
     setEntries([
@@ -272,7 +273,7 @@ const DataTable = () => {
             ))}
           </tbody>
         </table>
-        {store.descriptions.length > 0 && (
+        {savedEntries.length > 0 && (
           <div className="tableregister mb-3">
             <h2>Equipamiento Cargado</h2>
             <table className="table table-bordered">
@@ -317,7 +318,9 @@ const DataTable = () => {
 
         <div className="mt-3 gap-3">
           <div className="end&download mb-2"></div>
-          {store.descriptions.length > 0 && <DownloadModal />}
+          {savedEntries.length > 0 && (
+            <DownloadModal />
+          )}
 
           <button
             type="button"
