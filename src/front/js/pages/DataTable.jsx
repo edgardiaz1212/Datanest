@@ -26,9 +26,14 @@ const DataTable = () => {
   const handleChange = (index, e) => {
     const { name, value } = e.target;
     const updatedEntries = [...entries];
-    updatedEntries[index][name] = value;
-    setEntries(updatedEntries);
-    setFormData(updatedEntries[index]);
+    const currentEntry = updatedEntries[index];
+  
+    // Solo actualiza si el valor ha cambiado
+    if (currentEntry[name] !== value) {
+      updatedEntries[index][name] = value;
+      setEntries(updatedEntries);
+      setFormData(updatedEntries[index]);
+    }
   };
 
   useEffect(() => {
