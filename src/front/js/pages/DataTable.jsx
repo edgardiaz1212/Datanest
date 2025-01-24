@@ -39,7 +39,7 @@ const DataTable = () => {
         if (store.descriptions.length > 0) {
           if (isMounted) {
             const userEntries = store.descriptions.filter(
-              (desc) => desc.userId === store.currentUser.id // Filtrar por usuario actual
+              (desc) => desc.userId === user_id // Filtrar por usuario actual
             );
             setSavedEntries(userEntries);
             console.log("Filtered descriptions for current user:", userEntries);

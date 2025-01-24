@@ -123,6 +123,7 @@ function CompleteData() {
       }));
     }
   };
+
   const validateRequiredFields = () => {
     const errors = {};
 
@@ -134,6 +135,14 @@ function CompleteData() {
     if (requestType === "Instalación" && componentType !== "Rack") {
       requiredFields.push("rack_number");
     }
+
+    // Check for description_id and user_id
+    // if (!data.description_id) {
+    //     errors.description_id = true;
+    // }
+    // if (!store.currentUser || !store.currentUser.user_id) {
+    //     errors.user_id = true;
+    // }
 
     requiredFields.forEach((field) => {
       if (!data[field] || data[field].toString().trim() === "") {
@@ -243,7 +252,7 @@ function CompleteData() {
           operation_temp: data.operation_temp,
           thermal_disipation: data.thermal_disipation,
           power_config: data.power_config,
-          description_id: descriptionId, // Este campo debe llenarse con el ID de la descripción previamente creada
+          description_id: descriptionId,
           user_id: userId,
         };
         await actions.addEquipment(equipmentData);
@@ -255,10 +264,13 @@ function CompleteData() {
       toast.success("Equipo registrado");
       console.log("Equipo añadido");
       setTimeout(() => {
-        navigate(`/register-data/${user_id}`);
+        navigate(`/register-data/${userId}`);
       }, 1000);
     } catch (error) {
       console.error("Error saving data:", error);
+      if (error.response) {
+        console.error("Server responded with:", error.response.data);
+      }
       toast.error("Llene los campos necesarios");
     }
   };

@@ -1,11 +1,11 @@
 const getState = ({ getStore, getActions, setStore }) => {
   return {
     store: {
-      //currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
+      currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
       descriptions: "",
     },
     actions: {
-      // Use getActions to call a function within a fuction
+      // Use getActions to call a function within a function
 
       addUser: async (userData) => {
         const store = getStore();
@@ -21,7 +21,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (response.ok) {
             const responseData = await response.json();
             setStore({ currentUser: responseData });
-            //localStorage.setItem("currentUser", JSON.stringify(responseData));
             console.log("User added successfully: ", responseData);
             return responseData;
           } else {
@@ -31,7 +30,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error adding user:", error.message);
         }
       },
-checkemails: async (email) => {
+      checkemails: async (email) => {
         const store = getStore();
         try {
           const response = await fetch(
@@ -47,13 +46,13 @@ checkemails: async (email) => {
           if (response.ok) {
             const responseData = await response.json();
             console.log(responseData.message); // Si el correo está disponible, lo muestra
-      return true; // Correo disponible
-          }else {
-          const responseData = await response.json();
-          console.log(responseData.message); // Si ya está registrado
-          return false; // Correo no disponible
-        
-        } }catch (error) {
+            return true; // Correo disponible
+          } else {
+            const responseData = await response.json();
+            console.log(responseData.message); // Si ya está registrado
+            return false; // Correo no disponible
+          }
+        } catch (error) {
           console.log("Error checking email:", error.message);
         }
       },
@@ -78,7 +77,6 @@ checkemails: async (email) => {
 
           if (response.ok) {
             const responseData = await response.json();
-
             setStore({ userData: responseData });
             localStorage.setItem("userData", JSON.stringify(responseData));
           } else {
@@ -121,7 +119,6 @@ checkemails: async (email) => {
 
           if (response.ok) {
             const responseData = await response.json();
-            // Aquí podrías actualizar el store con el nuevo rack si lo necesitas
             return responseData;
           } else {
             console.log("Error adding rack:", response.statusText);
@@ -132,6 +129,7 @@ checkemails: async (email) => {
       },
       addEquipment: async (equipment) => {
         try {
+          console.log("Sending equipment data:", equipment);
           const response = await fetch(
             `${process.env.BACKEND_URL}/addEquipment`,
             {
@@ -145,17 +143,15 @@ checkemails: async (email) => {
 
           if (response.ok) {
             const responseData = await response.json();
-            // Aquí podrías actualizar el store con el nuevo equipment si lo necesitas
             return responseData;
           } else {
-            // Error en la respuesta del servidor
-            console.log("Error adding equipment:", response.statusText);
+            const errorData = await response.json();
+            console.log("Error adding equipment:", response.statusText, errorData);
             throw new Error(
-              "Error adding equipment: Unexpected response from server"
+              `Error adding equipment: ${errorData.msg || "Unexpected response from server"}`
             );
           }
         } catch (error) {
-          // Error de conexión o error en la solicitud
           console.log("Error adding equipment:", error.message);
           throw new Error(
             "Error adding equipment: Connection error or request error"
@@ -190,8 +186,6 @@ checkemails: async (email) => {
           return null; // Retornar null en caso de error
         }
       },
-      
-
       getRackByDescriptionId: async (descriptionId) => {
         try {
           const response = await fetch(
@@ -290,7 +284,6 @@ checkemails: async (email) => {
 
           if (response.ok) {
             const responseData = await response.json();
-            // Aquí podrías actualizar el store con el rack editado si lo necesitas
             return responseData;
           } else {
             console.log("Error editing rack:", response.statusText);
@@ -315,7 +308,6 @@ checkemails: async (email) => {
 
           if (response.ok) {
             const responseData = await response.json();
-            // Aquí podrías actualizar el store con el equipo editado si lo necesitas
             return responseData;
           } else {
             console.log("Error editing equipment:", response.statusText);
@@ -329,16 +321,13 @@ checkemails: async (email) => {
         const actions = getActions();
         
         try {
-          // Eliminar currentUser y descriptions del local storage
           localStorage.removeItem('currentUser');
           
-          // Realizar la solicitud DELETE al backend
           let response = await fetch(`${process.env.BACKEND_URL}/delete_all`, {
             method: 'DELETE',
           });
       
           if (response.ok) {
-            // Actualizar el store eliminando currentUser y descriptions
             setStore({
               ...store,
               currentUser: null,
