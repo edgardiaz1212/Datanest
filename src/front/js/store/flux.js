@@ -2,7 +2,7 @@ const getState = ({ getStore, getActions, setStore }) => {
   return {
     store: {
       currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
-      descriptions: "",
+      descriptions: [], 
     },
     actions: {
       // Use getActions to call a function within a function
@@ -158,34 +158,46 @@ const getState = ({ getStore, getActions, setStore }) => {
           );
         }
       },
-      getDescriptionsByUser: async () => {
+      getDescriptionsByUser: async (user_id) => {
         const store = getStore();
-        const currentUser = store.currentUser;
-      
-        try {
-          const response = await fetch(
-            `${process.env.BACKEND_URL}/description/${currentUser.user_id}`,
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
-      
-          if (response.ok) {
-            const responseData = await response.json();
-            setStore({ descriptions: responseData });
-            return responseData; // Retornar los datos obtenidos
-          } else {
-            console.log("Failed to fetch descriptions:", response.statusText);
-            return null; // Retornar null en caso de error
-          }
-        } catch (error) {
-          console.log("Error fetching user data:", error);
-          return null; // Retornar null en caso de error
+    
+        if (!process.env.BACKEND_URL) {
+            console.error("BACKEND_URL is not defined");
+            return { error: true, message: "Backend URL is not defined" };
         }
-      },
+    
+        try {
+            console.log(`Fetching descriptions for user ${user_id} from ${process.env.BACKEND_URL}/description/${user_id}`);
+            
+            const response = await fetch(`${process.env.BACKEND_URL}/description/${user_id}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+    
+            if (!response.ok) {
+                console.log(`Failed to fetch descriptions: ${response.status} - ${response.statusText}`);
+                return { error: true, message: `Failed to fetch descriptions: ${response.statusText}` };
+            }
+    
+            const responseData = await response.json();
+    
+            if (responseData.message) {
+                console.log("Message from backend:", responseData.message);
+                setStore({ descriptions: [] }); // Limpiar estado global
+                return []; // Retornar lista vacía si no hay descripciones
+            }
+    
+            setStore({ descriptions: responseData });
+            console.log("Flux description data:", responseData);
+            return responseData;
+    
+        } catch (error) {
+            console.log("Error fetching descriptions:", error);
+            return { error: true, message: "Error fetching descriptions", details: error.message };
+        }
+    },
       getRackByDescriptionId: async (descriptionId) => {
         try {
           const response = await fetch(

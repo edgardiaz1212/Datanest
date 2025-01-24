@@ -20,14 +20,12 @@ def addUser():
             "coordination": data_form.get('coordination'),
             "username": data_form.get('username'),
             "clientName": data_form.get('clientName'),
-            
         }
         new_user = User(
             username=data.get('username'),
             coordination=data.get('coordination'),
             email=data.get('email'),
             clientName=data.get('clientName'),
-            
         )
         db.session.add(new_user)
         try:
@@ -39,7 +37,6 @@ def addUser():
                 "coordination": new_user.coordination,
                 "email": new_user.email,
                 "clientName": new_user.clientName,
-                
             }
             return jsonify(user_info), 201
         except Exception as error:
@@ -86,7 +83,7 @@ def add_description():
         except Exception as error:
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to upload description", "error": str(error)}), 500
-        
+
 @api.route('/addRack', methods=['POST'])
 def add_rack():
     if request.method == "POST":
@@ -188,14 +185,27 @@ def add_equipment():
             error_message = traceback.format_exc()
             print(f"Error occurred while trying to upload Equipment: {error_message}")
             return jsonify({"msg": "Error occurred while trying to upload Equipment", "error": error_message}), 500
-        
+
 @api.route('/description/<int:user_id>', methods=['GET'])
 def get_all_descriptions_by_user(user_id):
     user = User.query.filter_by(id=user_id).first()
     if not user:
         return jsonify({"message": "User not found"}), 404
-    descriptions = Description.query.all()
-    descriptions_data = [description.serialize() for description in descriptions]
+    
+    # Obtener descripciones desde racks
+    rack_descriptions = [rack.description for rack in user.racks if rack.description]
+    
+    # Obtener descripciones desde equipos
+    equipment_descriptions = [equipment.description for equipment in user.equipments if equipment.description]
+    
+    # Combinar y serializar descripciones
+    all_descriptions = list(set(rack_descriptions + equipment_descriptions))
+    descriptions_data = [description.serialize() for description in all_descriptions]
+    
+    # Responder según el caso
+    if not descriptions_data:
+        return jsonify({"message": "No descriptions found for this user"}), 200
+    
     return jsonify(descriptions_data), 200
 
 @api.route('/rack/<int:description_id>', methods=['GET'])
@@ -333,14 +343,13 @@ def edit_equipment(equipment_id):
         equipment.thermal_disipation= data_form.get('thermal_disipation',equipment.thermal_disipation)
         equipment.power_config= data_form.get('power_config',equipment.power_config)
 
-
         try:
             db.session.commit()
             return jsonify(equipment.serialize()), 200
         except Exception as error:
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to update Equipment", "error": str(error)}), 500
-        
+
 @api.route('/delete_all' , methods=['DELETE'])
 def delete_all():
     users= User.query.all()
