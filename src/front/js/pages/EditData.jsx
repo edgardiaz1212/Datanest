@@ -271,6 +271,9 @@ function EditData() {
         <button className="btn btn-success" onClick={handleSave}>
           Guardar Cambios
         </button>
+        <button className="btn btn-secondary ms-2" onClick={() => navigate(-1)}>
+          Volver Atrás
+        </button>
       </div>
     </>
   );
