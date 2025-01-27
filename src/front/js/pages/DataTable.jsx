@@ -17,7 +17,7 @@ const DataTable = () => {
       partNumber: "",
     },
   ]);
-
+  
   const [formData, setFormData] = useState({});
   const [savedEntries, setSavedEntries] = useState([]);
 

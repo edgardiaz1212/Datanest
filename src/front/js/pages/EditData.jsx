@@ -16,10 +16,10 @@ function EditData() {
 
   useEffect(() => {
     if (!entry) {
-      navigate("/register-data");
+      navigate(`/register-data/${store.currentUser.user_id}`);
     }
   }, [entry, navigate]);
-
+console.log(store.currentUser.user_id)
   const handleFieldChange = (event) => {
     const { name, type, checked, value } = event.target;
 
@@ -71,9 +71,9 @@ function EditData() {
       // Mostrar un mensaje de éxito
       toast.success("Edición Completa");
 
-      // Navegar a la página de registro de datos
+      // Navegar a la página de registro de datos con el user ID
       setTimeout(() => {
-        navigate("/register-data");
+        navigate(`/register-data/${store.currentUser.user_id}`);
       }, 1000);
     } catch (error) {
       console.error("Error saving changes:", error);
