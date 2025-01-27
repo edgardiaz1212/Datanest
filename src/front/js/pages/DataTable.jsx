@@ -157,167 +157,171 @@ const DataTable = () => {
       </div>
       <div className="container mt-5">
         <h2>Registro</h2>
-        <table className="table table-bordered">
-          <thead>
-            <tr>
-              <th>Tipo de Solicitud*</th>
-              <th>Marca*</th>
-              <th>Modelo*</th>
-              <th>Serial*</th>
-              <th>Tipo de Componente*</th>
-              <th>Número de Parte</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry, index) => (
-              <tr key={index}>
-                <td>
-                  <select
-                    className="form-control"
-                    name="requestType"
-                    value={entry.requestType}
-                    onChange={(e) => handleChange(index, e)}
-                    required
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="Instalación">Instalación</option>
-                    <option value="Retiro">Retiro</option>
-                    <option value="Desincorporación">Desincorporación</option>
-                    <option value="Mudanza">Mudanza</option>
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="brand"
-                    value={entry.brand}
-                    onChange={(e) => handleChange(index, e)}
-                    placeholder="Marca"
-                    required
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="model"
-                    value={entry.model}
-                    onChange={(e) => handleChange(index, e)}
-                    placeholder="Modelo"
-                    required
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="serial"
-                    value={entry.serial}
-                    onChange={(e) => handleChange(index, e)}
-                    placeholder="Serial"
-                    required
-                  />
-                </td>
-                <td>
-                  <select
-                    className="form-control"
-                    name="componentType"
-                    value={entry.componentType}
-                    onChange={(e) => handleChange(index, e)}
-                    required
-                  >
-                    <option value="">Seleccionar tipo de componente</option>
-                    <option value="Rack">Rack</option>
-                    <option value="Switch">Switch</option>
-                    <option value="Servidor">Servidor</option>
-                    <option value="Router">Router</option>
-                    <option value="Firewall">Firewall</option>
-                    <option value="Monitor">Monitor</option>
-                    <option value="Consola">Consola</option>
-                    <option value="Caja Almacenamiento">
-                      Caja Almacenamiento
-                    </option>
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="partNumber"
-                    value={entry.partNumber}
-                    onChange={(e) => handleChange(index, e)}
-                    placeholder="Número de Parte"
-                  />
-                </td>
-                <td className="d-flex">
-                  {isFormFilled(entry) && (
-                    <button
-                      type="button"
-                      className="btn btn-primary "
-                      onClick={() =>
-                        handleComplete(
-                          entry.componentType,
-                          entry.requestType,
-                          store.currentUser.id
-                        )
-                      }
-                    >
-                      Completar
-                    </button>
-                  )}
-                  {isFormFilled(entry) && (
-                    <DeleteButton
-                      handleDeleteEntry={handleRemoveEntry}
-                      entryId={index}
-                    />
-                  )}
-                </td>
+        <div className="table-responsive">
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Tipo de Solicitud*</th>
+                <th>Marca*</th>
+                <th>Modelo*</th>
+                <th>Serial*</th>
+                <th>Tipo de Componente*</th>
+                <th>Número de Parte</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {entries.map((entry, index) => (
+                <tr key={index}>
+                  <td>
+                    <select
+                      className="form-control"
+                      name="requestType"
+                      value={entry.requestType}
+                      onChange={(e) => handleChange(index, e)}
+                      required
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Instalación">Instalación</option>
+                      <option value="Retiro">Retiro</option>
+                      <option value="Desincorporación">Desincorporación</option>
+                      <option value="Mudanza">Mudanza</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="brand"
+                      value={entry.brand}
+                      onChange={(e) => handleChange(index, e)}
+                      placeholder="Marca"
+                      required
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="model"
+                      value={entry.model}
+                      onChange={(e) => handleChange(index, e)}
+                      placeholder="Modelo"
+                      required
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="serial"
+                      value={entry.serial}
+                      onChange={(e) => handleChange(index, e)}
+                      placeholder="Serial"
+                      required
+                    />
+                  </td>
+                  <td>
+                    <select
+                      className="form-control"
+                      name="componentType"
+                      value={entry.componentType}
+                      onChange={(e) => handleChange(index, e)}
+                      required
+                    >
+                      <option value="">Seleccionar tipo de componente</option>
+                      <option value="Rack">Rack</option>
+                      <option value="Switch">Switch</option>
+                      <option value="Servidor">Servidor</option>
+                      <option value="Router">Router</option>
+                      <option value="Firewall">Firewall</option>
+                      <option value="Monitor">Monitor</option>
+                      <option value="Consola">Consola</option>
+                      <option value="Caja Almacenamiento">
+                        Caja Almacenamiento
+                      </option>
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="partNumber"
+                      value={entry.partNumber}
+                      onChange={(e) => handleChange(index, e)}
+                      placeholder="Número de Parte"
+                    />
+                  </td>
+                  <td className="d-flex">
+                    {isFormFilled(entry) && (
+                      <button
+                        type="button"
+                        className="btn btn-primary "
+                        onClick={() =>
+                          handleComplete(
+                            entry.componentType,
+                            entry.requestType,
+                            store.currentUser.id
+                          )
+                        }
+                      >
+                        Completar
+                      </button>
+                    )}
+                    {isFormFilled(entry) && (
+                      <DeleteButton
+                        handleDeleteEntry={handleRemoveEntry}
+                        entryId={index}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {savedEntries.length > 0 && (
           <div className="tableregister mb-3">
             <h2>Equipamiento Cargado</h2>
-            <table className="table table-bordered">
-              <thead>
-                <tr>
-                  <th>Tipo de Solicitud</th>
-                  <th>Marca</th>
-                  <th>Modelo</th>
-                  <th>Serial</th>
-                  <th>Tipo de Componente</th>
-                  <th>Número de Parte</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {savedEntries.map((entry, index) => (
-                  <tr key={index}>
-                    <td>{entry.requestType}</td>
-                    <td>{entry.brand}</td>
-                    <td>{entry.model}</td>
-                    <td>{entry.serial}</td>
-                    <td>{entry.componentType}</td>
-                    <td>{entry.partNumber}</td>
-                    <td className="d-flex ">
-                      <button
-                        className="Btn-edit me-2 ms-3"
-                        onClick={() => handleEdit(entry)}
-                      >
-                        Editar
-                      </button>
-                      <DeleteButton
-                        handleDeleteEntry={handleDeleteEntry}
-                        entryId={entry.id}
-                      />
-                    </td>
+            <div className="table-responsive">
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Tipo de Solicitud</th>
+                    <th>Marca</th>
+                    <th>Modelo</th>
+                    <th>Serial</th>
+                    <th>Tipo de Componente</th>
+                    <th>Número de Parte</th>
+                    <th>Acciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {savedEntries.map((entry, index) => (
+                    <tr key={index}>
+                      <td>{entry.requestType}</td>
+                      <td>{entry.brand}</td>
+                      <td>{entry.model}</td>
+                      <td>{entry.serial}</td>
+                      <td>{entry.componentType}</td>
+                      <td>{entry.partNumber}</td>
+                      <td className="d-flex ">
+                        <button
+                          className="Btn-edit me-2 ms-3"
+                          onClick={() => handleEdit(entry)}
+                        >
+                          Editar
+                        </button>
+                        <DeleteButton
+                          handleDeleteEntry={handleDeleteEntry}
+                          entryId={entry.id}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
