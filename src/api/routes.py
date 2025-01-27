@@ -352,19 +352,18 @@ def edit_equipment(equipment_id):
 
 @api.route('/delete_user_data/<int:user_id>' , methods=['DELETE'])
 def delete_user_info(user_id):
-    users= User.query.get(user_id)
-    if not user:
-            return jsonify({"msg": "Usuario no encontrado"}), 404
-    descriptions=Description.query.filter_by(user_id=user_id).all()
+    users = User.query.get(user_id)
+    if not users:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    descriptions = Description.query.filter_by(user_id=user_id).all()
     racks = Rack.query.filter_by(user_id=user_id).all()
-    equipments= Equipment.query.filter_by(user_id=user_id).all()
+    equipments = Equipment.query.filter_by(user_id=user_id).all()
     
     for rack in racks:
         db.session.delete(rack)
     for eq in equipments:
         db.session.delete(eq)
-    for user in users:
-        db.session.delete(user) 
+    db.session.delete(users) 
     for desc in descriptions:
         db.session.delete(desc)
    
