@@ -330,30 +330,34 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error editing equipment:", error.message);
         }
       },
-      deleteAll: async () => {
+      deleteUserData: async () => {
         const store = getStore();
         const actions = getActions();
         
         try {
-          localStorage.removeItem('currentUser');
+          if (!store.currentUser || !store.currentUser.user_id) {
+            console.error("No hay usuario activo");
+            return { ok: false, message: "No hay usuario activo" };
+        }
           
-          let response = await fetch(`${process.env.BACKEND_URL}/delete_all`, {
+          let response = await fetch(`${process.env.BACKEND_URL}/delete_user_data/${store.currentUser.user_id}`, {
             method: 'DELETE',
           });
       
           if (response.ok) {
+             // Limpiar el estado
             setStore({
               ...store,
               currentUser: null,
               descriptions: []
             });
           } else {
-            console.log("Error en la solicitud de eliminación");
+            console.log("Error en la solicitud de eliminación",response.statusText);
           }
       
           return response;
         } catch (error) {
-          console.log("Error borrando todo", error);
+          console.log("Error borrando datos de usuario", error);
         }
       }
       

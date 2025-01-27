@@ -19,7 +19,7 @@ function EditData() {
       navigate(`/register-data/${store.currentUser.user_id}`);
     }
   }, [entry, navigate]);
-console.log(store.currentUser.user_id)
+
   const handleFieldChange = (event) => {
     const { name, type, checked, value } = event.target;
 

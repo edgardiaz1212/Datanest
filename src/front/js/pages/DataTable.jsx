@@ -331,7 +331,7 @@ const DataTable = () => {
             type="button"
             className="btn-exit "
             onClick={() => {
-              actions.deleteAll();
+              actions.deleteUserData();
               navigate("/");
             }}
           >

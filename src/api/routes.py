@@ -350,12 +350,14 @@ def edit_equipment(equipment_id):
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to update Equipment", "error": str(error)}), 500
 
-@api.route('/delete_all' , methods=['DELETE'])
-def delete_all():
-    users= User.query.all()
-    descriptions=Description.query.all()
-    racks = Rack.query.all()
-    equipments= Equipment.query.all()
+@api.route('/delete_user_data/<int:user_id>' , methods=['DELETE'])
+def delete_user_info(user_id):
+    users= User.query.get(user_id)
+    if not user:
+            return jsonify({"msg": "Usuario no encontrado"}), 404
+    descriptions=Description.query.filter_by(user_id=user_id).all()
+    racks = Rack.query.filter_by(user_id=user_id).all()
+    equipments= Equipment.query.filter_by(user_id=user_id).all()
     
     for rack in racks:
         db.session.delete(rack)
@@ -368,9 +370,10 @@ def delete_all():
    
     try:
         db.session.commit()
-        return jsonify({"msg": "All Deleted"}), 200
+        return jsonify({"msg": "Usuario y datos relacionados eliminados correctamente"}), 200
     except Exception as error:
-        return jsonify({"msg": error.args}), 500
+        db.session.rollback()
+        return jsonify({"msg": str(error.args)}), 500
     
 @api.route('/users', methods=['GET'])
 def get_users():
