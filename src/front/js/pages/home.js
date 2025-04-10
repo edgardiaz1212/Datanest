@@ -1,14 +1,13 @@
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from '../store/appContext'
-import heroback from '../../img/hero-1.jpg'
 import RegisterUser from "../component/RegisterUser.jsx";
 
 export const Home = () => {
 
 	return (
 		<>
-			<div  id="hero" className="hero-section pt-5 bg " style={{ backgroundImage: `url(${heroback})` }} >
+			<div  id="hero" className="hero-section pt-5 bg "  >
 				<div id="hero-main" className="hero-main ">
 					<div className="figure-holder-wrapper ">
 						<div className="container ">
