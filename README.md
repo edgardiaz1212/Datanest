@@ -1,81 +1,129 @@
-# WebApp boilerplate with React JS and Flask API
+# Movement Colocation Management System
 
-Build web applications using React.js for the front end and python/flask for your backend API.
+## Project Overview
+Web application for managing equipment colocation with:
+- Equipment tracking (RackDetails, EquipmentDetails components)
+- PDF document handling
+- User management system
+- Data visualization tables
 
-- Documentation can be found here: https://start.4geeksacademy.com/starters/react-flask
-- Here is a video on [how to use this template](https://www.loom.com/share/f37c6838b3f1496c95111e515e83dd9b)
-- Integrated with Pipenv for package managing.
-- Fast deployment to heroku [in just a few steps here](https://start.4geeksacademy.com/backend/deploy-heroku-posgres).
-- Use of .env file.
-- SQLAlchemy integration for database abstraction.
+## System Architecture
+**Frontend:**
+- React.js with Webpack
+- State management via Flux
+- Component-based UI
 
-### 1) Installation:
+**Backend:**
+- Flask REST API
+- SQLAlchemy ORM
+- JWT Authentication
 
-> If you use Github Codespaces (recommended) or Gitpod this template will already come with Python, Node and the Posgres Database installed. If you are working locally make sure to install Python 3.10, Node 
+## Development Setup
+### Prerequisites
+- Python 3.10+
+- Node.js 14+
+- PostgreSQL
 
-It is recomended to install the backend first, make sure you have Python 3.8, Pipenv and a database engine (Posgress recomended)
+### Installation
+1. Clone repository
+2. Backend:
+   ```bash
+   pipenv install
+   cp .env.example .env
+   pipenv run migrate
+   pipenv run upgrade
+   pipenv run start
+   ```
+3. Frontend:
+   ```bash
+   npm install
+   npm run start
+   ```
 
-1. Install the python packages: `$ pipenv install`
-2. Create a .env file based on the .env.example: `$ cp .env.example .env`
-3. Install your database engine and create your database, depending on your database you have to create a DATABASE_URL variable with one of the possible values, make sure you replace the valudes with your database information:
+## Production Deployment (Debian)
+### Requirements
+- Nginx
+- Supervisor
+- PostgreSQL
+- Python 3.10
+- Node.js 14+
 
-| Engine    | DATABASE_URL                                        |
-| --------- | --------------------------------------------------- |
-| SQLite    | sqlite:////test.db                                  |
-| MySQL     | mysql://username:password@localhost:port/example    |
-| Postgress | postgres://username:password@localhost:5432/example |
+### Steps
+1. Install dependencies:
+   ```bash
+   sudo apt update
+   sudo apt install -y nginx supervisor postgresql python3.10 nodejs
+   ```
 
-4. Migrate the migrations: `$ pipenv run migrate` (skip if you have not made changes to the models on the `./src/api/models.py`)
-5. Run the migrations: `$ pipenv run upgrade`
-6. Run the application: `$ pipenv run start`
+2. Configure PostgreSQL:
+   ```bash
+   sudo -u postgres psql
+   CREATE DATABASE colocation;
+   CREATE USER colocation_user WITH PASSWORD 'secure_password';
+   GRANT ALL PRIVILEGES ON DATABASE colocation TO colocation_user;
+   ```
 
-> Note: Codespaces users can connect to psql by typing: `psql -h localhost -U gitpod example`
+3. Set up application:
+   ```bash
+   git clone https://github.com/your-repo/movementColocationPageV2.git
+   cd movementColocationPageV2
+   pipenv install --deploy
+   npm install --production
+   npm run build
+   ```
 
-### Undo a migration
+4. Configure Nginx:
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
 
-You are also able to undo a migration by running
+       location / {
+           root /path/to/movementColocationPageV2/public;
+           try_files $uri /index.html;
+       }
 
-```sh
-$ pipenv run downgrade
+       location /api {
+           proxy_pass http://localhost:5000;
+           proxy_set_header Host $host;
+       }
+   }
+   ```
+
+5. Configure Supervisor:
+   ```ini
+   [program:colocation_api]
+   command=pipenv run gunicorn -w 4 -b 127.0.0.1:5000 src.app:app
+   directory=/path/to/movementColocationPageV2
+   user=www-data
+   autostart=true
+   autorestart=true
+   ```
+
+## API Documentation
+Key endpoints:
+- `/api/racks` - Rack management
+- `/api/equipment` - Equipment tracking
+- `/api/users` - User administration
+
+## Maintenance
+### Backup
+```bash
+pg_dump -U colocation_user -h localhost colocation > backup.sql
 ```
 
-### Backend Populate Table Users
+### Updates
+1. Pull latest changes
+2. Run migrations if needed
+3. Restart services:
+   ```bash
+   sudo supervisorctl restart colocation_api
+   sudo systemctl restart nginx
+   ```
 
-To insert test users in the database execute the following command:
-
-```sh
-$ flask insert-test-users 5
-```
-
-And you will see the following message:
-
-```
-  Creating test users
-  test_user1@test.com created.
-  test_user2@test.com created.
-  test_user3@test.com created.
-  test_user4@test.com created.
-  test_user5@test.com created.
-  Users created successfully!
-```
-
-### **Important note for the database and the data inside it**
-
-Every Github codespace environment will have **its own database**, so if you're working with more people eveyone will have a different database and different records inside it. This data **will be lost**, so don't spend too much time manually creating records for testing, instead, you can automate adding records to your database by editing ```commands.py``` file inside ```/src/api``` folder. Edit line 32 function ```insert_test_data``` to insert the data according to your model (use the function ```insert_test_users``` above as an example). Then, all you need to do is run ```pipenv run insert-test-data```.
-
-### Front-End Manual Installation:
-
--   Make sure you are using node version 14+ and that you have already successfully installed and runned the backend.
-
-1. Install the packages: `$ npm install`
-2. Start coding! start the webpack dev server `$ npm run start`
-
-## Publish your website!
-
-This boilerplate it's 100% read to deploy with Render.com and Heroku in a matter of minutes. Please read the [official documentation about it](https://start.4geeksacademy.com/deploy).
-
-### Contributors
-
-This template was built as part of the 4Geeks Academy [Coding Bootcamp](https://4geeksacademy.com/us/coding-bootcamp) by [Alejandro Sanchez](https://twitter.com/alesanchezr) and many other contributors. Find out more about our [Full Stack Developer Course](https://4geeksacademy.com/us/coding-bootcamps/part-time-full-stack-developer), and [Data Science Bootcamp](https://4geeksacademy.com/us/coding-bootcamps/datascience-machine-learning).
-
-You can find other templates and resources like this at the [school github page](https://github.com/4geeksacademy/).
+## Troubleshooting
+- Check logs:
+  ```bash
+  journalctl -u nginx -f
+  sudo supervisorctl tail colocation_api stderr
+  ```
