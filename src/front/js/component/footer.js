@@ -9,8 +9,9 @@ export const Footer = () => (
 					<img className="logo-icon" src={logo} alt="icon" width="70" />
 				</div>
 				<div className="copyright-container">
+				<span className="text-muted">© {new Date().getFullYear()}</span>
 					<small className="copyright">
-						Centro de Datos El Hatillo
+						Data Center Clientes Externos
 					</small>
 				</div>
 			</div>
