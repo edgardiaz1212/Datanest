@@ -30,6 +30,7 @@ Web application for managing equipment colocation with:
    ```bash
    pipenv install
    cp .env.example .env
+   pipenv run init
    pipenv run migrate
    pipenv run upgrade
    pipenv run start
