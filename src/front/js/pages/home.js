@@ -2,15 +2,24 @@ import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { Context } from '../store/appContext'
 import RegisterUser from "../component/RegisterUser.jsx";
+import heroImageUrl from '../../img/hero-1.jpg';
 
 export const Home = () => {
+	const heroStyle = {
+        backgroundImage: `url(${heroImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '500px',
+        width: '100%',
 
+    };
 	return (
 		<>
-			<div  id="hero" className="hero-section pt-5 bg "  >
+			<div  id="hero" className="hero-section pt-5 bg"  style={heroStyle} >
 				<div id="hero-main" className="hero-main ">
 					<div className="figure-holder-wrapper ">
-						<div className="container ">
+						<div className="container   ">
 							<div className="row align-items-center ">
 								<div className="col-md-6  ">
 									<div className="main-item item-1 active">
@@ -27,7 +36,7 @@ export const Home = () => {
 									</div>
 								</div>
 								<div className="col-md-6 figure-holder">
-									{/* <img className="figure-image img-fluid" src={logorack} alt="Hero Image" /> */}
+									
 									<RegisterUser/> 
 								</div>
 							</div>

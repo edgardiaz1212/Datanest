@@ -5,9 +5,13 @@
     one more css for each page that will contain the selected used 
     on that page only (the ones not reused in other pages).
 */
-.hero-section{
+.pedr{
     background-image: url('../img/hero-1.jpg');
     background-size: cover;
     background-position: center;
-  background-repeat: no-repeat;
+    background-repeat: no-repeat;
+    min-height: 500px;
+    width: 100%;
+    
+    border: 1px solid red; 
 }
