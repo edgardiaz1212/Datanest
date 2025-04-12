@@ -59,15 +59,15 @@ Web application for managing equipment colocation with:
 2. Configure PostgreSQL:
    ```bash
    sudo -u postgres psql
-   CREATE DATABASE colocation;
-   CREATE USER colocation_user WITH PASSWORD 'secure_password';
-   GRANT ALL PRIVILEGES ON DATABASE colocation TO colocation_user;
+   CREATE DATABASE datanest;
+   CREATE USER datanest_user WITH PASSWORD 'secure_password';
+   GRANT ALL PRIVILEGES ON DATABASE datanest TO datanest_user;
    ```
 
 3. Set up application:
    ```bash
-   git clone https://github.com/your-repo/movementColocationPageV2.git
-   cd movementColocationPageV2
+   git clone https://github.com/your-repo/datanest.git
+   cd datanest
    pipenv install --deploy
    npm install --production
    npm run build
@@ -80,7 +80,7 @@ Web application for managing equipment colocation with:
        server_name your-domain.com;
 
        location / {
-           root /path/to/movementColocationPageV2/public;
+           root /path/to/datanest/public;
            try_files $uri /index.html;
        }
 
@@ -93,9 +93,9 @@ Web application for managing equipment colocation with:
 
 5. Configure Supervisor:
    ```ini
-   [program:colocation_api]
+   [program:datanest_api]
    command=pipenv run gunicorn -w 4 -b 127.0.0.1:5000 src.app:app
-   directory=/path/to/movementColocationPageV2
+   directory=/path/to/datanest
    user=www-data
    autostart=true
    autorestart=true
@@ -110,7 +110,7 @@ Key endpoints:
 ## Maintenance
 ### Backup
 ```bash
-pg_dump -U colocation_user -h localhost colocation > backup.sql
+pg_dump -U cdatanest_user -h localhost datanest > backup.sql
 ```
 
 ### Updates
@@ -118,7 +118,7 @@ pg_dump -U colocation_user -h localhost colocation > backup.sql
 2. Run migrations if needed
 3. Restart services:
    ```bash
-   sudo supervisorctl restart colocation_api
+   sudo supervisorctl restart datanest_api
    sudo systemctl restart nginx
    ```
 
@@ -126,5 +126,5 @@ pg_dump -U colocation_user -h localhost colocation > backup.sql
 - Check logs:
   ```bash
   journalctl -u nginx -f
-  sudo supervisorctl tail colocation_api stderr
+  sudo supervisorctl tail datanest_api stderr
   ```
