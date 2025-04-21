@@ -3,6 +3,7 @@ import { Context } from "../store/appContext";
 import { useNavigate, useParams } from "react-router-dom";
 import DownloadModal from "../component/DownloadModal.jsx";
 import DeleteButton from "../component/DeleteButton.jsx";
+import "../../styles/formulary.css";
 
 const DataTable = () => {
   const { user_id } = useParams();

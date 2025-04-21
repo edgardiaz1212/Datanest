@@ -5,6 +5,7 @@ import EquipmentDetails from "../component/EquipmentDetails.jsx";
 import { Context } from "../store/appContext.js";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import "../../styles/formulary.css";
 
 function EditData() {
   const location = useLocation();

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Context } from '../store/appContext'
 import RegisterUser from "../component/RegisterUser.jsx";
 import heroImageUrl from '../../img/hero-1.jpg';
+import "../../styles/formulary.css";
 
 
 function Formulary() {
@@ -18,7 +19,8 @@ function Formulary() {
 
   return (
     <>
-			<><div id="hero" className="hero-section pt-5 bg" style={heroStyle}>
+			<>
+            <div id="hero" className="hero-section pt-5 bg" style={heroStyle}>
             <div id="hero-main" className="hero-main ">
                 <div className="figure-holder-wrapper ">
                     <div className="container   ">
