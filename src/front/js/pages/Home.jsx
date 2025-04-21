@@ -27,7 +27,7 @@ function Home() {
               <div className="d-flex justify-content-center mb-4">
                 <Server color="#0d6efd" size={64} />
               </div>
-              <h1 className="display-4 fw-bold mb-3">Infraestructura de Centro de Datos</h1>
+              <h1 className="display-4 fw-bold mb-3">Infraestructura de Centro de Datos Clientes Externos</h1>
               <p className="lead text-secondary mb-5 text-white">
                 Garantizamos la confiabilidad, seguridad y eficiencia de su infraestructura tecnológica
               </p>
@@ -36,13 +36,11 @@ function Home() {
         </div>
       </section>
 
-      {/* Formulary Link Section - SECCIÓN MODIFICADA */}
-      {/* Cambiado a bg-light y quitado border-bottom para mejor transición */}
       <section className="py-5 bg-light">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-md-10 col-lg-8 text-center">
-              <h2 className="fw-bold mb-3">Solicitud de Colocación</h2>
+              <h2 className="fw-bold mb-3">Solicitud de Adecuación de Espacio</h2>
               <p className="lead text-secondary mb-4">
                 ¿Necesitas instalar, retirar o mover equipamiento para un cliente en nuestro Centro de Datos? Accede al formulario de solicitud para iniciar el proceso.
               </p>
@@ -53,16 +51,12 @@ function Home() {
           </div>
         </div>
       </section>
-      {/* FIN SECCIÓN MODIFICADA */}
 
-
-      {/* Features Section */}
       <section className="py-5 bg-white"> {/* Esta se mantiene bg-white */}
         <div className="container">
           <h2 className="text-center fw-bold mb-5">Nuestros Servicios</h2>
 
           <div className="row g-4">
-            {/* ... (contenido de las cards de servicios sin cambios) ... */}
             <div className="col-md-4">
               <div className="card h-100 shadow-sm">
                 <div className="card-body">
@@ -117,7 +111,6 @@ function Home() {
           <h2 className="text-center fw-bold mb-5">¿Por qué elegirnos?</h2>
 
           <div className="row g-4">
-            {/* ... (contenido de por qué elegirnos sin cambios) ... */}
             <div className="col-md-6">
               <div className="d-flex">
                 <div className="bg-primary p-3 rounded-circle me-3 d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
@@ -181,8 +174,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section className="py-5 bg-white"> {/* Esta es bg-white */}
+      <section className="py-5 bg-white">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-md-8 text-center">

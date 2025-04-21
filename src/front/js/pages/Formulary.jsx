@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
-import { Context } from '../store/appContext'
-import RegisterUser from "../component/RegisterUser.jsx";
+import { Context } from '../store/appContext.js'
+import RegisterUser from "../component/Formulary/RegisterUser.jsx";
 import heroImageUrl from '../../img/hero-1.jpg';
 import "../../styles/formulary.css";
 

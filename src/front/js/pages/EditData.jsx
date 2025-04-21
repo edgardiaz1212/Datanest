@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import RackDetails from "../component/RackDetails.jsx";
-import EquipmentDetails from "../component/EquipmentDetails.jsx";
+import RackDetails from "../component/Formulary/RackDetails.jsx";
+import EquipmentDetails from "../component/Formulary/EquipmentDetails.jsx";
 import { Context } from "../store/appContext.js";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -42,10 +42,15 @@ function EditData() {
     }
   };
 
-  
   const handleSave = async () => {
     // Verificar si los campos obligatorios están vacíos
-    if (!formData.requestType || !formData.brand || !formData.model || !formData.serial || !formData.componentType) {
+    if (
+      !formData.requestType ||
+      !formData.brand ||
+      !formData.model ||
+      !formData.serial ||
+      !formData.componentType
+    ) {
       toast.error("Por favor, complete los campos obligatorios.", {
         position: "top-right",
         autoClose: 3000,

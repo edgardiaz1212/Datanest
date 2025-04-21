@@ -37,15 +37,15 @@ export const NavbarMain = () => {
             <div className="collapse navbar-collapse" id="navbarNavMain">
               {/* 'ms-auto' empuja los links a la derecha en pantallas grandes */}
               <ul className="navbar-nav ms-auto">
-                <li className="nav-item">
-                  <Link to="/register-data/1" className="nav-link text-white">
-                    Primera Página
-                  </Link>
-                </li>
-                <li className="nav-item">
+                               <li className="nav-item">
                   <Link to="/forba7d" className="nav-link text-white">
                     LLenado de Planilla Colocacion
                   </Link>
+                  <li className="nav-item">
+                  <Link to="/login" className="nav-link text-white">
+                    Ingresar
+                  </Link>
+                </li>
                 </li>
               </ul>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
-import RackDetails from "../component/RackDetails.jsx";
-import EquipmentDetails from "../component/EquipmentDetails.jsx";
+import RackDetails from "../component/Formulary/RackDetails.jsx";
+import EquipmentDetails from "../component/Formulary/EquipmentDetails.jsx";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Context } from "../store/appContext";
 import { ToastContainer, toast } from "react-toastify";
