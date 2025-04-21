@@ -1,39 +1,76 @@
 import React from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import ScrollToTop from "./component/scrollToTop";
 import { BackendURL } from "./component/backendURL";
-import { Home } from "./pages/home";
+import Formulary from "./pages/Formulary.jsx";
 import injectContext from "./store/appContext";
 import { Navbar } from "./component/navbar";
+import { NavbarMain } from "./component/NavbarMain";
 import { Footer } from "./component/footer";
 import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
 import EditData from "./pages/EditData.jsx";
+import Home from "./pages/Home.jsx";
 
-const Layout = () => {
-    const basename =  process.env.BASENAME_REACT_prefix || "";
+/**
+ * Componente que renderiza la estructura principal de la página (Navbar, Contenido, Footer).
+ * Necesita estar dentro de BrowserRouter para usar useLocation.
+ */
+const LayoutContent = () => {
+    const location = useLocation();
+    // Determina qué Navbar mostrar basado en la ruta actual
+    const showNavbarMain = location.pathname === "/" || location.pathname === "";
 
+    // Verifica si la URL del backend está configurada (buena práctica)
     if (!process.env.BACKEND_URL || process.env.BACKEND_URL === "") {
         return <BackendURL />;
     }
 
     return (
-        <div>
-            <BrowserRouter basename={basename} future={{ v7_startTransition: true }}>
+        // Contenedor principal con Flexbox para el sticky footer
+        <div className="d-flex flex-column min-vh-100">
+            {/* Renderiza el Navbar correspondiente */}
+            {showNavbarMain ? <NavbarMain /> : <Navbar />}
+
+            {/* Área de contenido principal que crece para empujar el footer */}
+            {/* ScrollToTop envuelve las rutas para que funcione al navegar */}
+            <main className="flex-grow-1">
                 <ScrollToTop>
-                    <Navbar />
                     <Routes>
                         <Route path="/" element={<Home />} />
+                        <Route path="/forba7d" element={<Formulary />} />
                         <Route path="/register-data/:user_id" element={<DataTable />} />
                         <Route path="/complete-data" element={<CompleteData />} />
+                        {/* Asegúrate que la ruta para EditData tenga sentido, quizás necesite un ID? */}
                         <Route path="/edit-data/" element={<EditData />} />
-                        <Route path="*" element={<h1>Not found!</h1>} />
+                        {/* Ruta para páginas no encontradas */}
+                        <Route path="*" element={<h1 className="text-center my-5">404 - Página no encontrada</h1>} />
                     </Routes>
-                    <Footer />
                 </ScrollToTop>
-            </BrowserRouter>
+            </main>
+
+            {/* Footer que se mantiene abajo */}
+            <Footer />
         </div>
     );
 };
 
+/**
+ * Componente principal del Layout.
+ * Configura el BrowserRouter y el Contexto.
+ */
+const Layout = () => {
+    // Configura el basename para el despliegue (ej. en subdirectorios)
+    const basename = process.env.BASENAME_REACT_prefix || "";
+
+    // No es necesario el div extra aquí
+    return (
+        <BrowserRouter basename={basename} future={{ v7_startTransition: true }}>
+            {/* LayoutContent tiene acceso al contexto del Router */}
+            <LayoutContent />
+        </BrowserRouter>
+    );
+};
+
+// Exporta el Layout envuelto en el HOC del contexto
 export default injectContext(Layout);
