@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User, Equipment, Description, Rack
+from api.models import db, UserForm, Equipment, Description, Rack
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 
@@ -10,7 +10,8 @@ api = Blueprint('api', __name__)
 
 # Allow CORS requests to this API
 CORS(api)
-
+# Para formulario 
+#manejo de usuarios que usan el formulario
 @api.route('/addUser', methods=['POST'])
 def addUser():
     if request.method == "POST":
@@ -21,7 +22,7 @@ def addUser():
             "username": data_form.get('username'),
             "clientName": data_form.get('clientName'),
         }
-        new_user = User(
+        new_user = UserForm(
             username=data.get('username'),
             coordination=data.get('coordination'),
             email=data.get('email'),
@@ -45,7 +46,7 @@ def addUser():
 
 @api.route('/user/email/<string:email>', methods=['GET'])
 def check_email(email):
-    user = User.query.filter_by(email=email).first()
+    user = UserForm.query.filter_by(email=email).first()
     if user:
         return jsonify({"message": "El correo ya está registrado."}), 400
     return jsonify({"message": "Correo disponible."}), 200
@@ -53,7 +54,7 @@ def check_email(email):
 @api.route('/user/<int:user_id>', methods=['GET'])
 def get_current_user(user_id):
     if request.method == "GET":
-        user = User.query.filter_by(id=user_id).first()
+        user = UserForm.query.filter_by(id=user_id).first()
         if user:
             user_data = user.serialize()
             return jsonify(user_data), 200
@@ -95,7 +96,7 @@ def add_rack():
             return jsonify({"msg": "user_id is required"}), 400
 
         # Validate if the user exists in the database
-        user = User.query.get(user_id)
+        user = UserForm.query.get(user_id)
         if not user:
             return jsonify({"msg": "User not found"}), 404
 
@@ -188,7 +189,7 @@ def add_equipment():
 
 @api.route('/description/<int:user_id>', methods=['GET'])
 def get_all_descriptions_by_user(user_id):
-    user = User.query.filter_by(id=user_id).first()
+    user = UserForm.query.filter_by(id=user_id).first()
     if not user:
         return jsonify({"message": "User not found"}), 404
     
@@ -352,7 +353,7 @@ def edit_equipment(equipment_id):
 
 @api.route('/delete_user_data/<int:user_id>' , methods=['DELETE'])
 def delete_user_info(user_id):
-    users = User.query.get(user_id)
+    users = UserForm.query.get(user_id)
     if not users:
         return jsonify({"msg": "Usuario no encontrado"}), 404
     descriptions = Description.query.filter_by(user_id=user_id).all()
@@ -377,7 +378,7 @@ def delete_user_info(user_id):
 @api.route('/users', methods=['GET'])
 def get_users():
     try:
-        users = User.query.all()
+        users = UserForm.query.all()
         users_list = [user.serialize() for user in users]
         return jsonify(users_list), 200
     except Exception as error:

@@ -1,8 +1,14 @@
 from flask_sqlalchemy import SQLAlchemy
+import base64
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
+from sqlalchemy.orm import relationship
+from datetime import datetime
 
 db = SQLAlchemy()
 
-class User(db.Model):
+class UserForm(db.Model):
+    __tablename__ = 'user_form'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120),  nullable=False)
@@ -11,10 +17,10 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     
     # Relación con Racks (un cliente puede tener muchos racks)
-    racks = db.relationship('Rack', backref='user', lazy=True)
+    racks = db.relationship('Rack', backref='user_form', lazy=True)
     
     # Relación con Equipos (un cliente puede tener muchos equipos)
-    equipments = db.relationship('Equipment', backref='user', lazy=True)
+    equipments = db.relationship('Equipment', backref='user_form', lazy=True)
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -100,7 +106,7 @@ class Rack(db.Model):
     description_id = db.Column(db.Integer, db.ForeignKey('description.id'), nullable=False)
     description = db.relationship('Description', uselist=False, back_populates='rack', cascade='all, delete')
 
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_form.id'), nullable=False)
 
     # Relación con Equipos (un rack puede tener varios equipos)
     equipments = db.relationship('Equipment', backref='rack')
@@ -170,7 +176,7 @@ class Equipment(db.Model):
     description_id = db.Column(db.Integer, db.ForeignKey('description.id'), nullable=False)
     description = db.relationship('Description', uselist=False, back_populates='equipment', cascade = "all,delete")
     
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_form.id'), nullable=False)
     
     # Relación con Rack (un equipo pertenece a un rack)
     rack_id = db.Column(db.Integer, db.ForeignKey('rack.id'), nullable=True)
