@@ -8,9 +8,9 @@ import { FiPlus } from 'react-icons/fi';
 import { Context } from '../store/appContext';
 
 // Import the child components (assuming they are converted/created as .jsx)
-import LecturasFilter from '../component/Lecturas/LecturasFilter';
-import LecturasTable from '../component/Lecturas/LecturasTable';
-import LecturasAddModal from '../component/Lecturas/LecturasAddModal';
+import LecturasFilter from '../component/Lecturas/LecturasFilter.jsx';
+import LecturasTable from '../component/Lecturas/LecturasTable.jsx';
+import LecturasAddModal from '../component/Lecturas/LecturasAddModal.jsx';
 
 // Remove TypeScript interfaces
 

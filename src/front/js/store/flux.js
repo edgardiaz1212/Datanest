@@ -22,7 +22,26 @@ const getState = ({ getStore, getActions, setStore }) => {
       lecturas: [],           // List of readings
       lecturasLoading: false, // Loading state for this section
       lecturasError: null,
-      
+      estadisticasGenerales: null,
+      estadisticasAire: null,       // Stats for the currently selected AC
+      estadisticasUbicacion: [], 
+      ubicaciones: [],
+      // Chart data (processed in component for now, could move here)
+      graficoGeneralTemp: null,
+      graficoGeneralHum: null,
+      graficoComparativoTemp: null,
+      graficoComparativoHum: null,
+      graficoAireTemp: null,
+      graficoAireHum: null,
+      // Loading and Error States
+      statsLoadingGeneral: false,
+      statsLoadingAire: false,
+      statsLoadingUbicacion: false,
+      statsLoadingChartsGeneral: false,
+      statsLoadingChartsAire: false,
+      statsLoadingUmbrales: false, // Added for clarity
+      statsError: null,
+
     },
     actions: {
       // Use getActions to call a function within a function
@@ -1275,6 +1294,171 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearLecturasError: () => {
       setStore({ lecturasError: null });
     },
+
+    fetchEstadisticasIniciales: async () => {
+      const actions = getActions();
+      setStore({
+        statsLoadingGeneral: true,
+        statsLoadingUbicacion: true,
+        statsLoadingChartsGeneral: true,
+        statsLoadingUmbrales: true, // Use specific loading
+        statsError: null
+      });
+
+      try {
+        // Ensure base data (aires, umbrales) are fetched first or in parallel
+        // Assuming fetchAires and fetchUmbrales exist and work correctly
+        // Using Promise.all for parallel fetching
+        const [
+          // airesResponse, // FetchAires called within fetchUmbrales
+          umbralResponse, // Fetches aires internally first
+          estGenResponse,
+          estUbicResponse,
+          lecturasGenResponse // For general charts
+        ] = await Promise.all([
+          // actions.fetchAires(), // Called by fetchUmbrales
+          actions.fetchUmbrales(), // Assumes this fetches aires too
+          fetch(`${process.env.BACKEND_URL}/estadisticas/generales`), // Corrected endpoint
+          fetch(`${process.env.BACKEND_URL}/estadisticas/ubicacion`),
+          // Fetch recent readings for general chart (adjust endpoint/limit if needed)
+          fetch(`${process.env.BACKEND_URL}/lecturas/all?limit=50`) // *** ADJUST '/lecturas/all' if needed ***
+        ]);
+
+        // Check all responses
+        if (!umbralResponse) throw new Error("Error cargando umbrales (y aires)."); // fetchUmbrales handles its own errors but check return if needed
+        if (!estGenResponse.ok) throw new Error(`Error cargando estadísticas generales: ${estGenResponse.status}`);
+        if (!estUbicResponse.ok) throw new Error(`Error cargando estadísticas por ubicación: ${estUbicResponse.status}`);
+        if (!lecturasGenResponse.ok) throw new Error(`Error cargando lecturas generales: ${lecturasGenResponse.status}`);
+
+        // Parse JSON data
+        // const airesData = getStore().aires; // Already set by fetchUmbrales
+        const umbralesData = getStore().umbrales; // Already set by fetchUmbrales
+        const estGenData = await estGenResponse.json();
+        const estUbicData = await estUbicResponse.json();
+        const lecturasGenData = await lecturasGenResponse.json();
+
+        // Derive ubicaciones from aires (already in store via fetchUmbrales)
+        const store = getStore();
+        const ubicacionesUnicas = Array.from(new Set(store.aires.map(aire => aire.ubicacion))).filter(Boolean); // Filter out null/empty
+
+        // --- Process data for charts (can be done here or in component) ---
+        // For now, we just store the raw data needed by the component's processing functions
+        // You could move procesarLecturasParaGrafico and procesarUbicacionesParaGrafico here
+        // if you prefer to keep the component cleaner.
+
+        setStore({
+          // aires: airesData, // Set by fetchUmbrales
+          // umbrales: umbralesData, // Set by fetchUmbrales
+          ubicaciones: ubicacionesUnicas,
+          estadisticasGenerales: estGenData || null,
+          estadisticasUbicacion: estUbicData || [],
+          // Store raw readings for general chart processing in component
+          _rawLecturasGenerales: lecturasGenData || [], // Temporary store key
+          statsLoadingGeneral: false,
+          statsLoadingUbicacion: false,
+          statsLoadingChartsGeneral: false, // Component will set these based on processing
+          statsLoadingUmbrales: false, // Umbrales loaded
+        });
+
+      } catch (error) {
+        console.error("Error in fetchEstadisticasIniciales:", error);
+        setStore({
+          statsError: error.message || "Error cargando datos iniciales de estadísticas.",
+          statsLoadingGeneral: false,
+          statsLoadingUbicacion: false,
+          statsLoadingChartsGeneral: false,
+          statsLoadingUmbrales: false,
+        });
+      }
+    },
+
+    /**
+     * Fetches statistics and recent readings for a specific air conditioner.
+     * @param {number} aireId - The ID of the selected air conditioner.
+     */
+    fetchEstadisticasAire: async (aireId) => {
+      const store = getStore();
+      if (aireId === null || aireId === undefined) {
+        setStore({
+          estadisticasAire: null,
+          _rawLecturasAire: [], // Clear raw data
+          statsLoadingAire: false,
+          statsLoadingChartsAire: false,
+          statsError: null // Clear error when deselecting
+        });
+        return;
+      }
+
+      setStore({
+        statsLoadingAire: true,
+        statsLoadingChartsAire: true, // Loading charts too
+        statsError: null
+      });
+
+      try {
+        // Fetch stats and readings in parallel
+        const [statsResponse, lecturasResponse] = await Promise.all([
+          // *** ADJUST endpoint if needed: /aires/<id>/estadisticas ***
+          fetch(`${process.env.BACKEND_URL}/aires/${aireId}/estadisticas`),
+          // *** ADJUST endpoint if needed: /aires/<id>/lecturas ***
+          fetch(`${process.env.BACKEND_URL}/aires/${aireId}/lecturas?limit=50`) // Fetch recent readings
+        ]);
+
+        // Check responses
+        if (!statsResponse.ok) throw new Error(`Error cargando estadísticas para aire ${aireId}: ${statsResponse.status}`);
+        if (!lecturasResponse.ok) throw new Error(`Error cargando lecturas para aire ${aireId}: ${lecturasResponse.status}`);
+
+        // Parse JSON
+        const statsData = await statsResponse.json();
+        const lecturasData = await lecturasResponse.json();
+
+        // Find AC info from store
+        const aireInfo = store.aires.find(a => a.id === aireId);
+
+        // Calculate variations (could also be done in component)
+        const variacionTemp = (statsData.temperatura_maxima !== undefined && statsData.temperatura_minima !== undefined)
+                              ? Math.abs(statsData.temperatura_maxima - statsData.temperatura_minima)
+                              : 0;
+        const variacionHum = (statsData.humedad_maxima !== undefined && statsData.humedad_minima !== undefined)
+                             ? Math.abs(statsData.humedad_maxima - statsData.humedad_minima)
+                             : 0;
+
+        // Prepare stats object
+        const processedStatsAire = {
+          ...statsData,
+          aire_id: aireId,
+          nombre: aireInfo?.nombre || 'Desconocido',
+          ubicacion: aireInfo?.ubicacion || 'Desconocida',
+          variacion_temperatura: parseFloat(variacionTemp.toFixed(2)),
+          variacion_humedad: parseFloat(variacionHum.toFixed(2)),
+        };
+
+        setStore({
+          estadisticasAire: processedStatsAire,
+          _rawLecturasAire: lecturasData || [], // Store raw readings for chart processing
+          statsLoadingAire: false,
+          // statsLoadingChartsAire will be set by component after processing
+        });
+
+      } catch (error) {
+        console.error(`Error in fetchEstadisticasAire for ${aireId}:`, error);
+        setStore({
+          statsError: error.message || `Error cargando datos para el aire ${aireId}.`,
+          statsLoadingAire: false,
+          statsLoadingChartsAire: false,
+          estadisticasAire: null, // Clear data on error
+          _rawLecturasAire: [],
+        });
+      }
+    },
+
+    /**
+     * Clears the specific error message for "Estadisticas".
+     */
+    clearStatsError: () => {
+      setStore({ statsError: null });
+    },
+
   },
      
     
