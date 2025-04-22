@@ -12,6 +12,10 @@ const getState = ({ getStore, getActions, setStore }) => {
       umbrales: [], 
       umbralesLoading: false,
       umbralesError: null, 
+      otrosEquiposList: [],          // List of other equipment items
+      otrosEquiposLoading: false,    // Loading state for this section
+      otrosEquiposError: null,       // Error state for this section
+      // selectedOtroEquipoDetails: null, // Optional: Could store details here too
     },
     actions: {
       // Use getActions to call a function within a function
@@ -761,7 +765,155 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearUmbralesError: () => {
       setStore({ umbralesError: null });
     },
+    fetchOtrosEquipos: async () => {
+      setStore({ otrosEquiposLoading: true, otrosEquiposError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/otros_equipos`); // Uses the existing endpoint
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching otros equipos: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming the backend returns the list directly
+        setStore({ otrosEquiposList: data || [], otrosEquiposLoading: false });
+      } catch (error) {
+        console.error("Error in fetchOtrosEquipos:", error);
+        setStore({ otrosEquiposError: error.message || "Error cargando la lista de equipos.", otrosEquiposLoading: false });
+      }
+    },
 
+    /**
+     * Fetches the full details of a single "Otro Equipo".
+     * Note: This might be handled locally in the component if preferred,
+     * especially if details are only needed temporarily for modals.
+     * If kept here, add 'selectedOtroEquipoDetails' to the store.
+     * @param {number} equipoId
+     * @returns {object | null} - The detailed equipment object or null on error.
+     */
+    fetchOtroEquipoDetails: async (equipoId) => {
+      // setStore({ /* detailsLoading: true, detailsError: null */ }); // Optional specific loading/error
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/otros_equipos/${equipoId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching details for equipo ${equipoId}: ${response.status}`);
+        }
+        const data = await response.json();
+        // setStore({ selectedOtroEquipoDetails: data, /* detailsLoading: false */ });
+        return data; // Return data for the component to use
+      } catch (error) {
+        console.error("Error in fetchOtroEquipoDetails:", error);
+        // setStore({ /* detailsError: error.message, detailsLoading: false */ });
+        // Propagate error or handle globally
+        throw error; // Let the caller handle the error display
+      }
+    },
+
+    /**
+     * Adds a new "Otro Equipo".
+     * @param {object} formData - Data for the new equipment.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    addOtroEquipo: async (formData) => {
+      const actions = getActions();
+      setStore({ otrosEquiposLoading: true, otrosEquiposError: null }); // Indicate loading
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/otros_equipos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error adding otro equipo: ${response.status}`);
+        }
+
+        // Refresh the list after adding
+        await actions.fetchOtrosEquipos(); // This resets loading/error states
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in addOtroEquipo:", error);
+        setStore({ otrosEquiposError: error.message || "Error al agregar el equipo.", otrosEquiposLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Updates an existing "Otro Equipo".
+     * @param {number} equipoId - ID of the equipment to update.
+     * @param {object} formData - Updated data.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    updateOtroEquipo: async (equipoId, formData) => {
+      const actions = getActions();
+      setStore({ otrosEquiposLoading: true, otrosEquiposError: null }); // Indicate loading
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/otros_equipos/${equipoId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData), // Send the whole form data, backend handles allowed fields
+        });
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error updating otro equipo: ${response.status}`);
+        }
+
+        // Refresh the list after updating
+        await actions.fetchOtrosEquipos(); // This resets loading/error states
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in updateOtroEquipo:", error);
+        setStore({ otrosEquiposError: error.message || "Error al actualizar el equipo.", otrosEquiposLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Deletes an "Otro Equipo".
+     * @param {number} equipoId - ID of the equipment to delete.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    deleteOtroEquipo: async (equipoId) => {
+      const store = getStore();
+      // Optimistic UI update
+      const originalList = [...store.otrosEquiposList];
+      const updatedList = originalList.filter(eq => eq.id !== equipoId);
+      setStore({ otrosEquiposList: updatedList, otrosEquiposError: null });
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/otros_equipos/${equipoId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          setStore({ otrosEquiposList: originalList }); // Rollback on error
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.msg || `Error deleting otro equipo: ${response.status}`);
+        }
+
+        // Success (204 No Content) - UI already updated
+        console.log(`Otro Equipo ${equipoId} deleted successfully.`);
+        return true;
+
+      } catch (error) {
+        console.error("Error in deleteOtroEquipo:", error);
+        setStore({ otrosEquiposList: originalList, otrosEquiposError: error.message || "Error al eliminar el equipo." });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Clears the specific error message for "Otros Equipos".
+     */
+    clearOtrosEquiposError: () => {
+      setStore({ otrosEquiposError: null });
+    },
     
   },
      
