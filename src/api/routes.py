@@ -875,13 +875,20 @@ def eliminar_aire_route(aire_id):
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el aire."}), 500
 
 # --- Rutas para Lectura ---
-
 @api.route('/aires/<int:aire_id>/lecturas', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
 def agregar_lectura_route(aire_id):
     """
     Endpoint para agregar una nueva lectura para un aire acondicionado específico.
+    Requiere autenticación.
     Recibe los datos en formato JSON.
     """
+    # Opcional: Verificar si el usuario tiene permiso para agregar lecturas
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'operador']:
+    #     return jsonify({"msg": "Acceso no autorizado para agregar lecturas"}), 403
+
     # Verificar que el aire acondicionado existe
     aire = AireAcondicionado.query.get(aire_id)
     if not aire:
@@ -900,8 +907,6 @@ def agregar_lectura_route(aire_id):
         fecha_dt = None
         try:
             # Asume formato ISO 8601 (ej: 2023-10-27T10:30:00) o YYYY-MM-DD HH:MM:SS
-            # Si tu frontend envía otro formato, ajústalo aquí.
-            # Si solo es fecha, usa .date() al final
             fecha_dt = datetime.fromisoformat(data['fecha'])
             # o fecha_dt = datetime.strptime(data['fecha'], '%Y-%m-%d %H:%M:%S')
         except (ValueError, TypeError):
@@ -916,7 +921,7 @@ def agregar_lectura_route(aire_id):
 
         # Crear nueva lectura
         nueva_lectura = Lectura(
-            aire_id=aire_id, # ID viene de la URL
+            aire_id=aire_id,
             fecha=fecha_dt,
             temperatura=temperatura_float,
             humedad=humedad_float
@@ -925,10 +930,9 @@ def agregar_lectura_route(aire_id):
         db.session.add(nueva_lectura)
         db.session.commit()
 
-        # Asumiendo que tu modelo Lectura tiene un método serialize()
         return jsonify(nueva_lectura.serialize()), 201
 
-    except SQLAlchemyError as e: # Capturar errores específicos de BD si ocurren
+    except SQLAlchemyError as e:
         db.session.rollback()
         print(f"!!! ERROR SQLAlchemy en agregar_lectura_route para aire {aire_id}: {e}", file=sys.stderr)
         traceback.print_exc()
@@ -940,12 +944,12 @@ def agregar_lectura_route(aire_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al guardar la lectura."}), 500
 
-# --- Rutas para Lectura (Continuación) ---
-
 @api.route('/aires/<int:aire_id>/lecturas', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_lecturas_por_aire_route(aire_id):
     """
     Endpoint para obtener todas las lecturas de un aire acondicionado específico.
+    Requiere autenticación.
     """
     # Verificar que el aire acondicionado existe
     aire = AireAcondicionado.query.get(aire_id)
@@ -953,12 +957,9 @@ def obtener_lecturas_por_aire_route(aire_id):
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
 
     try:
-        # Consultar lecturas ordenadas por fecha (opcional, pero útil)
+        # Consultar lecturas ordenadas por fecha
         lecturas = Lectura.query.filter_by(aire_id=aire_id).order_by(Lectura.fecha.desc()).all()
-
-        # Serializar la lista de lecturas
         lecturas_serializadas = [lectura.serialize() for lectura in lecturas]
-
         return jsonify(lecturas_serializadas), 200
 
     except Exception as e:
@@ -968,22 +969,28 @@ def obtener_lecturas_por_aire_route(aire_id):
 
 
 @api.route('/lecturas/<int:lectura_id>', methods=['DELETE'])
+@jwt_required() # <--- Añadido aquí
 def eliminar_lectura_route(lectura_id):
     """
     Endpoint para eliminar una lectura específica por su ID.
+    Requiere autenticación.
     """
-    lectura = Lectura.query.get(lectura_id)
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    # Solo un admin o supervisor debería poder eliminar lecturas directamente
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar lecturas"}), 403
+    # --- Fin verificación de permisos ---
 
+    lectura = Lectura.query.get(lectura_id)
     if not lectura:
         return jsonify({"msg": f"Lectura con ID {lectura_id} no encontrada."}), 404
 
     try:
         db.session.delete(lectura)
         db.session.commit()
-        # No Content: Indica éxito sin devolver cuerpo
-        return '', 204
-        # O si prefieres un mensaje:
-        # return jsonify({"msg": f"Lectura {lectura_id} eliminada correctamente."}), 200
+        return '', 204 # No Content
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -995,7 +1002,6 @@ def eliminar_lectura_route(lectura_id):
         print(f"!!! ERROR inesperado al eliminar lectura ID {lectura_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar la lectura."}), 500
-
 
 @api.route('/aires/<int:aire_id>/estadisticas', methods=['GET'])
 def obtener_estadisticas_por_aire_route(aire_id):
@@ -1282,30 +1288,6 @@ def agregar_otro_equipo_helper(data):
 # --- Rutas de API ---
 
 # --- Rutas para AireAcondicionado (Continuación) ---
-
-@api.route('/aires/<int:aire_id>', methods=['GET'])
-def obtener_aire_por_id_route(aire_id):
-    """
-    Endpoint para obtener un aire acondicionado específico por su ID.
-    """
-    try:
-        # Validar ID básico
-        if aire_id <= 0:
-             return jsonify({"msg": "ID de aire inválido."}), 400
-
-        # Usar db.session.get() que es más directo para obtener por PK
-        aire = db.session.get(AireAcondicionado, aire_id)
-
-        if not aire:
-            return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
-
-        return jsonify(aire.serialize()), 200
-
-    except Exception as e:
-        # Loggear el error es importante
-        print(f"!!! ERROR inesperado en obtener_aire_por_id_route para ID {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error inesperado en el servidor al obtener el aire."}), 500
 
 
 @api.route('/aires/<int:aire_id>', methods=['DELETE'])
@@ -2419,20 +2401,21 @@ def obtener_contador_alertas_activas_route():
     return jsonify({"alertas_activas_count": alert_count}), 200
 
 @api.route('/lecturas/ultimas', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_ultimas_lecturas_route():
     """
     Endpoint para obtener las últimas N lecturas registradas,
-    incluyendo información del aire asociado.
+    incluyendo información del aire asociado. Requiere autenticación.
     Acepta un query parameter 'limite' (default 5).
     """
     try:
         limite = request.args.get('limite', default=5, type=int)
-        # Asegurar un límite razonable
         if limite <= 0 or limite > 100:
             limite = 5
     except ValueError:
         limite = 5
 
+    # Llama al helper que ya tenías (asumiendo que está definido correctamente)
     ultimas_lecturas = obtener_ultimas_lecturas_con_info_aire_helper(limite)
 
     if ultimas_lecturas is None:
