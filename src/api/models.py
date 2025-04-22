@@ -220,7 +220,6 @@ class Equipment(db.Model):
             'user':self.user.serialize()
              }
 # --- Nuevos Modelos (Temperature Tracker) ---
-
 class AireAcondicionado(db.Model):
     __tablename__ = 'aires_acondicionados'
 
@@ -281,7 +280,6 @@ class AireAcondicionado(db.Model):
             # 'umbrales': [u.serialize() for u in self.umbrales]
         }
 
-
 class Lectura(db.Model):
     __tablename__ = 'lecturas'
 
@@ -305,7 +303,6 @@ class Lectura(db.Model):
             'temperatura': self.temperatura,
             'humedad': self.humedad
         }
-
 
 class Mantenimiento(db.Model):
     __tablename__ = 'mantenimientos'
@@ -358,7 +355,6 @@ class Mantenimiento(db.Model):
             'imagen_base64': self.get_imagen_base64() # Opcional: incluir versión base64
         }
 
-
 class UmbralConfiguracion(db.Model):
     __tablename__ = 'umbrales_configuracion'
 
@@ -402,7 +398,6 @@ class UmbralConfiguracion(db.Model):
             'ultima_modificacion': self.ultima_modificacion.isoformat() if self.ultima_modificacion else None,
         }
 
-
 class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
     __tablename__ = 'tracker_usuarios' # Nombre de tabla cambiado
 
@@ -441,7 +436,6 @@ class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
             'ultima_conexion': self.ultima_conexion.isoformat() if self.ultima_conexion else None,
         }
-
 
 class OtroEquipo(db.Model):
     __tablename__ = 'otros_equipos'

@@ -12,8 +12,9 @@ from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash
+
 load_dotenv()
-# from models import Person
 
 ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
 static_file_dir = os.path.join(os.path.dirname(
