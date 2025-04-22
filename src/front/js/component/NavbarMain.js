@@ -1,23 +1,32 @@
 import React from "react";
-// 1. Importa el hook useLocation
 import { Link, useLocation } from "react-router-dom";
 import logo from '../../img/CDHLogo.jpg';
 
 export const NavbarMain = () => {
-  // 2. Obtén el objeto de ubicación actual
   const location = useLocation();
-  // 3. Extrae el pathname (la ruta actual, ej: "/forba7d")
   const currentPath = location.pathname;
 
   return (
     <>
       <header id="header" className="header">
-        <nav className="navbar navbar-expand-md navbar-dark bg-dark main-nav" role="navigation">
-          <div className="container-fluid position-relative d-flex justify-content-between align-items-center">
+        {/* No es estrictamente necesario role="navigation" en <nav> */}
+        <nav className="navbar navbar-expand-md navbar-dark bg-dark main-nav">
+          {/* Quitamos position-relative si no es necesario para otra cosa */}
+          <div className="container-fluid d-flex justify-content-between align-items-center">
 
-            <Link to="/" className="logo navbar-brand text-white me-auto d-inline-flex align-items-center py-0">
-              <img className="logo-icon" src={logo} alt="icon" style={{ height: '38px', marginRight: '10px' }} />
-              <span className="text">Infraestructura <span className="highlight">DCCE</span></span>
+            {/* Ajustamos el brand: usamos d-flex y ocultamos texto en pantallas extra pequeñas */}
+            <Link to="/" className="navbar-brand text-white d-flex align-items-center py-0 me-auto">
+              <img
+                className="logo-icon d-inline-block align-top" // Clase estándar para alinear imágenes en navbars
+                src={logo}
+                alt="Logo CDH" // Alt text más descriptivo
+                style={{ height: '38px', marginRight: '8px' }} // Un poco menos de margen quizás
+              />
+              <span className="text">
+                {/* Ocultamos "Infraestructura" en 'xs', lo mostramos desde 'sm' hacia arriba */}
+                <span className="d-none d-sm-inline">Infraestructura </span>
+                <span className="highlight">DCCE</span>
+              </span>
             </Link>
 
             <button
@@ -39,7 +48,6 @@ export const NavbarMain = () => {
                     LLenado de Planilla Colocacion
                   </Link>
                 </li>
-                {/* 4. Renderizado condicional: Muestra este <li> solo si la ruta NO es /forba7d */}
                 {currentPath !== '/forba7d' && (
                   <li className="nav-item">
                     <Link to="/login" className="nav-link text-white">
