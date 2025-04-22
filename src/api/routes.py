@@ -1287,9 +1287,6 @@ def agregar_otro_equipo_helper(data):
 
 # --- Rutas de API ---
 
-# --- Rutas para AireAcondicionado (Continuación) ---
-
-
 @api.route('/aires/<int:aire_id>', methods=['DELETE'])
 def eliminar_aire_route(aire_id):
     """
@@ -1328,11 +1325,19 @@ def eliminar_aire_route(aire_id):
 # --- Rutas para OtroEquipo ---
 
 @api.route('/otros_equipos', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
 def agregar_otro_equipo_route():
     """
     Endpoint para agregar un nuevo equipo diverso (no Aire Acondicionado).
-    Recibe los datos en formato JSON.
+    Requiere autenticación. Recibe los datos en formato JSON.
     """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    #     return jsonify({"msg": "Acceso no autorizado para agregar equipos diversos"}), 403
+    # --- Fin Verificación ---
+
     data = request.get_json()
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
@@ -1375,9 +1380,10 @@ def agregar_otro_equipo_route():
 
 
 @api.route('/otros_equipos', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_otros_equipos_route():
     """
-    Endpoint para obtener la lista de todos los equipos diversos.
+    Endpoint para obtener la lista de todos los equipos diversos. Requiere autenticación.
     Devuelve una lista de objetos JSON.
     """
     try:
@@ -1396,9 +1402,10 @@ def obtener_otros_equipos_route():
 
 
 @api.route('/otros_equipos/<int:equipo_id>', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_otro_equipo_por_id_route(equipo_id):
     """
-    Endpoint para obtener un equipo diverso específico por su ID.
+    Endpoint para obtener un equipo diverso específico por su ID. Requiere autenticación.
     """
     try:
         if equipo_id <= 0:
@@ -1417,14 +1424,21 @@ def obtener_otro_equipo_por_id_route(equipo_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al obtener el equipo diverso."}), 500
 
-# --- Rutas para OtroEquipo (Continuación) ---
 
 @api.route('/otros_equipos/<int:equipo_id>', methods=['PUT'])
+@jwt_required() # <--- Añadido aquí
 def actualizar_otro_equipo_route(equipo_id):
     """
-    Endpoint para actualizar un equipo diverso existente.
+    Endpoint para actualizar un equipo diverso existente. Requiere autenticación.
     Recibe los datos en formato JSON.
     """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    #     return jsonify({"msg": "Acceso no autorizado para actualizar equipos diversos"}), 403
+    # --- Fin Verificación ---
+
     equipo = db.session.get(OtroEquipo, equipo_id)
     if not equipo:
         return jsonify({"msg": f"Equipo diverso con ID {equipo_id} no encontrado."}), 404
@@ -1433,7 +1447,7 @@ def actualizar_otro_equipo_route(equipo_id):
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
-    # Campos permitidos para actualizar
+    # (Resto del código sin cambios...)
     allowed_keys = ['nombre', 'tipo', 'ubicacion', 'marca', 'modelo', 'serial',
                     'codigo_inventario', 'fecha_instalacion', 'estado_operativo', 'notas']
     updated = False
@@ -1491,12 +1505,21 @@ def actualizar_otro_equipo_route(equipo_id):
 
 
 @api.route('/otros_equipos/<int:equipo_id>', methods=['DELETE'])
+@jwt_required() # <--- Añadido aquí
 def eliminar_otro_equipo_route(equipo_id):
     """
-    Endpoint para eliminar un equipo diverso específico por su ID.
+    Endpoint para eliminar un equipo diverso específico por su ID. Requiere autenticación.
     Los mantenimientos asociados deberían eliminarse en cascada si la relación
     en el modelo Mantenimiento está configurada con cascade='all, delete-orphan'.
     """
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    # Solo un admin o supervisor debería poder eliminar
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar equipos diversos"}), 403
+    # --- Fin verificación de permisos ---
+
     equipo = db.session.get(OtroEquipo, equipo_id)
     if not equipo:
         return jsonify({"msg": f"Equipo diverso con ID {equipo_id} no encontrado."}), 404
@@ -1858,16 +1881,24 @@ def eliminar_mantenimiento_route(mantenimiento_id):
 # --- Rutas para UmbralConfiguracion ---
 
 @api.route('/umbrales', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
 def crear_umbral_configuracion_route():
     """
-    Endpoint para crear una nueva configuración de umbrales.
+    Endpoint para crear una nueva configuración de umbrales. Requiere autenticación.
     Recibe los datos en formato JSON.
     """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    #     return jsonify({"msg": "Acceso no autorizado para crear umbrales"}), 403
+    # --- Fin Verificación ---
+
     data = request.get_json()
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
-    # Campos requeridos y validaciones básicas
+    # (Resto del código sin cambios...)
     required_fields = ['nombre', 'es_global', 'temp_min', 'temp_max', 'hum_min', 'hum_max']
     if not all(field in data for field in required_fields):
         missing = [field for field in required_fields if field not in data]
@@ -1880,10 +1911,9 @@ def crear_umbral_configuracion_route():
         temp_max = float(data['temp_max'])
         hum_min = float(data['hum_min'])
         hum_max = float(data['hum_max'])
-        aire_id = data.get('aire_id') # Puede ser None
-        notificar_activo = bool(data.get('notificar_activo', True)) # Valor por defecto
+        aire_id = data.get('aire_id')
+        notificar_activo = bool(data.get('notificar_activo', True))
 
-        # Validaciones lógicas
         if temp_min >= temp_max:
             return jsonify({"msg": "temp_min debe ser menor que temp_max"}), 400
         if hum_min >= hum_max:
@@ -1891,15 +1921,13 @@ def crear_umbral_configuracion_route():
         if not es_global and aire_id is None:
             return jsonify({"msg": "Se requiere aire_id si el umbral no es global (es_global=false)"}), 400
         if es_global:
-            aire_id = None # Asegurarse que aire_id sea None si es global
+            aire_id = None
 
-        # Verificar si el aire_id existe (si se proporciona)
         if aire_id is not None:
             aire = db.session.get(AireAcondicionado, aire_id)
             if not aire:
                  return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
 
-        # Crear nuevo umbral
         nuevo_umbral = UmbralConfiguracion(
             nombre=nombre,
             es_global=es_global,
@@ -1909,18 +1937,17 @@ def crear_umbral_configuracion_route():
             hum_min=hum_min,
             hum_max=hum_max,
             notificar_activo=notificar_activo,
-            # fecha_creacion y ultima_modificacion se manejan automáticamente por el modelo (si tienen default)
         )
 
         db.session.add(nuevo_umbral)
         db.session.commit()
 
-        return jsonify(nuevo_umbral.serialize_with_details()), 201 # Asume que existe este método
+        return jsonify(nuevo_umbral.serialize_with_details()), 201
 
     except (ValueError, TypeError) as ve:
         db.session.rollback()
         return jsonify({"msg": f"Error en el tipo de dato: {ve}. Asegúrate que los umbrales sean números."}), 400
-    except IntegrityError as e: # Podría haber constraints únicos en el futuro
+    except IntegrityError as e:
         db.session.rollback()
         print(f"Error de integridad al crear umbral: {e}", file=sys.stderr)
         return jsonify({"msg": "Error de integridad al crear el umbral."}), 409
@@ -1937,9 +1964,10 @@ def crear_umbral_configuracion_route():
 
 
 @api.route('/umbrales', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_umbrales_configuracion_route():
     """
-    Endpoint para obtener las configuraciones de umbrales.
+    Endpoint para obtener las configuraciones de umbrales. Requiere autenticación.
     Filtra por ?aire_id=X o ?solo_globales=true.
     Si no hay filtros, devuelve todos (globales y específicos).
     """
@@ -1952,20 +1980,15 @@ def obtener_umbrales_configuracion_route():
         if solo_globales_filter:
             query = query.filter(UmbralConfiguracion.es_global == True)
         elif aire_id_filter:
-            # Obtener umbrales específicos para ese aire Y los globales
             query = query.filter(
                 or_(
                     UmbralConfiguracion.aire_id == aire_id_filter,
                     UmbralConfiguracion.es_global == True
                 )
             )
-        # Si no hay filtros, se obtienen todos
 
-        # Ordenar (opcional)
         umbrales = query.order_by(UmbralConfiguracion.es_global.desc(), UmbralConfiguracion.nombre).all()
-
-        # Serializar resultados (usando un método que incluya el nombre del aire si existe)
-        results = [u.serialize_with_details() for u in umbrales] # ¡Asegúrate que este método exista!
+        results = [u.serialize_with_details() for u in umbrales]
 
         return jsonify(results), 200
 
@@ -1976,16 +1999,17 @@ def obtener_umbrales_configuracion_route():
 
 
 @api.route('/umbrales/<int:umbral_id>', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_umbral_por_id_route(umbral_id):
     """
     Endpoint para obtener una configuración de umbral específica por su ID.
+    Requiere autenticación.
     """
     try:
         umbral = db.session.get(UmbralConfiguracion, umbral_id)
         if not umbral:
             return jsonify({"msg": f"Umbral con ID {umbral_id} no encontrado."}), 404
 
-        # Usar el método de serialización detallado
         return jsonify(umbral.serialize_with_details()), 200
 
     except Exception as e:
@@ -1995,11 +2019,19 @@ def obtener_umbral_por_id_route(umbral_id):
 
 
 @api.route('/umbrales/<int:umbral_id>', methods=['PUT'])
+@jwt_required() # <--- Añadido aquí
 def actualizar_umbral_configuracion_route(umbral_id):
     """
-    Endpoint para actualizar una configuración de umbral existente.
+    Endpoint para actualizar una configuración de umbral existente. Requiere autenticación.
     No permite cambiar 'es_global' ni 'aire_id'.
     """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    #     return jsonify({"msg": "Acceso no autorizado para actualizar umbrales"}), 403
+    # --- Fin Verificación ---
+
     umbral = db.session.get(UmbralConfiguracion, umbral_id)
     if not umbral:
         return jsonify({"msg": f"Umbral con ID {umbral_id} no encontrado."}), 404
@@ -2008,12 +2040,11 @@ def actualizar_umbral_configuracion_route(umbral_id):
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
-    # Campos que se pueden actualizar
+    # (Resto del código sin cambios...)
     allowed_updates = ['nombre', 'temp_min', 'temp_max', 'hum_min', 'hum_max', 'notificar_activo']
     updated = False
 
     try:
-        # Validar y actualizar campos
         new_temp_min = float(data.get('temp_min', umbral.temp_min))
         new_temp_max = float(data.get('temp_max', umbral.temp_max))
         new_hum_min = float(data.get('hum_min', umbral.hum_min))
@@ -2046,11 +2077,10 @@ def actualizar_umbral_configuracion_route(umbral_id):
                  updated = True
 
         if updated:
-            # ultima_modificacion se actualiza automáticamente si está configurado en el modelo
             db.session.commit()
             return jsonify(umbral.serialize_with_details()), 200
         else:
-            return jsonify(umbral.serialize_with_details()), 200 # O 304 Not Modified
+            return jsonify(umbral.serialize_with_details()), 200
 
     except (ValueError, TypeError) as ve:
         db.session.rollback()
@@ -2068,10 +2098,16 @@ def actualizar_umbral_configuracion_route(umbral_id):
 
 
 @api.route('/umbrales/<int:umbral_id>', methods=['DELETE'])
+@jwt_required() # <--- Añadido aquí
 def eliminar_umbral_configuracion_route(umbral_id):
     """
-    Endpoint para eliminar una configuración de umbral por su ID.
+    Endpoint para eliminar una configuración de umbral por su ID. Requiere autenticación.
     """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar umbrales"}), 403
+
     umbral = db.session.get(UmbralConfiguracion, umbral_id)
     if not umbral:
         return jsonify({"msg": f"Umbral con ID {umbral_id} no encontrado."}), 404
@@ -2181,10 +2217,11 @@ def verificar_lectura_dentro_umbrales_helper(aire_id, temperatura, humedad):
 # --- Ruta de API para Verificar Umbrales ---
 
 @api.route('/aires/<int:aire_id>/verificar_umbrales', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def verificar_umbrales_route(aire_id):
     """
     Endpoint para verificar si una lectura de temperatura y humedad
-    está dentro de los umbrales configurados para un aire específico.
+    está dentro de los umbrales configurados para un aire específico. Requiere autenticación.
     Recibe 'temp' y 'hum' como query parameters.
     Ej: /aires/1/verificar_umbrales?temp=28.5&hum=65
     """
@@ -2210,10 +2247,8 @@ def verificar_umbrales_route(aire_id):
     resultado = verificar_lectura_dentro_umbrales_helper(aire_id, temperatura, humedad)
 
     if resultado is None:
-        # Si el helper devolvió None, hubo un error interno
         return jsonify({"msg": "Error al verificar los umbrales."}), 500
 
-    # Devolver el resultado (que ya es un diccionario)
     return jsonify(resultado), 200
 
 def contar_entidades_helper():
