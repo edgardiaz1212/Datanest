@@ -8,7 +8,9 @@ const getState = ({ getStore, getActions, setStore }) => {
       loading: false,
       error: null,
       trackerUsers: [],
-      aires: [], 
+      aires: [],
+      airesLoading: false, // Specific loading state for the aires list/operations
+      airesError: null,  
       umbrales: [], 
       umbralesLoading: false,
       umbralesError: null, 
@@ -1458,7 +1460,162 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearStatsError: () => {
       setStore({ statsError: null });
     },
+    fetchAires: async () => {
+      setStore({ airesLoading: true, airesError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/aires`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching aires: ${response.status}`);
+        }
+        const data = await response.json();
+        // Ensure data is an array before setting
+        if (Array.isArray(data)) {
+          setStore({ aires: data, airesLoading: false });
+        } else {
+          console.error("Unexpected format for /aires response:", data);
+          throw new Error("Formato de respuesta inesperado del servidor al listar aires.");
+        }
+        return true; // Indicate success
+      } catch (error) {
+        console.error("Error in fetchAires:", error);
+        setStore({ airesError: error.message || "Error cargando la lista de aires.", airesLoading: false, aires: [] });
+        return false; // Indicate failure
+      }
+    },
 
+    /**
+     * Fetches the full details of a single Air Conditioner.
+     * Used for View and Edit modals.
+     * @param {number} aireId
+     * @returns {object | null} - The detailed AC object or null on error.
+     */
+    fetchAireDetails: async (aireId) => {
+      // setStore({ /* detailsLoading: true, detailsError: null */ }); // Optional specific loading/error
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/aires/${aireId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching details for aire ${aireId}: ${response.status}`);
+        }
+        const data = await response.json();
+        // Optional: Store details in flux store if needed globally
+        // setStore({ selectedAireDetails: data, /* detailsLoading: false */ });
+        return data; // Return data for the component to use locally
+      } catch (error) {
+        console.error("Error in fetchAireDetails:", error);
+        // setStore({ /* detailsError: error.message, detailsLoading: false */ });
+        throw error; // Let the calling component handle the error display
+      }
+    },
+
+    /**
+     * Adds a new Air Conditioner.
+     * @param {object} aireData - Data for the new AC unit.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    addAire: async (aireData) => {
+      const actions = getActions();
+      setStore({ airesLoading: true, airesError: null }); // Indicate loading
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/aires`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aireData),
+        });
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          // Handle specific backend errors like duplicates
+          throw new Error(responseData.msg || `Error adding aire: ${response.status}`);
+        }
+
+        // Refresh the list after adding
+        await actions.fetchAires(); // This resets loading/error states
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in addAire:", error);
+        setStore({ airesError: error.message || "Error al agregar el aire acondicionado.", airesLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Updates an existing Air Conditioner.
+     * @param {number} aireId - ID of the AC unit to update.
+     * @param {object} aireData - Updated data.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    updateAire: async (aireId, aireData) => {
+      const actions = getActions();
+      setStore({ airesLoading: true, airesError: null }); // Indicate loading
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/aires/${aireId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aireData), // Send the whole form data
+        });
+        const responseData = await response.json();
+
+        if (!response.ok) {
+           // Handle specific backend errors like duplicates
+          throw new Error(responseData.msg || `Error updating aire: ${response.status}`);
+        }
+
+        // Refresh the list after updating
+        await actions.fetchAires(); // This resets loading/error states
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in updateAire:", error);
+        setStore({ airesError: error.message || "Error al actualizar el aire acondicionado.", airesLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Deletes an Air Conditioner.
+     * @param {number} aireId - ID of the AC unit to delete.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    deleteAire: async (aireId) => {
+      const store = getStore();
+      // Optimistic UI update
+      const originalList = [...store.aires];
+      const updatedList = originalList.filter(a => a.id !== aireId);
+      setStore({ aires: updatedList, airesError: null });
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/aires/${aireId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          setStore({ aires: originalList }); // Rollback on error
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.msg || `Error deleting aire: ${response.status}`);
+        }
+
+        // Success (204 No Content) - UI already updated
+        console.log(`Aire ${aireId} deleted successfully.`);
+        return true;
+
+      } catch (error) {
+        console.error("Error in deleteAire:", error);
+        setStore({ aires: originalList, airesError: error.message || "Error al eliminar el aire acondicionado." });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Clears the specific error message for "Aires".
+     */
+    clearAiresError: () => {
+      setStore({ airesError: null });
+    },
   },
      
     

@@ -12,7 +12,7 @@ from datetime import datetime
 import traceback
 import sys
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-import pandas as pd
+
 import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
