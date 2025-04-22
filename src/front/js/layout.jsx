@@ -11,7 +11,7 @@ import SidebarMonitoreo from "./component/SidebarMonitoreo.jsx"; // Ajusta la ru
 import NavbarPrincipal from "./component/NavbarPrincipal.jsx"; // Ajusta la ruta si es necesario
 import {NavbarMain} from "./component/NavbarMain.js"; // <-- IMPORTA TU NAVBAR ANTERIOR (ajusta ruta)
 // Import Footer if you have one
-import Footer from "./component/footer";
+import {Footer} from "./component/footer";
 import madDataIcon from "../img/mad_data.png"; // Adjust path
 
 // Import CSS for layout
@@ -116,14 +116,7 @@ const Layout = () => {
                     <Outlet /> {/* Contenido específico de la página */}
                 </Container>
                  {/* Puedes decidir si mostrar el footer aquí también */}
-                 {showFooter && (
-                    <footer className="app-footer-public"> {/* Usa una clase diferente si necesitas estilos distintos */}
-                        <div className="d-flex align-items-center justify-content-center">
-                            <img src={madDataIcon} alt="MAD Data" height="40" className="me-2" />
-                            <span className="text-muted small">© {new Date().getFullYear()} GDCCE</span>
-                        </div>
-                    </footer>
-                 )}
+                <Footer />
             </div>
         );
     }
