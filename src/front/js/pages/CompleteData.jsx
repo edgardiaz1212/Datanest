@@ -6,6 +6,7 @@ import { Context } from "../store/appContext";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../../styles/formulary.css";
+import { ClipboardList, Save , MessageSquareText} from 'lucide-react';
 
 function CompleteData() {
   const { store, actions } = useContext(Context);
@@ -156,6 +157,13 @@ function CompleteData() {
   };
 
   const handleSave = async () => {
+    const userId = store.currentUser?.user_id; // Usa optional chaining por seguridad
+
+  if (!userId) {
+      toast.error("Error: No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.");
+      console.error("User ID is missing from store.currentUser in handleSave");
+      return; // Detiene la ejecución si no hay ID de usuario
+  }
     const isValid = validateRequiredFields();
 
     if (!isValid) {
@@ -193,7 +201,7 @@ function CompleteData() {
       // Crear la descripción
       const descriptionResponse = await actions.addDescription(descriptionData);
       const descriptionId = descriptionResponse.id;
-      const userId = store.currentUser.user_id;
+      //const userId = store.currentUser.user_id;
 
       if (componentType === "Rack") {
         const rackData = {
@@ -286,7 +294,7 @@ function CompleteData() {
         hideProgressBar
       />
       <h1 className="formulario-header m-3 text-center">
-        Datos para {requestType} del {componentType} modelo {model} con serial:{" "}
+       <ClipboardList  size={60}/>Datos para {requestType} del {componentType} modelo {model} con serial:{" "}
         {serial}
       </h1>
       <div className="formulario">
@@ -320,7 +328,7 @@ function CompleteData() {
         {/* Observaciones */}
         <div className="container ps-5 pe-5 ">
           <div className="input-group mt-3  ">
-            <span className="input-group-text mb-2">Observaciones</span>
+            <span className="input-group-text mb-2"><MessageSquareText size={18} className="me-2" /> Observaciones</span>
             <textarea
               className="form-control mb-2"
               aria-label="With textarea"
@@ -346,7 +354,7 @@ function CompleteData() {
         </div>
       </div>
       <button className=" btn btn-primary m-3" onClick={handleSave}>
-        Guardar
+       <Save size={18} className="me-2 "/>  Guardar
       </button>
     </div>
   );
