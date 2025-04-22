@@ -16,6 +16,12 @@ const getState = ({ getStore, getActions, setStore }) => {
       otrosEquiposLoading: false,    // Loading state for this section
       otrosEquiposError: null,       // Error state for this section
       // selectedOtroEquipoDetails: null, // Optional: Could store details here too
+      mantenimientos: [],          // List of maintenance records
+      mantenimientosLoading: false,// Loading state for this section
+      mantenimientosError: null,
+      lecturas: [],           // List of readings
+      lecturasLoading: false, // Loading state for this section
+      lecturasError: null,
       
     },
     actions: {
@@ -1086,8 +1092,189 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearMantenimientosError: () => {
       setStore({ mantenimientosError: null });
     },
+    fetchLecturas: async (filters = {}) => {
+      const actions = getActions();
+      const store = getStore(); // Get store to access aires later
+      setStore({ lecturasLoading: true, lecturasError: null });
 
-    
+      try {
+        // 1. Ensure related data is loaded (Aires and Umbrales)
+        // These actions should handle their own loading/errors
+        await actions.fetchAires(); // Assuming this exists
+        await actions.fetchUmbrales(); // Assuming this exists
+
+        // 2. Determine URL based on filter
+        let url;
+        if (filters.aire_id) {
+          // Use the endpoint specific to an aire
+          url = `${process.env.BACKEND_URL}/aires/${filters.aire_id}/lecturas`;
+        } else {
+          // Need an endpoint to get ALL readings if no filter is applied
+          // Assuming '/lecturas/all' or similar exists, or adjust logic
+          // For now, let's assume we fetch all if no filter, adjust if needed
+           console.warn("Fetching all readings - ensure backend supports this or implement pagination.");
+           url = `${process.env.BACKEND_URL}/lecturas/all`; // *** ADJUST or REMOVE if backend doesn't support fetching all ***
+           // If fetching all isn't supported/desired without filter, maybe set an error or empty list:
+           // setStore({ lecturas: [], lecturasLoading: false, lecturasError: "Seleccione un aire para ver lecturas." });
+           // return;
+        }
+
+         // *** TEMPORARY FIX if /lecturas/all doesn't exist: Fetch first aire's readings if no filter ***
+         if (!filters.aire_id && store.aires.length > 0) {
+             console.warn("No filter selected, fetching readings for the first AC:", store.aires[0].id);
+             url = `${process.env.BACKEND_URL}/aires/${store.aires[0].id}/lecturas`;
+         } else if (!filters.aire_id && store.aires.length === 0) {
+              console.warn("No filter selected and no ACs loaded.");
+              setStore({ lecturas: [], lecturasLoading: false });
+              return; // Exit if no ACs to fetch from
+         }
+         // *** END TEMPORARY FIX ***
+
+
+        // 3. Fetch readings
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorData = await response.json();
+          // Handle 404 specifically if fetching by aire_id
+          if (response.status === 404 && filters.aire_id) {
+               throw new Error(`Aire acondicionado con ID ${filters.aire_id} no encontrado o sin lecturas.`);
+          }
+          throw new Error(errorData.msg || `Error fetching lecturas: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // 4. Process and store readings (add aire_nombre, ubicacion)
+        const airesMap = store.aires.reduce((acc, aire) => {
+          acc[aire.id] = aire;
+          return acc;
+        }, {});
+
+        const processedLecturas = (data || []).map(lectura => {
+          const aire = airesMap[lectura.aire_id];
+          return {
+            ...lectura,
+            aire_nombre: aire?.nombre || 'Desconocido',
+            ubicacion: aire?.ubicacion || 'Desconocida',
+          };
+        }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); // Sort descending
+
+        setStore({ lecturas: processedLecturas, lecturasLoading: false });
+
+      } catch (error) {
+        console.error("Error in fetchLecturas:", error);
+        setStore({ lecturasError: error.message || "Error cargando las lecturas.", lecturasLoading: false });
+      }
+    },
+
+    /**
+     * Adds a new reading record for a specific AC.
+     * @param {number} aireId - The ID of the air conditioner.
+     * @param {object} lecturaData - Object with fecha_hora, temperatura, humedad.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    addLectura: async (aireId, lecturaData) => {
+      const actions = getActions();
+      setStore({ lecturasLoading: true, lecturasError: null }); // Indicate activity
+
+      try {
+        // Use the correct endpoint: POST /aires/<id>/lecturas
+        const url = `${process.env.BACKEND_URL}/aires/${aireId}/lecturas`;
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // Backend expects 'fecha', 'temperatura', 'humedad'
+          body: JSON.stringify({
+              fecha: lecturaData.fecha_hora, // Send combined datetime string
+              temperatura: lecturaData.temperatura,
+              humedad: lecturaData.humedad
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error adding lectura: ${response.status}`);
+        }
+
+        // Refresh the list for the currently filtered AC (or all if no filter)
+        const store = getStore();
+        const currentFilter = {};
+        // This assumes the component's 'filtroAire' state is the source of truth
+        // We need a way to access it or pass it here.
+        // For now, just refetch all or based on the added aireId if it matches filter.
+        // A better approach might be to update the store directly if backend returns the new object.
+
+        // Option 1: Refetch based on current filter (needs access to filter state)
+        // const currentAireFilter = getStore().lecturasFilterAireId; // Need to store filter in store?
+        // await actions.fetchLecturas({ aire_id: currentAireFilter });
+
+        // Option 2: Add directly to store if response includes the new object
+         if (responseData && responseData.id) {
+             const aire = store.aires.find(a => a.id === responseData.aire_id);
+             const newLecturaProcessed = {
+                 ...responseData,
+                 aire_nombre: aire?.nombre || 'Desconocido',
+                 ubicacion: aire?.ubicacion || 'Desconocida',
+             };
+             const updatedLecturas = [newLecturaProcessed, ...store.lecturas]
+                 .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+             setStore({ lecturas: updatedLecturas, lecturasLoading: false });
+         } else {
+             // Fallback: Refetch all for the currently filtered AC
+             await actions.fetchLecturas({ aire_id: aireId }); // Refetch for the AC just added to
+         }
+
+
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in addLectura:", error);
+        setStore({ lecturasError: error.message || "Error al guardar la lectura.", lecturasLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Deletes a reading record.
+     * @param {number} lecturaId - ID of the reading to delete.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    deleteLectura: async (lecturaId) => {
+      const store = getStore();
+      const actions = getActions();
+      // Optimistic UI update
+      const originalList = [...store.lecturas];
+      const updatedList = originalList.filter(l => l.id !== lecturaId);
+      setStore({ lecturas: updatedList, lecturasError: null });
+
+      try {
+        // Use the correct endpoint: DELETE /lecturas/<id>
+        const response = await fetch(`${process.env.BACKEND_URL}/lecturas/${lecturaId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          setStore({ lecturas: originalList }); // Rollback
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.msg || `Error deleting lectura: ${response.status}`);
+        }
+
+        // Success (204 No Content) - UI already updated
+        console.log(`Lectura ${lecturaId} deleted successfully.`);
+        // Optional: Refetch if needed
+        // await actions.fetchLecturas({ aire_id: store.lecturasFilterAireId });
+        return true;
+
+      } catch (error) {
+        console.error("Error in deleteLectura:", error);
+        setStore({ lecturas: originalList, lecturasError: error.message || "Error al eliminar la lectura." });
+        return false; // Failure
+      }
+    },
+    clearLecturasError: () => {
+      setStore({ lecturasError: null });
+    },
   },
      
     
