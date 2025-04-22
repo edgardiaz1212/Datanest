@@ -1,22 +1,22 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Context } from '../store/appContext';
-import { FiLogIn } from 'react-icons/fi';
+import React, { useState, useEffect, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Context } from "../../store/appContext";
+import { FiLogIn } from "react-icons/fi";
 
 const Login = () => {
   const { store, actions } = useContext(Context);
   const { loading, error, isAuthenticated } = store;
   const { loginTrackerUser, clearAuthError } = actions;
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
     if (clearAuthError) clearAuthError();
     if (isAuthenticated) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   }, [clearAuthError, isAuthenticated, navigate]);
 
@@ -24,16 +24,15 @@ const Login = () => {
     e.preventDefault();
     const success = await loginTrackerUser(identifier, password);
     if (success) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   };
 
   // Envolvemos todo en un contenedor y sistema de rejilla
   return (
-    <div className="container mt-5"> 
+    <div className="container mt-5">
       <div className="row justify-content-center">
-        <div className="col-md-8 col-lg-6 col-xl-5"> 
-
+        <div className="col-md-8 col-lg-6 col-xl-5">
           {/* Tu tarjeta de login original va aquí dentro */}
           <div className="card auth-form shadow">
             <div className="card-body">
@@ -43,15 +42,25 @@ const Login = () => {
               </div>
 
               {error && (
-                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                <div
+                  className="alert alert-danger alert-dismissible fade show"
+                  role="alert"
+                >
                   {error}
-                  <button type="button" className="btn-close" onClick={clearAuthError} aria-label="Close"></button>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={clearAuthError}
+                    aria-label="Close"
+                  ></button>
                 </div>
               )}
 
               <form noValidate onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="formIdentifier" className="form-label">Usuario o Email</label>
+                  <label htmlFor="formIdentifier" className="form-label">
+                    Usuario o Email
+                  </label>
                   <input
                     type="text"
                     className="form-control"
@@ -67,7 +76,9 @@ const Login = () => {
                 </div>
 
                 <div className="mb-3">
-                  <label htmlFor="formPassword" className="form-label">Contraseña</label>
+                  <label htmlFor="formPassword" className="form-label">
+                    Contraseña
+                  </label>
                   <input
                     type="password"
                     className="form-control"
@@ -89,7 +100,11 @@ const Login = () => {
                 >
                   {loading ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
                       Iniciando sesión...
                     </>
                   ) : (
@@ -108,9 +123,10 @@ const Login = () => {
             </div>
           </div>
           {/* Fin de la tarjeta de login */}
-
-        </div> {/* Cierre de col-md-6 */}
-      </div> {/* Cierre de row */}
+        </div>{" "}
+        {/* Cierre de col-md-6 */}
+      </div>{" "}
+      {/* Cierre de row */}
     </div> // Cierre de container
   );
 };

@@ -435,6 +435,46 @@ const getState = ({ getStore, getActions, setStore }) => {
       console.log("Tracker user logged out");
       // Podrías añadir lógica para redirigir al login aquí si es necesario
     },
+    registerTrackerUser: async (userData) => {
+      const store = getStore();
+      setStore({ loading: true, error: null }); // Inicia carga y limpia errores
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData), // Envía todos los datos requeridos
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) { // Registro exitoso (status 201 Created)
+          setStore({
+            loading: false,
+            error: null
+            // No actualizamos trackerUser ni isAuthenticated aquí, el usuario debe hacer login después
+          });
+          console.log("Tracker registration successful:", responseData);
+          return true; // Indica éxito
+        } else { // Error en el registro (400, 409, 500, etc.)
+          setStore({
+            error: responseData.msg || "Error desconocido durante el registro",
+            loading: false,
+          });
+          console.error("Tracker registration failed:", responseData.msg);
+          return false; // Indica fallo
+        }
+      } catch (error) {
+        console.error("Network or other error during tracker registration:", error);
+        setStore({
+          error: "Error de conexión o del servidor al intentar registrar.",
+          loading: false,
+        });
+        return false; // Indica fallo
+      }
+    },
 
     
   },
