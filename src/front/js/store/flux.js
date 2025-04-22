@@ -16,6 +16,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       otrosEquiposLoading: false,    // Loading state for this section
       otrosEquiposError: null,       // Error state for this section
       // selectedOtroEquipoDetails: null, // Optional: Could store details here too
+      
     },
     actions: {
       // Use getActions to call a function within a function
@@ -914,6 +915,178 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearOtrosEquiposError: () => {
       setStore({ otrosEquiposError: null });
     },
+    fetchMantenimientos: async (filters = {}) => {
+      const actions = getActions();
+      setStore({ mantenimientosLoading: true, mantenimientosError: null });
+
+      try {
+        // 1. Ensure related equipment is loaded (Aires and OtrosEquipos)
+        // These actions should handle their own loading/error states or return promises
+        await actions.fetchAires(); // Assuming this exists and works
+        await actions.fetchOtrosEquipos(); // Assuming this exists and works
+
+        // 2. Build URL with filters
+        let url = `${process.env.BACKEND_URL}/mantenimientos`;
+        const queryParams = new URLSearchParams();
+        if (filters.aire_id) {
+          queryParams.append('aire_id', filters.aire_id);
+        }
+        if (filters.otro_equipo_id) { // Add filter for other equipment if needed later
+          queryParams.append('otro_equipo_id', filters.otro_equipo_id);
+        }
+        const queryString = queryParams.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
+
+        // 3. Fetch maintenances
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching mantenimientos: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // 4. Store the data (assuming backend provides details via serialize_with_details)
+        setStore({ mantenimientos: data || [], mantenimientosLoading: false });
+
+      } catch (error) {
+        console.error("Error in fetchMantenimientos:", error);
+        setStore({ mantenimientosError: error.message || "Error cargando los registros de mantenimiento.", mantenimientosLoading: false });
+      }
+    },
+
+    /**
+     * Adds a new maintenance record.
+     * Handles multipart/form-data for potential image upload.
+     * @param {FormData} formData - The FormData object containing maintenance data and optional image file.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    addMantenimiento: async (formData) => {
+      const actions = getActions();
+      // Use a specific loading state if preferred, or the general one
+      setStore({ mantenimientosLoading: true, mantenimientosError: null });
+
+      try {
+        // Determine the correct endpoint based on which ID is present in formData
+        let url;
+        if (formData.get('aire_id')) {
+          url = `${process.env.BACKEND_URL}/aires/${formData.get('aire_id')}/mantenimientos`;
+          // Remove the other ID if present, backend might ignore it but cleaner not to send
+          formData.delete('otro_equipo_id');
+        } else if (formData.get('otro_equipo_id')) {
+          url = `${process.env.BACKEND_URL}/otros_equipos/${formData.get('otro_equipo_id')}/mantenimientos`;
+          formData.delete('aire_id');
+        } else {
+          // Should be caught by component validation, but double-check
+          throw new Error("No equipment ID (aire_id or otro_equipo_id) provided.");
+        }
+
+
+        const response = await fetch(url, {
+          method: "POST",
+          // Do NOT set Content-Type header, browser does it for FormData
+          body: formData,
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error adding mantenimiento: ${response.status}`);
+        }
+
+        // Refresh the list to include the new record
+        // Pass the current filter to refetch correctly
+        const store = getStore();
+        const currentFilter = {};
+        // Reconstruct filter based on what was submitted or current component state if available
+        // This part might need refinement depending on how filters are stored/passed
+        // For simplicity, just refetch all for now, or pass filter from component
+        await actions.fetchMantenimientos(/* pass current filter here if needed */);
+        return true; // Success
+
+      } catch (error) {
+        console.error("Error in addMantenimiento:", error);
+        setStore({ mantenimientosError: error.message || "Error al guardar el mantenimiento.", mantenimientosLoading: false });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Deletes a maintenance record.
+     * @param {number} mantenimientoId - ID of the record to delete.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    deleteMantenimiento: async (mantenimientoId) => {
+      const store = getStore();
+      const actions = getActions();
+      // Optimistic UI update
+      const originalList = [...store.mantenimientos];
+      const updatedList = originalList.filter(m => m.id !== mantenimientoId);
+      setStore({ mantenimientos: updatedList, mantenimientosError: null });
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/mantenimientos/${mantenimientoId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          setStore({ mantenimientos: originalList }); // Rollback
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.msg || `Error deleting mantenimiento: ${response.status}`);
+        }
+
+        // Success (204 No Content) - UI already updated
+        console.log(`Mantenimiento ${mantenimientoId} deleted successfully.`);
+        // Optional: Refetch if optimistic update isn't sufficient
+        // await actions.fetchMantenimientos(/* pass filter */);
+        return true;
+
+      } catch (error) {
+        console.error("Error in deleteMantenimiento:", error);
+        setStore({ mantenimientos: originalList, mantenimientosError: error.message || "Error al eliminar el mantenimiento." });
+        return false; // Failure
+      }
+    },
+
+    /**
+     * Fetches the Base64 encoded image for a maintenance record.
+     * Note: Consider if fetching the raw image URL/data via send_file is better.
+     * This action returns the data URL directly.
+     * @param {number} mantenimientoId
+     * @returns {string | null} - Base64 data URL or null on error/no image.
+     */
+    fetchMantenimientoImagenBase64: async (mantenimientoId) => {
+      // setStore({ /* imageLoading: true, imageError: null */ }); // Optional specific state
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/mantenimientos/${mantenimientoId}/imagen_base64`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          // Handle 404 (no image) gracefully vs other errors
+          if (response.status === 404) {
+            console.log(`No image found for mantenimiento ${mantenimientoId}`);
+            return null;
+          }
+          throw new Error(errorData.msg || `Error fetching image: ${response.status}`);
+        }
+        const data = await response.json();
+        return data.imagen_base64 || null; // Return the data URL
+      } catch (error) {
+        console.error("Error in fetchMantenimientoImagenBase64:", error);
+        // setStore({ /* imageError: error.message */ });
+        return null; // Indicate error or no image
+      } finally {
+        // setStore({ /* imageLoading: false */ });
+      }
+    },
+
+    /**
+     * Clears the specific error message for "Mantenimientos".
+     */
+    clearMantenimientosError: () => {
+      setStore({ mantenimientosError: null });
+    },
+
     
   },
      
