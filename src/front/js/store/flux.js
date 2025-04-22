@@ -3,11 +3,15 @@ const getState = ({ getStore, getActions, setStore }) => {
     store: {
       currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
       descriptions: [], 
-      trackerUser: JSON.parse(localStorage.getItem("trackerUser")) || null, // Específico para TrackerUsuario
-      isAuthenticated: !!localStorage.getItem("trackerUser"), // O basado en un token si usas
+      trackerUser: JSON.parse(localStorage.getItem("trackerUser")) || null, 
+      isAuthenticated: !!localStorage.getItem("trackerUser"), // 
       loading: false,
       error: null,
       trackerUsers: [],
+      aires: [], 
+      umbrales: [], 
+      umbralesLoading: false,
+      umbralesError: null, 
     },
     actions: {
       // Use getActions to call a function within a function
@@ -556,6 +560,206 @@ const getState = ({ getStore, getActions, setStore }) => {
       }
       // El manejo de loading/error ya está en registerTrackerUser
       return success;
+    },
+    fetchAires: async () => {
+      const store = getStore();
+      // Avoid refetching if already loaded, unless forced
+      // if (store.aires.length > 0) return true;
+
+      // Set loading specific to aires if needed, or rely on umbralesLoading
+      // setStore({ airesLoading: true });
+      try {
+        // --- IMPORTANT: Ensure you have a GET /aires endpoint in routes.py ---
+        // This endpoint should return a list like: [{id, nombre, ubicacion}, ...]
+        const response = await fetch(`${process.env.BACKEND_URL}/aires`); // Adjust endpoint if different
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.msg || `Error fetching aires: ${response.status}`);
+        }
+        const data = await response.json();
+        // Assuming the backend returns the list directly or adjust as needed (e.g., data.data)
+        setStore({ aires: data || [] });
+        return true;
+      } catch (error) {
+        console.error("Error in fetchAires:", error);
+        // Set specific aires error state if needed
+        // setStore({ airesError: error.message, airesLoading: false });
+        // Propagate error to the caller (fetchUmbrales)
+        throw error;
+      } finally {
+        // setStore({ airesLoading: false });
+      }
+    },
+
+    /**
+     * Fetches threshold configurations. Also fetches aires if needed.
+     */
+    fetchUmbrales: async () => {
+      const store = getStore();
+      const actions = getActions();
+      setStore({ umbralesLoading: true, umbralesError: null });
+
+      try {
+        // 1. Ensure aires are loaded first
+        await actions.fetchAires(); // fetchAires will throw if it fails
+
+        // 2. Fetch umbrales
+        const umbralesResponse = await fetch(`${process.env.BACKEND_URL}/umbrales`);
+        if (!umbralesResponse.ok) {
+          const errorData = await umbralesResponse.json();
+          throw new Error(errorData.msg || `Error fetching umbrales: ${umbralesResponse.status}`);
+        }
+        const umbralesData = await umbralesResponse.json();
+
+        // 3. Process umbrales to add aire_nombre/ubicacion (if needed, backend might do this)
+        // Assuming backend's /umbrales already returns 'aire_nombre' via serialize_with_details
+        // If not, you'd map here using store.aires:
+        /*
+        const airesMap = store.aires.reduce((acc, aire) => {
+          acc[aire.id] = aire;
+          return acc;
+        }, {});
+        const processedUmbrales = (umbralesData || []).map(umbral => {
+          if (!umbral.es_global && umbral.aire_id && airesMap[umbral.aire_id]) {
+            return {
+              ...umbral,
+              aire_nombre: airesMap[umbral.aire_id].nombre,
+              ubicacion: airesMap[umbral.aire_id].ubicacion,
+            };
+          }
+          return umbral;
+        });
+        setStore({ umbrales: processedUmbrales, umbralesLoading: false });
+        */
+
+        // Assuming backend provides details via serialize_with_details
+        setStore({ umbrales: umbralesData || [], umbralesLoading: false });
+
+      } catch (error) {
+        console.error("Error in fetchUmbrales:", error);
+        setStore({ umbralesError: error.message || "Error cargando datos de umbrales.", umbralesLoading: false });
+      }
+    },
+
+    /**
+     * Adds a new threshold configuration.
+     * @param {object} formData - The data for the new threshold.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    addUmbral: async (formData) => {
+      const actions = getActions();
+      setStore({ umbralesLoading: true, umbralesError: null }); // Use loading state
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/umbrales`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error adding umbral: ${response.status}`);
+        }
+
+        // Refresh the list to get the newly added item with potential details
+        await actions.fetchUmbrales(); // fetchUmbrales handles loading state reset
+        return true; // Indicate success
+
+      } catch (error) {
+        console.error("Error in addUmbral:", error);
+        setStore({ umbralesError: error.message || "Error al agregar el umbral.", umbralesLoading: false });
+        return false; // Indicate failure
+      }
+    },
+
+    /**
+     * Updates an existing threshold configuration.
+     * @param {number} umbralId - The ID of the threshold to update.
+     * @param {object} formData - The updated data.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    updateUmbral: async (umbralId, formData) => {
+      const actions = getActions();
+      setStore({ umbralesLoading: true, umbralesError: null }); // Use loading state
+
+      try {
+        // Backend route doesn't allow changing es_global or aire_id,
+        // so we only send allowed fields.
+        const updatePayload = {
+          nombre: formData.nombre,
+          temp_min: formData.temp_min,
+          temp_max: formData.temp_max,
+          hum_min: formData.hum_min,
+          hum_max: formData.hum_max,
+          notificar_activo: formData.notificar_activo,
+        };
+
+        const response = await fetch(`${process.env.BACKEND_URL}/umbrales/${umbralId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.msg || `Error updating umbral: ${response.status}`);
+        }
+
+        // Refresh the list to reflect changes
+        await actions.fetchUmbrales(); // fetchUmbrales handles loading state reset
+        return true; // Indicate success
+
+      } catch (error) {
+        console.error("Error in updateUmbral:", error);
+        setStore({ umbralesError: error.message || "Error al actualizar el umbral.", umbralesLoading: false });
+        return false; // Indicate failure
+      }
+    },
+
+    /**
+     * Deletes a threshold configuration.
+     * @param {number} umbralId - The ID of the threshold to delete.
+     * @returns {boolean} - True on success, false on failure.
+     */
+    deleteUmbral: async (umbralId) => {
+      const store = getStore();
+      // Optimistic UI update: Remove immediately, then handle error if needed
+      const originalUmbrales = [...store.umbrales];
+      const updatedUmbrales = originalUmbrales.filter(u => u.id !== umbralId);
+      setStore({ umbrales: updatedUmbrales, umbralesError: null });
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/umbrales/${umbralId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          // Rollback UI update on error
+          setStore({ umbrales: originalUmbrales });
+          const errorData = await response.json().catch(() => ({})); // Try to get error msg
+          throw new Error(errorData.msg || `Error deleting umbral: ${response.status}`);
+        }
+
+        // If response is 204 No Content, it's successful
+        console.log(`Umbral ${umbralId} deleted successfully.`);
+        return true; // Indicate success
+
+      } catch (error) {
+        console.error("Error in deleteUmbral:", error);
+        // Rollback UI update if not already done (e.g., network error)
+        setStore({ umbrales: originalUmbrales, umbralesError: error.message || "Error al eliminar el umbral." });
+        return false; // Indicate failure
+      }
+    },
+
+    /**
+     * Clears the specific error message for umbrales.
+     */
+    clearUmbralesError: () => {
+      setStore({ umbralesError: null });
     },
 
     
