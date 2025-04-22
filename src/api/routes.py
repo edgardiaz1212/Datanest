@@ -514,8 +514,15 @@ def get_tracker_users():
         return jsonify({"msg": "Error fetching tracker users", "error": str(error)}), 500
 
 @api.route('/tracker/user/<int:user_id>', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def get_tracker_user_by_id(user_id):
-    """Obtiene un TrackerUsuario específico por su ID."""
+    """Obtiene un TrackerUsuario específico por su ID. Requiere autenticación."""
+    # Opcional: Podrías añadir lógica para verificar roles aquí
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if logged_in_user.rol != 'admin' and current_user_id != user_id:
+    #     return jsonify({"msg": "Acceso no autorizado"}), 403
+
     try:
         user = TrackerUsuario.query.get(user_id)
         if user:
@@ -528,8 +535,18 @@ def get_tracker_user_by_id(user_id):
         return jsonify({"msg": "Error fetching tracker user", "error": str(error)}), 500
 
 @api.route('/tracker/user/<int:user_id>', methods=['PUT'])
+@jwt_required() # <--- Añadido aquí
 def update_tracker_user(user_id):
-    """Actualiza la información de un TrackerUsuario."""
+    """Actualiza la información de un TrackerUsuario. Requiere autenticación."""
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+
+    # Solo un admin o el propio usuario pueden modificar
+    if not logged_in_user or (logged_in_user.rol != 'admin' and current_user_id != user_id):
+         return jsonify({"msg": "Acceso no autorizado para modificar este usuario"}), 403
+    # --- Fin verificación de permisos ---
+
     user = TrackerUsuario.query.get(user_id)
     if not user:
         return jsonify({"msg": "Tracker user not found"}), 404
@@ -540,20 +557,22 @@ def update_tracker_user(user_id):
 
     updated = False
 
-    # Actualizar campos permitidos (nombre, apellido, rol, activo)
+    # --- Lógica de actualización (sin cambios) ---
+    # (Solo permitir que un admin cambie el rol o el estado 'activo')
+    is_admin = logged_in_user.rol == 'admin'
+
     if 'nombre' in data_form and data_form['nombre'] != user.nombre:
         user.nombre = data_form['nombre']
         updated = True
     if 'apellido' in data_form and data_form['apellido'] != user.apellido:
         user.apellido = data_form['apellido']
         updated = True
-    if 'rol' in data_form and data_form['rol'] != user.rol:
+    if is_admin and 'rol' in data_form and data_form['rol'] != user.rol: # Solo admin cambia rol
         user.rol = data_form['rol']
         updated = True
-    if 'activo' in data_form and isinstance(data_form['activo'], bool) and data_form['activo'] != user.activo:
+    if is_admin and 'activo' in data_form and isinstance(data_form['activo'], bool) and data_form['activo'] != user.activo: # Solo admin cambia activo
         user.activo = data_form['activo']
         updated = True
-    # Actualizar email con validación de unicidad
     if 'email' in data_form and data_form['email'] != user.email:
         new_email = data_form['email']
         email_exists = TrackerUsuario.query.filter(TrackerUsuario.email == new_email, TrackerUsuario.id != user_id).first()
@@ -561,8 +580,7 @@ def update_tracker_user(user_id):
             return jsonify({"msg": f"Email '{new_email}' is already in use by another tracker user"}), 409
         user.email = new_email
         updated = True
-    # NO permitir actualizar username o contraseña aquí por simplicidad/seguridad
-    # Se podrían crear rutas específicas para cambio de contraseña si es necesario.
+    # --- Fin lógica de actualización ---
 
     if not updated:
          return jsonify({"msg": "No changes detected for tracker user"}), 200 # O 304
@@ -577,14 +595,26 @@ def update_tracker_user(user_id):
         return jsonify({"msg": "Error updating tracker user", "error": str(error)}), 500
 
 @api.route('/tracker/user/<int:user_id>', methods=['DELETE'])
+@jwt_required() # <--- Añadido aquí
 def delete_tracker_user(user_id):
-    """Elimina un TrackerUsuario."""
+    """Elimina un TrackerUsuario. Requiere autenticación y permisos de admin."""
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+
+    # Solo un admin puede eliminar usuarios
+    if not logged_in_user or logged_in_user.rol != 'admin':
+         return jsonify({"msg": "Acceso no autorizado para eliminar usuarios"}), 403
+
+    # Evitar que un admin se elimine a sí mismo (opcional pero recomendado)
+    if current_user_id == user_id:
+        return jsonify({"msg": "No puedes eliminar tu propia cuenta de administrador"}), 403
+    # --- Fin verificación de permisos ---
+
     user = TrackerUsuario.query.get(user_id)
     if not user:
         return jsonify({"msg": "Tracker user not found"}), 404
 
-    # Aquí no parece haber datos relacionados directos con cascade delete,
-    # así que solo eliminamos el usuario.
     db.session.delete(user)
     try:
         db.session.commit()
@@ -598,16 +628,23 @@ def delete_tracker_user(user_id):
 # --- Rutas para AireAcondicionado ---
 
 @api.route('/aires', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
 def agregar_aire_route():
     """
-    Endpoint para agregar un nuevo aire acondicionado.
+    Endpoint para agregar un nuevo aire acondicionado. Requiere autenticación.
     Recibe los datos en formato JSON.
     """
+    # Opcional: Verificar si el usuario tiene permiso para agregar (ej: rol admin o supervisor)
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    #     return jsonify({"msg": "Acceso no autorizado para agregar aires"}), 403
+
     data = request.get_json()
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
-    # Extraer datos (puedes añadir más validaciones si es necesario)
+    # (Resto del código de la función sin cambios...)
     required_fields = [
         'nombre', 'ubicacion', 'fecha_instalacion', 'tipo', 'toneladas',
         'evaporadora_operativa', 'evaporadora_marca', 'evaporadora_modelo', 'evaporadora_serial',
@@ -620,16 +657,13 @@ def agregar_aire_route():
         return jsonify({"msg": f"Faltan campos requeridos: {', '.join(missing)}"}), 400
 
     try:
-        # Convertir fecha_instalacion de string a date
         fecha_instalacion_dt = None
         if data.get('fecha_instalacion'):
             try:
-                # Ajusta el formato si es diferente, ej: '%d/%m/%Y'
                 fecha_instalacion_dt = datetime.strptime(data['fecha_instalacion'], '%Y-%m-%d').date()
             except ValueError:
                 return jsonify({"msg": "Formato de fecha_instalacion inválido. Usar YYYY-MM-DD."}), 400
 
-        # Convertir toneladas a float (o None)
         toneladas_float = None
         if data.get('toneladas') is not None:
              try:
@@ -637,7 +671,6 @@ def agregar_aire_route():
              except (ValueError, TypeError):
                  return jsonify({"msg": "Valor de toneladas inválido. Debe ser numérico."}), 400
 
-        # Crear nuevo aire acondicionado
         nuevo_aire = AireAcondicionado(
             nombre=data['nombre'],
             ubicacion=data['ubicacion'],
@@ -661,21 +694,19 @@ def agregar_aire_route():
         db.session.add(nuevo_aire)
         db.session.commit()
 
-        # Asumiendo que tu modelo AireAcondicionado tiene un método serialize()
         return jsonify(nuevo_aire.serialize()), 201
 
     except IntegrityError as e:
         db.session.rollback()
-        # Intenta dar un mensaje más útil basado en el error original si es posible
         error_info = str(e.orig)
         msg = "Error: Ya existe un registro con ese Serial o Código de Inventario."
-        if 'UNIQUE constraint failed' in error_info: # Ejemplo para SQLite
+        if 'UNIQUE constraint failed' in error_info:
              if 'evaporadora_serial' in error_info or 'condensadora_serial' in error_info:
                  msg = "Error: Ya existe un aire con ese número de serie."
              elif 'evaporadora_codigo_inventario' in error_info or 'condensadora_codigo_inventario' in error_info:
                  msg = "Error: Ya existe un aire con ese código de inventario."
         print(f"Error de integridad al agregar aire: {e}", file=sys.stderr)
-        return jsonify({"msg": msg}), 409 # 409 Conflict
+        return jsonify({"msg": msg}), 409
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -690,12 +721,54 @@ def agregar_aire_route():
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
 
+@api.route('/aires', methods=['GET'])
+@jwt_required() 
+def obtener_aires_route():
+    """
+    Endpoint para obtener la lista de todos los aires acondicionados. Requiere autenticación.
+    """
+    # No se necesita get_jwt_identity() aquí a menos que quieras filtrar por usuario
+    try:
+        aires = AireAcondicionado.query.order_by(AireAcondicionado.nombre).all()
+        aires_serializados = [aire.serialize() for aire in aires]
+        return jsonify(aires_serializados), 200
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_aires_route: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener aires."}), 500
+
+@api.route('/aires/<int:aire_id>', methods=['GET'])
+@jwt_required() 
+def obtener_aire_por_id_route(aire_id):
+    """
+    Endpoint para obtener un aire acondicionado específico por su ID. Requiere autenticación.
+    """
+    # No se necesita get_jwt_identity() aquí a menos que quieras verificar permisos específicos
+    try:
+        if aire_id <= 0:
+             return jsonify({"msg": "ID de aire inválido."}), 400
+
+        aire = db.session.get(AireAcondicionado, aire_id)
+
+        if not aire:
+            return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+
+        return jsonify(aire.serialize()), 200
+
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_aire_por_id_route para ID {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener el aire."}), 500
+
 @api.route('/aires/<int:aire_id>', methods=['PUT'])
+@jwt_required() # <--- Añadido aquí
 def actualizar_aire_route(aire_id):
-    """
-    Endpoint para actualizar un aire acondicionado existente.
-    Recibe los datos en formato JSON.
-    """
+
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar aires"}), 403
+
     aire = AireAcondicionado.query.get(aire_id)
     if not aire:
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
@@ -704,25 +777,22 @@ def actualizar_aire_route(aire_id):
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
+    # (Resto del código de la función sin cambios...)
     try:
-        # Actualizar campos (usando .get con valor por defecto el actual)
         aire.nombre = data.get('nombre', aire.nombre)
         aire.ubicacion = data.get('ubicacion', aire.ubicacion)
         aire.tipo = data.get('tipo', aire.tipo)
 
-        # Manejar fecha_instalacion (si se proporciona)
         if 'fecha_instalacion' in data:
             fecha_str = data['fecha_instalacion']
             if fecha_str:
                 try:
-                    # Ajusta el formato si es diferente
                     aire.fecha_instalacion = datetime.strptime(fecha_str, '%Y-%m-%d').date()
                 except (ValueError, TypeError):
                     return jsonify({"msg": "Formato de fecha_instalacion inválido. Usar YYYY-MM-DD o null."}), 400
             else:
-                 aire.fecha_instalacion = None # Permitir borrar la fecha
+                 aire.fecha_instalacion = None
 
-        # Manejar toneladas (si se proporciona)
         if 'toneladas' in data:
             toneladas_val = data['toneladas']
             if toneladas_val is not None and toneladas_val != '':
@@ -731,9 +801,8 @@ def actualizar_aire_route(aire_id):
                  except (ValueError, TypeError):
                      return jsonify({"msg": "Valor de toneladas inválido. Debe ser numérico."}), 400
             else:
-                 aire.toneladas = None # Permitir poner toneladas a null/cero
+                 aire.toneladas = None
 
-        # Actualizar campos booleanos y de texto
         aire.evaporadora_operativa = bool(data.get('evaporadora_operativa', aire.evaporadora_operativa))
         aire.evaporadora_marca = data.get('evaporadora_marca', aire.evaporadora_marca)
         aire.evaporadora_modelo = data.get('evaporadora_modelo', aire.evaporadora_modelo)
@@ -755,7 +824,6 @@ def actualizar_aire_route(aire_id):
         db.session.rollback()
         error_info = str(e.orig)
         msg = "Error: Ya existe otro registro con ese Serial o Código de Inventario."
-        # ... (lógica similar a agregar_aire para mensajes más específicos) ...
         print(f"Error de integridad al actualizar aire {aire_id}: {e}", file=sys.stderr)
         return jsonify({"msg": msg}), 409
 
@@ -771,6 +839,40 @@ def actualizar_aire_route(aire_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
+@api.route('/aires/<int:aire_id>', methods=['DELETE'])
+@jwt_required() 
+def eliminar_aire_route(aire_id):
+    """
+    Endpoint para eliminar un aire acondicionado específico por su ID. Requiere autenticación.
+    """
+
+    # Solo un admin o supervisor debería poder eliminar
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar aires"}), 403
+
+    try:
+        aire = db.session.get(AireAcondicionado, aire_id)
+
+        if not aire:
+            return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+
+        db.session.delete(aire)
+        db.session.commit()
+
+        return '', 204
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al eliminar aire ID {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al eliminar el aire."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al eliminar aire ID {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al eliminar el aire."}), 500
 
 # --- Rutas para Lectura ---
 
