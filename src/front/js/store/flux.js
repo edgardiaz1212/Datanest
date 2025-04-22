@@ -58,17 +58,29 @@ const getState = ({ getStore, getActions, setStore }) => {
             },
             body: JSON.stringify(userData),
           });
-
+    
           if (response.ok) {
             const responseData = await response.json();
+            // 1. Actualiza el store
             setStore({ currentUser: responseData });
-            console.log("User added successfully: ", responseData);
+            // 2. GUARDA en localStorage
+            try {
+              localStorage.setItem("currentUser", JSON.stringify(responseData));
+            } catch (localError) {
+              console.error("Failed to save currentUser to localStorage:", localError);
+              // Opcional: manejar este error, aunque es raro
+            }
+            console.log("User added successfully and saved to localStorage: ", responseData);
             return responseData;
           } else {
             console.log("Error adding user:", response.statusText);
+            // Limpia localStorage si falla el guardado? Podría ser una opción.
+            // localStorage.removeItem("currentUser");
           }
         } catch (error) {
           console.log("Error adding user:", error.message);
+          // Limpia localStorage si falla la petición
+          // localStorage.removeItem("currentUser");
         }
       },
       checkemails: async (email) => {

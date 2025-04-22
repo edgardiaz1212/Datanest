@@ -43,6 +43,7 @@ const DataTable = () => {
     const fetchData = async () => {
       if (!user_id) {
         console.warn("User ID is undefined.");
+        console.log(user_id)
         return;
       }
 
