@@ -1525,17 +1525,25 @@ def eliminar_otro_equipo_route(equipo_id):
 
 # Ruta para agregar mantenimiento a un Aire Acondicionado
 @api.route('/aires/<int:aire_id>/mantenimientos', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
 def agregar_mantenimiento_aire_route(aire_id):
     """
     Endpoint para agregar un registro de mantenimiento a un Aire Acondicionado específico.
-    Recibe datos como multipart/form-data (para la imagen).
+    Requiere autenticación. Recibe datos como multipart/form-data.
     """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+    #     return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
+    # --- Fin Verificación ---
+
     # Verificar que el aire existe
     aire = db.session.get(AireAcondicionado, aire_id)
     if not aire:
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
 
-    # Validar datos del formulario
+    # (Resto del código sin cambios...)
     if 'tipo_mantenimiento' not in request.form or 'descripcion' not in request.form or 'tecnico' not in request.form:
         return jsonify({"msg": "Faltan campos requeridos en el formulario: tipo_mantenimiento, descripcion, tecnico"}), 400
 
@@ -1543,73 +1551,6 @@ def agregar_mantenimiento_aire_route(aire_id):
     descripcion = request.form['descripcion']
     tecnico = request.form['tecnico']
 
-    # Manejar archivo de imagen (opcional)
-    imagen_datos = None
-    imagen_nombre = None
-    imagen_tipo = None
-    imagen_file = request.files.get('imagen_file') # Usar .get() es más seguro
-
-    if imagen_file and imagen_file.filename != '':
-        try:
-            imagen_nombre = secure_filename(imagen_file.filename) # Nombre seguro
-            imagen_tipo = imagen_file.mimetype
-            imagen_datos = imagen_file.read()
-            # Podrías añadir validación de tamaño o tipo de archivo aquí
-        except Exception as e:
-             print(f"Error leyendo archivo de imagen: {e}", file=sys.stderr)
-             return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
-
-    try:
-        # Crear nuevo mantenimiento asociado al Aire
-        nuevo_mantenimiento = Mantenimiento(
-            aire_id=aire_id, # Asociado a este aire
-            otro_equipo_id=None, # No asociado a otro equipo
-            fecha=datetime.utcnow(), # Usar UTC
-            tipo_mantenimiento=tipo_mantenimiento,
-            descripcion=descripcion,
-            tecnico=tecnico,
-            imagen_nombre=imagen_nombre,
-            imagen_tipo=imagen_tipo,
-            imagen_datos=imagen_datos
-        )
-        db.session.add(nuevo_mantenimiento)
-        db.session.commit()
-
-        return jsonify(nuevo_mantenimiento.serialize()), 201
-
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"!!! ERROR SQLAlchemy al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error de base de datos al guardar el mantenimiento."}), 500
-    except Exception as e:
-        db.session.rollback()
-        print(f"!!! ERROR inesperado al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error inesperado en el servidor."}), 500
-
-
-# Ruta para agregar mantenimiento a un OtroEquipo
-@api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['POST'])
-def agregar_mantenimiento_otro_equipo_route(equipo_id):
-    """
-    Endpoint para agregar un registro de mantenimiento a un OtroEquipo específico.
-    Recibe datos como multipart/form-data (para la imagen).
-    """
-    # Verificar que el equipo existe
-    equipo = db.session.get(OtroEquipo, equipo_id)
-    if not equipo:
-        return jsonify({"msg": f"Equipo diverso con ID {equipo_id} no encontrado."}), 404
-
-    # Validar datos del formulario (igual que para aire)
-    if 'tipo_mantenimiento' not in request.form or 'descripcion' not in request.form or 'tecnico' not in request.form:
-        return jsonify({"msg": "Faltan campos requeridos en el formulario: tipo_mantenimiento, descripcion, tecnico"}), 400
-
-    tipo_mantenimiento = request.form['tipo_mantenimiento']
-    descripcion = request.form['descripcion']
-    tecnico = request.form['tecnico']
-
-    # Manejar archivo de imagen (igual que para aire)
     imagen_datos = None
     imagen_nombre = None
     imagen_tipo = None
@@ -1625,10 +1566,9 @@ def agregar_mantenimiento_otro_equipo_route(equipo_id):
              return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
 
     try:
-        # Crear nuevo mantenimiento asociado al OtroEquipo
         nuevo_mantenimiento = Mantenimiento(
-            aire_id=None, # No asociado a aire
-            otro_equipo_id=equipo_id, # Asociado a este equipo
+            aire_id=aire_id,
+            otro_equipo_id=None,
             fecha=datetime.utcnow(),
             tipo_mantenimiento=tipo_mantenimiento,
             descripcion=descripcion,
@@ -1639,8 +1579,77 @@ def agregar_mantenimiento_otro_equipo_route(equipo_id):
         )
         db.session.add(nuevo_mantenimiento)
         db.session.commit()
+        return jsonify(nuevo_mantenimiento.serialize_with_details()), 201 # Usar serialize_with_details
 
-        return jsonify(nuevo_mantenimiento.serialize()), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al guardar el mantenimiento."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+
+# Ruta para agregar mantenimiento a un OtroEquipo
+@api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['POST'])
+@jwt_required() # <--- Añadido aquí
+def agregar_mantenimiento_otro_equipo_route(equipo_id):
+    """
+    Endpoint para agregar un registro de mantenimiento a un OtroEquipo específico.
+    Requiere autenticación. Recibe datos como multipart/form-data.
+    """
+    # --- Opcional: Verificación de Permisos ---
+    # current_user_id = get_jwt_identity()
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+    #     return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
+    # --- Fin Verificación ---
+
+    # Verificar que el equipo existe
+    equipo = db.session.get(OtroEquipo, equipo_id)
+    if not equipo:
+        return jsonify({"msg": f"Equipo diverso con ID {equipo_id} no encontrado."}), 404
+
+    # (Resto del código sin cambios...)
+    if 'tipo_mantenimiento' not in request.form or 'descripcion' not in request.form or 'tecnico' not in request.form:
+        return jsonify({"msg": "Faltan campos requeridos en el formulario: tipo_mantenimiento, descripcion, tecnico"}), 400
+
+    tipo_mantenimiento = request.form['tipo_mantenimiento']
+    descripcion = request.form['descripcion']
+    tecnico = request.form['tecnico']
+
+    imagen_datos = None
+    imagen_nombre = None
+    imagen_tipo = None
+    imagen_file = request.files.get('imagen_file')
+
+    if imagen_file and imagen_file.filename != '':
+        try:
+            imagen_nombre = secure_filename(imagen_file.filename)
+            imagen_tipo = imagen_file.mimetype
+            imagen_datos = imagen_file.read()
+        except Exception as e:
+             print(f"Error leyendo archivo de imagen: {e}", file=sys.stderr)
+             return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
+
+    try:
+        nuevo_mantenimiento = Mantenimiento(
+            aire_id=None,
+            otro_equipo_id=equipo_id,
+            fecha=datetime.utcnow(),
+            tipo_mantenimiento=tipo_mantenimiento,
+            descripcion=descripcion,
+            tecnico=tecnico,
+            imagen_nombre=imagen_nombre,
+            imagen_tipo=imagen_tipo,
+            imagen_datos=imagen_datos
+        )
+        db.session.add(nuevo_mantenimiento)
+        db.session.commit()
+        return jsonify(nuevo_mantenimiento.serialize_with_details()), 201 # Usar serialize_with_details
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1656,15 +1665,15 @@ def agregar_mantenimiento_otro_equipo_route(equipo_id):
 
 # Ruta para obtener TODOS los mantenimientos (opcionalmente filtrados por query param)
 @api.route('/mantenimientos', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_todos_mantenimientos_route():
     """
-    Endpoint para obtener todos los registros de mantenimiento.
+    Endpoint para obtener todos los registros de mantenimiento. Requiere autenticación.
     Opcionalmente filtra por ?aire_id=X o ?otro_equipo_id=Y.
     """
     try:
         query = db.session.query(Mantenimiento)
 
-        # Aplicar filtros si se proporcionan en los query parameters
         aire_id_filter = request.args.get('aire_id', type=int)
         otro_equipo_id_filter = request.args.get('otro_equipo_id', type=int)
 
@@ -1673,13 +1682,8 @@ def obtener_todos_mantenimientos_route():
         elif otro_equipo_id_filter:
             query = query.filter(Mantenimiento.otro_equipo_id == otro_equipo_id_filter)
 
-        # Ordenar por fecha descendente
         mantenimientos = query.order_by(Mantenimiento.fecha.desc()).all()
-
-        # Serializar resultados (asumiendo que serialize() incluye info útil)
-        # Podrías necesitar un serialize_with_details() si quieres info del equipo asociado
-        results = [m.serialize_with_details() for m in mantenimientos] # ¡Asegúrate que este método exista!
-
+        results = [m.serialize_with_details() for m in mantenimientos]
         return jsonify(results), 200
 
     except Exception as e:
@@ -1690,9 +1694,11 @@ def obtener_todos_mantenimientos_route():
 
 # Ruta para obtener mantenimientos de un Aire específico
 @api.route('/aires/<int:aire_id>/mantenimientos', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_mantenimientos_aire_route(aire_id):
     """
     Endpoint para obtener los mantenimientos de un Aire Acondicionado específico.
+    Requiere autenticación.
     """
     aire = db.session.get(AireAcondicionado, aire_id)
     if not aire:
@@ -1703,8 +1709,7 @@ def obtener_mantenimientos_aire_route(aire_id):
             .filter(Mantenimiento.aire_id == aire_id)\
             .order_by(Mantenimiento.fecha.desc())\
             .all()
-
-        results = [m.serialize_with_details() for m in mantenimientos] # ¡Asegúrate que este método exista!
+        results = [m.serialize_with_details() for m in mantenimientos]
         return jsonify(results), 200
 
     except Exception as e:
@@ -1715,9 +1720,11 @@ def obtener_mantenimientos_aire_route(aire_id):
 
 # Ruta para obtener mantenimientos de un OtroEquipo específico
 @api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_mantenimientos_otro_equipo_route(equipo_id):
     """
     Endpoint para obtener los mantenimientos de un OtroEquipo específico.
+    Requiere autenticación.
     """
     equipo = db.session.get(OtroEquipo, equipo_id)
     if not equipo:
@@ -1728,8 +1735,7 @@ def obtener_mantenimientos_otro_equipo_route(equipo_id):
             .filter(Mantenimiento.otro_equipo_id == equipo_id)\
             .order_by(Mantenimiento.fecha.desc())\
             .all()
-
-        results = [m.serialize_with_details() for m in mantenimientos] # ¡Asegúrate que este método exista!
+        results = [m.serialize_with_details() for m in mantenimientos]
         return jsonify(results), 200
 
     except Exception as e:
@@ -1739,21 +1745,21 @@ def obtener_mantenimientos_otro_equipo_route(equipo_id):
 
 
 @api.route('/mantenimientos/<int:mantenimiento_id>', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_mantenimiento_por_id_route(mantenimiento_id):
     """
     Endpoint para obtener un registro de mantenimiento específico por su ID.
+    Requiere autenticación.
     """
     try:
         mantenimiento = db.session.get(Mantenimiento, mantenimiento_id)
         if not mantenimiento:
             return jsonify({"msg": f"Mantenimiento con ID {mantenimiento_id} no encontrado."}), 404
 
-        # Devuelve la versión detallada si existe, si no, la básica
         if hasattr(mantenimiento, 'serialize_with_details'):
              return jsonify(mantenimiento.serialize_with_details()), 200
         else:
              return jsonify(mantenimiento.serialize()), 200
-
 
     except Exception as e:
         print(f"!!! ERROR inesperado en obtener_mantenimiento_por_id_route para ID {mantenimiento_id}: {e}", file=sys.stderr)
@@ -1763,9 +1769,10 @@ def obtener_mantenimiento_por_id_route(mantenimiento_id):
 
 # Ruta para obtener la imagen de un mantenimiento
 @api.route('/mantenimientos/<int:mantenimiento_id>/imagen', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_imagen_mantenimiento_route(mantenimiento_id):
     """
-    Endpoint para obtener la imagen asociada a un mantenimiento.
+    Endpoint para obtener la imagen asociada a un mantenimiento. Requiere autenticación.
     """
     try:
         mantenimiento = db.session.get(Mantenimiento, mantenimiento_id)
@@ -1775,12 +1782,11 @@ def obtener_imagen_mantenimiento_route(mantenimiento_id):
         if not mantenimiento.imagen_datos or not mantenimiento.imagen_tipo:
             return jsonify({"msg": "Este mantenimiento no tiene imagen asociada."}), 404
 
-        # Enviar los datos binarios de la imagen
         return send_file(
             io.BytesIO(mantenimiento.imagen_datos),
             mimetype=mantenimiento.imagen_tipo,
-            as_attachment=False, # Mostrar en el navegador si es posible
-            download_name=mantenimiento.imagen_nombre or f"imagen_{mantenimiento_id}" # Nombre de descarga opcional
+            as_attachment=False,
+            download_name=mantenimiento.imagen_nombre or f"imagen_{mantenimiento_id}"
         )
 
     except Exception as e:
@@ -1788,13 +1794,47 @@ def obtener_imagen_mantenimiento_route(mantenimiento_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado al obtener la imagen."}), 500
 
-# --- Rutas para Mantenimiento (Continuación) ---
+
+@api.route('/mantenimientos/<int:mantenimiento_id>/imagen_base64', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
+def obtener_imagen_mantenimiento_base64_route(mantenimiento_id):
+    """
+    Endpoint para obtener la imagen asociada a un mantenimiento en formato Base64.
+    Requiere autenticación.
+    """
+    try:
+        mantenimiento = db.session.get(Mantenimiento, mantenimiento_id)
+        if not mantenimiento:
+            return jsonify({"msg": f"Mantenimiento con ID {mantenimiento_id} no encontrado."}), 404
+
+        if not mantenimiento.imagen_datos or not mantenimiento.imagen_tipo:
+            return jsonify({"msg": "Este mantenimiento no tiene imagen asociada."}), 404
+
+        b64_data = base64.b64encode(mantenimiento.imagen_datos).decode('utf-8')
+        data_url = f"data:{mantenimiento.imagen_tipo};base64,{b64_data}"
+        return jsonify({"imagen_base64": data_url}), 200
+
+    except Exception as e:
+        print(f"!!! ERROR inesperado al obtener imagen base64 para mantenimiento ID {mantenimiento_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado al obtener la imagen en base64."}), 500
+
 
 @api.route('/mantenimientos/<int:mantenimiento_id>', methods=['DELETE'])
+@jwt_required() # <--- Añadido aquí
 def eliminar_mantenimiento_route(mantenimiento_id):
     """
     Endpoint para eliminar un registro de mantenimiento específico por su ID.
+    Requiere autenticación.
     """
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    # Solo un admin o supervisor debería poder eliminar
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar mantenimientos"}), 403
+    # --- Fin verificación de permisos ---
+
     mantenimiento = db.session.get(Mantenimiento, mantenimiento_id)
     if not mantenimiento:
         return jsonify({"msg": f"Mantenimiento con ID {mantenimiento_id} no encontrado."}), 404
@@ -1814,33 +1854,6 @@ def eliminar_mantenimiento_route(mantenimiento_id):
         print(f"!!! ERROR inesperado al eliminar mantenimiento ID {mantenimiento_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el mantenimiento."}), 500
-
-@api.route('/mantenimientos/<int:mantenimiento_id>/imagen_base64', methods=['GET'])
-def obtener_imagen_mantenimiento_base64_route(mantenimiento_id):
-    """
-    Endpoint para obtener la imagen asociada a un mantenimiento en formato Base64.
-    """
-    try:
-        mantenimiento = db.session.get(Mantenimiento, mantenimiento_id)
-        if not mantenimiento:
-            return jsonify({"msg": f"Mantenimiento con ID {mantenimiento_id} no encontrado."}), 404
-
-        if not mantenimiento.imagen_datos or not mantenimiento.imagen_tipo:
-            return jsonify({"msg": "Este mantenimiento no tiene imagen asociada."}), 404
-
-        # Codificar los datos binarios en Base64
-        b64_data = base64.b64encode(mantenimiento.imagen_datos).decode('utf-8')
-        # Crear el string Data URL
-        data_url = f"data:{mantenimiento.imagen_tipo};base64,{b64_data}"
-
-        # Devolver en un objeto JSON
-        return jsonify({"imagen_base64": data_url}), 200
-
-    except Exception as e:
-        print(f"!!! ERROR inesperado al obtener imagen base64 para mantenimiento ID {mantenimiento_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error inesperado al obtener la imagen en base64."}), 500
-
 
 # --- Rutas para UmbralConfiguracion ---
 
