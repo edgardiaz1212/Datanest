@@ -12,8 +12,8 @@ import { Row, Col, Card, Spinner, Table } from 'react-bootstrap'; // Removed unu
 // interface EstadisticasGeneralProps { ... }
 
 // Import child components (assuming they are .jsx)
-import ChartContainer from './ChartContainer';
-import EstadisticasResumenCard from './EstadisticasResumenCard';
+import ChartContainer from './ChartContainer.jsx'
+import EstadisticasResumenCard from './EstadisticasResumenCard.jsx';
 
 const EstadisticasGeneral = ({ // Remove : React.FC<EstadisticasGeneralProps>
   estadisticasGenerales,

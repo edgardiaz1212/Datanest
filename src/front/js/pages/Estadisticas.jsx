@@ -1,7 +1,7 @@
 // src/front/js/pages/Estadisticas.jsx
 
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+
 import { Tabs, Tab, Spinner, Alert } from 'react-bootstrap';
 import {
   Chart as ChartJS,
@@ -19,10 +19,9 @@ import { FiBarChart2, FiMapPin, FiWind } from 'react-icons/fi';
 // Import your Flux context
 import { Context } from '../store/appContext';
 
-// Import the child components (assuming they are converted/created as .jsx)
 import EstadisticasGeneral from '../component/Estadisticas/EstadisticasGeneral.jsx';
 import EstadisticasPorAire from '../component/Estadisticas/EstadisticasPorAire.jsx';
-import EstadisticasPorUbicacion from '../component/Estadisticas/EstadisticasPorUbicacion.jsx';
+import EstadisticasPorUbicacion from '../component/Estadisticas/EstadisticasPorUbicacion.jsx'
 
 // Register ChartJS components (needs to be done once)
 ChartJS.register(

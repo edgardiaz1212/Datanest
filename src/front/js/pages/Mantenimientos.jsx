@@ -16,11 +16,11 @@ import {
 import { Context } from '../store/appContext';
 
 // Import the child components (assuming they are converted/created as .jsx)
-import MantenimientoFilter from "../component/Mantenimientos/MantenimientoFilter";
-import MantenimientosTable from "../component/Mantenimientos/MantenimientosTable";
-import MantenimientoAddModal from "../component/Mantenimientos/MantenimientoAddModal";
-import MantenimientoViewModal from "../component/Mantenimientos/MantenimientoViewModal";
-import MantenimientoImagenModal from "../component/Mantenimientos/MantenimientoImagenModal";
+import MantenimientoFilter from "../component/Mantenimientos/MantenimientoFilter.jsx";
+import MantenimientosTable from "../component/Mantenimientos/MantenimientosTable.jsx";
+import MantenimientoAddModal from "../component/Mantenimientos/MantenimientoAddModal.jsx";
+import MantenimientoViewModal from "../component/Mantenimientos/MantenimientoViewModal.jsx";
+import MantenimientoImagenModal from "../component/Mantenimientos/MantenimientoImagenModal.jsx";
 
 // Remove TypeScript interfaces
 

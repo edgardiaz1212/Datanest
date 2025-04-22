@@ -1,5 +1,3 @@
-// src/front/js/component/estadisticas/ChartContainer.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Card, Spinner } from 'react-bootstrap';

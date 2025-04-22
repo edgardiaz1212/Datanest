@@ -11,7 +11,7 @@ import { FiMapPin, FiThermometer, FiDroplet, FiWind } from 'react-icons/fi';
 // interface EstadisticasPorAireProps { ... }
 
 // Import child components (assuming they are .jsx)
-import ChartContainer from './ChartContainer';
+import ChartContainer from './ChartContainer.jsx';
 
 const EstadisticasPorAire = ({ // Remove : React.FC<EstadisticasPorAireProps>
   aires,
