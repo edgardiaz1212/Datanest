@@ -1,30 +1,30 @@
 import React from "react";
-import { Link } from "react-router-dom";
+// 1. Importa el hook useLocation
+import { Link, useLocation } from "react-router-dom";
 import logo from '../../img/CDHLogo.jpg';
 
 export const NavbarMain = () => {
+  // 2. Obtén el objeto de ubicación actual
+  const location = useLocation();
+  // 3. Extrae el pathname (la ruta actual, ej: "/forba7d")
+  const currentPath = location.pathname;
+
   return (
     <>
       <header id="header" className="header">
-        {/* Añadimos 'navbar' para estilos base y 'navbar-dark bg-dark' para un tema oscuro, ajusta si usas otro tema */}
         <nav className="navbar navbar-expand-md navbar-dark bg-dark main-nav" role="navigation">
-          {/* Añadimos clases Flexbox de Bootstrap: d-flex, justify-content-between, align-items-center */}
           <div className="container-fluid position-relative d-flex justify-content-between align-items-center">
 
-            {/* Logo y Título (sin cambios aquí) */}
-            <Link to="/" className="logo navbar-brand text-white me-auto"> {/* 'me-auto' puede ayudar a empujar los links si justify-content no es suficiente */}
-              <span className="logo-icon-wrapper">
-                <img className="logo-icon" src={logo} alt="icon" style={{ height: '50px', marginRight: '10px' }} /> {/* Añadí un estilo inline para el tamaño y margen del logo */}
-              </span>
+            <Link to="/" className="logo navbar-brand text-white me-auto d-inline-flex align-items-center py-0">
+              <img className="logo-icon" src={logo} alt="icon" style={{ height: '38px', marginRight: '10px' }} />
               <span className="text">Infraestructura <span className="highlight">DCCE</span></span>
             </Link>
 
-            {/* Botón Toggler para pantallas pequeñas (Importante para navbar-expand-md) */}
             <button
               className="navbar-toggler"
               type="button"
               data-bs-toggle="collapse"
-              data-bs-target="#navbarNavMain" // Asegúrate que este ID sea único si tienes varios navbars
+              data-bs-target="#navbarNavMain"
               aria-controls="navbarNavMain"
               aria-expanded="false"
               aria-label="Toggle navigation"
@@ -32,21 +32,21 @@ export const NavbarMain = () => {
               <span className="navbar-toggler-icon"></span>
             </button>
 
-            {/* Contenedor de los enlaces */}
-            {/* Cambiamos el ID para que coincida con data-bs-target */}
             <div className="collapse navbar-collapse" id="navbarNavMain">
-              {/* 'ms-auto' empuja los links a la derecha en pantallas grandes */}
               <ul className="navbar-nav ms-auto">
-                               <li className="nav-item">
+                <li className="nav-item">
                   <Link to="/forba7d" className="nav-link text-white">
                     LLenado de Planilla Colocacion
                   </Link>
+                </li>
+                {/* 4. Renderizado condicional: Muestra este <li> solo si la ruta NO es /forba7d */}
+                {currentPath !== '/forba7d' && (
                   <li className="nav-item">
-                  <Link to="/login" className="nav-link text-white">
-                    Ingresar
-                  </Link>
-                </li>
-                </li>
+                    <Link to="/login" className="nav-link text-white">
+                      Ingresar
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
