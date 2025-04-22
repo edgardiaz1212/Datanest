@@ -2217,7 +2217,7 @@ def verificar_lectura_dentro_umbrales_helper(aire_id, temperatura, humedad):
 # --- Ruta de API para Verificar Umbrales ---
 
 @api.route('/aires/<int:aire_id>/verificar_umbrales', methods=['GET'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def verificar_umbrales_route(aire_id):
     """
     Endpoint para verificar si una lectura de temperatura y humedad
@@ -2426,11 +2426,13 @@ def obtener_ultimas_lecturas_con_info_aire_helper(limite=5):
 # --- Rutas de API ---
 
 @api.route('/contadores', methods=['GET'])
+@jwt_required() 
 def obtener_contadores_route():
     """
     Endpoint para obtener los contadores totales de aires, lecturas,
-    mantenimientos y otros equipos.
+    mantenimientos y otros equipos. Requiere autenticación.
     """
+    # No se necesita get_jwt_identity() aquí, solo autenticación
     counts = contar_entidades_helper()
     # Verificar si algún contador dio error (-1)
     if any(v == -1 for v in counts.values()):
@@ -2438,18 +2440,20 @@ def obtener_contadores_route():
     return jsonify(counts), 200
 
 @api.route('/alertas/activas/count', methods=['GET'])
+@jwt_required() # <--- Añadido aquí
 def obtener_contador_alertas_activas_route():
     """
     Endpoint para obtener el número de aires con alertas activas
-    basado en su última lectura.
+    basado en su última lectura. Requiere autenticación.
     """
+    # No se necesita get_jwt_identity() aquí, solo autenticación
     alert_count = contar_alertas_activas_helper()
     if alert_count == -1:
         return jsonify({"msg": "Error al calcular el número de alertas activas."}), 500
     return jsonify({"alertas_activas_count": alert_count}), 200
 
 @api.route('/lecturas/ultimas', methods=['GET'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required() 
 def obtener_ultimas_lecturas_route():
     """
     Endpoint para obtener las últimas N lecturas registradas,
