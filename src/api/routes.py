@@ -12,7 +12,7 @@ from datetime import datetime
 import traceback
 import sys
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity # Añade create_access_token
 import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
@@ -68,7 +68,6 @@ def get_users():
             "msg": "Error occurred while trying to fetch users",
             "error": str(error)
         }), 500
-
 
 @api.route('/user/email/<string:email>', methods=['GET'])
 def check_email(email):
@@ -452,7 +451,7 @@ def register_tracker_user():
 
 @api.route('/tracker/login', methods=['POST'])
 def login_tracker_user():
-    """Autentica un usuario de tipo TrackerUsuario."""
+    """Autentica un usuario de tipo TrackerUsuario y devuelve un token JWT."""
     data_form = request.get_json()
     if not data_form:
         return jsonify({"msg": "No input data provided"}), 400
@@ -474,21 +473,28 @@ def login_tracker_user():
             # Actualizar última conexión
             user.ultima_conexion = datetime.utcnow()
             db.session.commit()
-            # Podrías generar un token JWT aquí
+
+            # --- Generar el token JWT ---
+            # La 'identity' puede ser cualquier dato único del usuario (ID es común)
+            # Puedes añadir más información al token con 'additional_claims' si lo necesitas
+            access_token = create_access_token(identity=user.id)
+
+            # --- Devolver el token junto con los datos del usuario ---
             return jsonify({
                 "msg": "Tracker login successful",
+                "token": access_token, # <--- Token añadido aquí
                 "user": user.serialize()
-                # "token": generated_token # Si usas JWT
             }), 200
+
         except Exception as error:
              db.session.rollback()
-             print(f"Error during tracker login (DB update): {str(error)}")
+             print(f"Error during tracker login (DB update or token generation): {str(error)}")
              traceback.print_exc()
              return jsonify({"msg": "An error occurred during tracker login", "error": str(error)}), 500
     else:
-        return jsonify({"msg": "Invalid credentials or inactive tracker user"}), 401
+        # Mensaje de error genérico por seguridad
+        return jsonify({"msg": "Invalid credentials or inactive tracker user"}), 401@api.route('/tracker/users', methods=['GET'])
 
-@api.route('/tracker/users', methods=['GET'])
 def get_tracker_users():
     """Obtiene todos los usuarios TrackerUsuario (opcionalmente solo activos)."""
     try:
