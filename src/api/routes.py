@@ -2,9 +2,14 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, UserForm, Equipment, Description, Rack
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado, Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import or_ # Para búsquedas OR
+from datetime import datetime
+import traceback
+
 
 api = Blueprint('api', __name__)
 
@@ -44,6 +49,19 @@ def addUser():
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to upload User", "error": str(error)}), 500
 
+@api.route('/users', methods=['GET'])
+def get_users():
+    try:
+        users = UserForm.query.all()
+        users_list = [user.serialize() for user in users]
+        return jsonify(users_list), 200
+    except Exception as error:
+        return jsonify({
+            "msg": "Error occurred while trying to fetch users",
+            "error": str(error)
+        }), 500
+
+
 @api.route('/user/email/<string:email>', methods=['GET'])
 def check_email(email):
     user = UserForm.query.filter_by(email=email).first()
@@ -61,6 +79,31 @@ def get_current_user(user_id):
         else:
             return jsonify({"message": "User not found"}), 404
 
+@api.route('/delete_user_data/<int:user_id>' , methods=['DELETE'])
+def delete_user_info(user_id):
+    users = UserForm.query.get(user_id)
+    if not users:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+    descriptions = Description.query.filter_by(user_id=user_id).all()
+    racks = Rack.query.filter_by(user_id=user_id).all()
+    equipments = Equipment.query.filter_by(user_id=user_id).all()
+    
+    for rack in racks:
+        db.session.delete(rack)
+    for eq in equipments:
+        db.session.delete(eq)
+    db.session.delete(users) 
+    for desc in descriptions:
+        db.session.delete(desc)
+   
+    try:
+        db.session.commit()
+        return jsonify({"msg": "Usuario y datos relacionados eliminados correctamente"}), 200
+    except Exception as error:
+        db.session.rollback()
+        return jsonify({"msg": str(error.args)}), 500
+
+#Descripcion base equipo o rack
 @api.route('/addDescription', methods=['POST'])
 def add_description():
     if request.method == "POST":
@@ -186,7 +229,7 @@ def add_equipment():
             error_message = traceback.format_exc()
             print(f"Error occurred while trying to upload Equipment: {error_message}")
             return jsonify({"msg": "Error occurred while trying to upload Equipment", "error": error_message}), 500
-
+#datos rack y equipo
 @api.route('/description/<int:user_id>', methods=['GET'])
 def get_all_descriptions_by_user(user_id):
     user = UserForm.query.filter_by(id=user_id).first()
@@ -244,7 +287,7 @@ def delete_description(description_id):
         return jsonify({'message': 'Description and related entities deleted successfully'}), 200
     else:
         return jsonify({'message': 'Description not found'}), 404
-
+#actualizaciones equipo y rack
 @api.route('/editDescription/<int:description_id>', methods=['PUT'])
 def update_description(description_id):
     data_form = request.get_json()
@@ -351,38 +394,189 @@ def edit_equipment(equipment_id):
             db.session.rollback()
             return jsonify({"msg": "Error occurred while trying to update Equipment", "error": str(error)}), 500
 
-@api.route('/delete_user_data/<int:user_id>' , methods=['DELETE'])
-def delete_user_info(user_id):
-    users = UserForm.query.get(user_id)
-    if not users:
-        return jsonify({"msg": "Usuario no encontrado"}), 404
-    descriptions = Description.query.filter_by(user_id=user_id).all()
-    racks = Rack.query.filter_by(user_id=user_id).all()
-    equipments = Equipment.query.filter_by(user_id=user_id).all()
-    
-    for rack in racks:
-        db.session.delete(rack)
-    for eq in equipments:
-        db.session.delete(eq)
-    db.session.delete(users) 
-    for desc in descriptions:
-        db.session.delete(desc)
-   
+#Manejo de usuario aircontrol
+@api.route('/tracker/register', methods=['POST'])
+def register_tracker_user():
+    """Registra un nuevo usuario de tipo TrackerUsuario."""
+    data_form = request.get_json()
+    if not data_form:
+        return jsonify({"msg": "No input data provided"}), 400
+
+    # Campos requeridos para TrackerUsuario
+    email = data_form.get('email')
+    username = data_form.get('username')
+    password = data_form.get('password')
+    nombre = data_form.get('nombre')
+    apellido = data_form.get('apellido')
+    rol = data_form.get('rol', 'operador') # Rol por defecto
+
+    if not email or not username or not password or not nombre or not apellido:
+        return jsonify({"msg": "Nombre, apellido, email, username, and password are required"}), 400
+
+    # Verificar si ya existe un usuario con ese email o username
+    existing_user = TrackerUsuario.query.filter(
+        or_(TrackerUsuario.email == email, TrackerUsuario.username == username)
+    ).first()
+    if existing_user:
+        return jsonify({"msg": "Email or username already exists for tracker user"}), 409
+
+    # Crear nuevo TrackerUsuario
+    new_tracker_user = TrackerUsuario(
+        nombre=nombre,
+        apellido=apellido,
+        email=email,
+        username=username,
+        rol=rol,
+        activo=True, # Activo por defecto
+        fecha_registro=datetime.utcnow() # Usar UTC es buena práctica
+    )
+    new_tracker_user.set_password(password) # Hashear y guardar contraseña
+
+    db.session.add(new_tracker_user)
     try:
         db.session.commit()
-        return jsonify({"msg": "Usuario y datos relacionados eliminados correctamente"}), 200
+        return jsonify(new_tracker_user.serialize()), 201
     except Exception as error:
         db.session.rollback()
-        return jsonify({"msg": str(error.args)}), 500
-    
-@api.route('/users', methods=['GET'])
-def get_users():
+        print(f"Error registering TrackerUsuario: {str(error)}")
+        traceback.print_exc()
+        return jsonify({"msg": "Error registering tracker user", "error": str(error)}), 500
+
+@api.route('/tracker/login', methods=['POST'])
+def login_tracker_user():
+    """Autentica un usuario de tipo TrackerUsuario."""
+    data_form = request.get_json()
+    if not data_form:
+        return jsonify({"msg": "No input data provided"}), 400
+
+    identifier = data_form.get('identifier') # Puede ser email o username
+    password = data_form.get('password')
+
+    if not identifier or not password:
+        return jsonify({"msg": "Identifier (email or username) and password are required"}), 400
+
+    # Buscar TrackerUsuario por username o email
+    user = TrackerUsuario.query.filter(
+        or_(TrackerUsuario.username == identifier, TrackerUsuario.email == identifier)
+    ).first()
+
+    # Verificar si el usuario existe, está activo y la contraseña es correcta
+    if user and user.activo and user.check_password(password):
+        try:
+            # Actualizar última conexión
+            user.ultima_conexion = datetime.utcnow()
+            db.session.commit()
+            # Podrías generar un token JWT aquí
+            return jsonify({
+                "msg": "Tracker login successful",
+                "user": user.serialize()
+                # "token": generated_token # Si usas JWT
+            }), 200
+        except Exception as error:
+             db.session.rollback()
+             print(f"Error during tracker login (DB update): {str(error)}")
+             traceback.print_exc()
+             return jsonify({"msg": "An error occurred during tracker login", "error": str(error)}), 500
+    else:
+        return jsonify({"msg": "Invalid credentials or inactive tracker user"}), 401
+
+@api.route('/tracker/users', methods=['GET'])
+def get_tracker_users():
+    """Obtiene todos los usuarios TrackerUsuario (opcionalmente solo activos)."""
     try:
-        users = UserForm.query.all()
+        # Cambia a False si quieres todos, incluyendo inactivos
+        solo_activos = request.args.get('activos', 'true').lower() == 'true'
+
+        query = TrackerUsuario.query
+        if solo_activos:
+            query = query.filter_by(activo=True)
+
+        users = query.all()
         users_list = [user.serialize() for user in users]
         return jsonify(users_list), 200
     except Exception as error:
-        return jsonify({
-            "msg": "Error occurred while trying to fetch users",
-            "error": str(error)
-        }), 500
+        print(f"Error fetching tracker users: {str(error)}")
+        traceback.print_exc()
+        return jsonify({"msg": "Error fetching tracker users", "error": str(error)}), 500
+
+@api.route('/tracker/user/<int:user_id>', methods=['GET'])
+def get_tracker_user_by_id(user_id):
+    """Obtiene un TrackerUsuario específico por su ID."""
+    try:
+        user = TrackerUsuario.query.get(user_id)
+        if user:
+            return jsonify(user.serialize()), 200
+        else:
+            return jsonify({"msg": "Tracker user not found"}), 404
+    except Exception as error:
+        print(f"Error fetching tracker user {user_id}: {str(error)}")
+        traceback.print_exc()
+        return jsonify({"msg": "Error fetching tracker user", "error": str(error)}), 500
+
+@api.route('/tracker/user/<int:user_id>', methods=['PUT'])
+def update_tracker_user(user_id):
+    """Actualiza la información de un TrackerUsuario."""
+    user = TrackerUsuario.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Tracker user not found"}), 404
+
+    data_form = request.get_json()
+    if not data_form:
+        return jsonify({"msg": "No input data provided"}), 400
+
+    updated = False
+
+    # Actualizar campos permitidos (nombre, apellido, rol, activo)
+    if 'nombre' in data_form and data_form['nombre'] != user.nombre:
+        user.nombre = data_form['nombre']
+        updated = True
+    if 'apellido' in data_form and data_form['apellido'] != user.apellido:
+        user.apellido = data_form['apellido']
+        updated = True
+    if 'rol' in data_form and data_form['rol'] != user.rol:
+        user.rol = data_form['rol']
+        updated = True
+    if 'activo' in data_form and isinstance(data_form['activo'], bool) and data_form['activo'] != user.activo:
+        user.activo = data_form['activo']
+        updated = True
+    # Actualizar email con validación de unicidad
+    if 'email' in data_form and data_form['email'] != user.email:
+        new_email = data_form['email']
+        email_exists = TrackerUsuario.query.filter(TrackerUsuario.email == new_email, TrackerUsuario.id != user_id).first()
+        if email_exists:
+            return jsonify({"msg": f"Email '{new_email}' is already in use by another tracker user"}), 409
+        user.email = new_email
+        updated = True
+    # NO permitir actualizar username o contraseña aquí por simplicidad/seguridad
+    # Se podrían crear rutas específicas para cambio de contraseña si es necesario.
+
+    if not updated:
+         return jsonify({"msg": "No changes detected for tracker user"}), 200 # O 304
+
+    try:
+        db.session.commit()
+        return jsonify(user.serialize()), 200
+    except Exception as error:
+        db.session.rollback()
+        print(f"Error updating tracker user {user_id}: {str(error)}")
+        traceback.print_exc()
+        return jsonify({"msg": "Error updating tracker user", "error": str(error)}), 500
+
+@api.route('/tracker/user/<int:user_id>', methods=['DELETE'])
+def delete_tracker_user(user_id):
+    """Elimina un TrackerUsuario."""
+    user = TrackerUsuario.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "Tracker user not found"}), 404
+
+    # Aquí no parece haber datos relacionados directos con cascade delete,
+    # así que solo eliminamos el usuario.
+    db.session.delete(user)
+    try:
+        db.session.commit()
+        return jsonify({"msg": f"Tracker user {user_id} deleted successfully"}), 200
+    except Exception as error:
+        db.session.rollback()
+        print(f"Error deleting tracker user {user_id}: {str(error)}")
+        traceback.print_exc()
+        return jsonify({"msg": "Error deleting tracker user", "error": str(error)}), 500

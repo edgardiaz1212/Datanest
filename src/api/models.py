@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 db = SQLAlchemy()
 
@@ -409,14 +411,22 @@ class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
     apellido = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
     username = db.Column(db.String(50), nullable=False, unique=True)
-    password = db.Column(db.String(255), nullable=False) # Guardar siempre hash
+    password = db.Column(db.String(255), nullable=False) 
     rol = db.Column(db.String(20), nullable=False, default='operador')
     activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
     fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now)
     ultima_conexion = db.Column(db.DateTime, nullable=True)
 
-    def __repr__(self):
-        return f"<TrackerUsuario(id={self.id}, username='{self.username}', rol='{self.rol}')>"
+    def set_password(self, password_plaintext):
+        """Genera y guarda el hash de la contraseña."""
+        # Usamos un método más seguro que el SHA-256 simple
+        # Werkzeug genera hashes con salt automáticamente
+        self.password = generate_password_hash(password_plaintext)
+
+    def check_password(self, password_plaintext):
+        """Verifica la contraseña contra el hash almacenado."""
+        # Werkzeug compara el texto plano con el hash almacenado
+        return check_password_hash(self.password, password_plaintext)
 
     def serialize(self):
         # ¡NUNCA serializar la contraseña!

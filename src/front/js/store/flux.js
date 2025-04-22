@@ -3,6 +3,10 @@ const getState = ({ getStore, getActions, setStore }) => {
     store: {
       currentUser: JSON.parse(localStorage.getItem("currentUser")) || [],
       descriptions: [], 
+      trackerUser: JSON.parse(localStorage.getItem("trackerUser")) || null, // Específico para TrackerUsuario
+      isAuthenticated: !!localStorage.getItem("trackerUser"), // O basado en un token si usas
+      loading: false,
+      error: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -56,7 +60,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error checking email:", error.message);
         }
       },
-
       getCurrentUser: () => {
         return store.currentUser;
       },
@@ -86,7 +89,36 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error fetching user data:", error);
         }
       },
-
+      deleteUserData: async () => {
+        const store = getStore();
+        const actions = getActions();
+        
+        try {
+          if (!store.currentUser || !store.currentUser.user_id) {
+            console.error("No hay usuario activo");
+            return { ok: false, message: "No hay usuario activo" };
+        }
+          
+          let response = await fetch(`${process.env.BACKEND_URL}/delete_user_data/${store.currentUser.user_id}`, {
+            method: 'DELETE',
+          });
+      
+          if (response.ok) {
+             // Limpiar el estado
+            setStore({
+              ...store,
+              currentUser: null,
+              descriptions: []
+            });
+          } else {
+            console.log("Error en la solicitud de eliminación",response.statusText);
+          }
+      
+          return response;
+        } catch (error) {
+          console.log("Error borrando datos de usuario", error);
+        }
+      },
       addDescription: async (descriptionData) => {
         try {
           const response = await fetch(`${process.env.BACKEND_URL}/addDescription`, {
@@ -213,7 +245,6 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
         return {};
       },
-
       getEquipmentByDescriptionId: async (descriptionId) => {
         try {
           const response = await fetch(
@@ -227,7 +258,6 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
         return {};
       },
-
       deleteDescription: async (id) => {
         try {
           const response = await fetch(
@@ -255,7 +285,6 @@ const getState = ({ getStore, getActions, setStore }) => {
         }))
         console.log("descrip flux",descriptions);
       },
-
       editDescription: async (descriptionId, updatedDescription) => {
         try {
           const response = await fetch(
@@ -282,7 +311,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error editing description:", error.message);
         }
       },
-
       editRack: async (rackId, updatedRack) => {
         try {
           const response = await fetch(
@@ -306,7 +334,6 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error editing rack:", error.message);
         }
       },
-
       editEquipment: async (equipmentId, updatedEquipment) => {
         try {
           const response = await fetch(
@@ -330,38 +357,89 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.log("Error editing equipment:", error.message);
         }
       },
-      deleteUserData: async () => {
-        const store = getStore();
-        const actions = getActions();
-        
-        try {
-          if (!store.currentUser || !store.currentUser.user_id) {
-            console.error("No hay usuario activo");
-            return { ok: false, message: "No hay usuario activo" };
-        }
-          
-          let response = await fetch(`${process.env.BACKEND_URL}/delete_user_data/${store.currentUser.user_id}`, {
-            method: 'DELETE',
+     //Datos para aircontrol
+     loginTrackerUser: async (identifier, password) => {
+      const store = getStore();
+      setStore({ loading: true, error: null }); // Inicia estado de carga y limpia errores previos
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // El backend espera 'identifier' y 'password'
+          body: JSON.stringify({ identifier, password }), 
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) { // Login exitoso (status 200 OK)
+          // Guarda el usuario logueado en el store y localStorage
+          setStore({ 
+            trackerUser: responseData.user, 
+            isAuthenticated: true, 
+            loading: false,
+            error: null 
           });
-      
-          if (response.ok) {
-             // Limpiar el estado
-            setStore({
-              ...store,
-              currentUser: null,
-              descriptions: []
-            });
-          } else {
-            console.log("Error en la solicitud de eliminación",response.statusText);
-          }
-      
-          return response;
-        } catch (error) {
-          console.log("Error borrando datos de usuario", error);
+          localStorage.setItem("trackerUser", JSON.stringify(responseData.user));
+          // Opcional: guardar token si el backend lo devuelve
+          // if (responseData.token) {
+          //   localStorage.setItem("token", responseData.token);
+          // }
+          console.log("Tracker login successful:", responseData.user);
+          return true; // Indica éxito
+        } else { // Error en el login (401, 400, 500, etc.)
+          setStore({ 
+            error: responseData.msg || "Error desconocido en el login", 
+            isAuthenticated: false, 
+            loading: false,
+            trackerUser: null // Limpia cualquier usuario previo
+          });
+          localStorage.removeItem("trackerUser"); // Limpia localStorage
+          // localStorage.removeItem("token"); // Limpia token si lo usas
+          console.error("Tracker login failed:", responseData.msg);
+          return false; // Indica fallo
         }
+      } catch (error) {
+        console.error("Network or other error during tracker login:", error);
+        setStore({ 
+          error: "Error de conexión o del servidor al intentar iniciar sesión.", 
+          isAuthenticated: false, 
+          loading: false,
+          trackerUser: null 
+        });
+        localStorage.removeItem("trackerUser");
+        // localStorage.removeItem("token");
+        return false; // Indica fallo
       }
-      
     },
+    /**
+     * Limpia el mensaje de error del estado.
+     */
+    clearAuthError: () => {
+      setStore({ error: null });
+    },
+
+    /**
+     * Cierra la sesión del TrackerUsuario.
+     */
+    logoutTrackerUser: () => {
+      setStore({ 
+        trackerUser: null, 
+        isAuthenticated: false, 
+        error: null 
+      });
+      localStorage.removeItem("trackerUser");
+      // localStorage.removeItem("token"); // No olvides limpiar el token
+      console.log("Tracker user logged out");
+      // Podrías añadir lógica para redirigir al login aquí si es necesario
+    },
+
+    
+  },
+     
+    
   };
 };
 

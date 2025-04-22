@@ -11,6 +11,7 @@ import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
 import EditData from "./pages/EditData.jsx";
 import Home from "./pages/Home.jsx";
+import Login from "./pages/Login.jsx";
 
 /**
  * Componente que renderiza la estructura principal de la página (Navbar, Contenido, Footer).
@@ -29,7 +30,7 @@ const LayoutContent = () => {
     return (
         // Contenedor principal con Flexbox para el sticky footer
         <div className="d-flex flex-column min-vh-100">
-            {/* Renderiza el Navbar correspondiente */}
+           
             {showNavbarMain ? <NavbarMain /> : <Navbar />}
 
             {/* Área de contenido principal que crece para empujar el footer */}
@@ -38,10 +39,11 @@ const LayoutContent = () => {
                 <ScrollToTop>
                     <Routes>
                         <Route path="/" element={<Home />} />
+                        <Route path="/login" element={<Login />} />
+
                         <Route path="/forba7d" element={<Formulary />} />
                         <Route path="/register-data/:user_id" element={<DataTable />} />
                         <Route path="/complete-data" element={<CompleteData />} />
-                        {/* Asegúrate que la ruta para EditData tenga sentido, quizás necesite un ID? */}
                         <Route path="/edit-data/" element={<EditData />} />
                         {/* Ruta para páginas no encontradas */}
                         <Route path="*" element={<h1 className="text-center my-5">404 - Página no encontrada</h1>} />
