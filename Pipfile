@@ -18,6 +18,7 @@ cloudinary = "*"
 flask-admin = "*"
 typing-extensions = "*"
 flask = "*"
+io = '*'
 
 [requires]
 python_version = "3.12"

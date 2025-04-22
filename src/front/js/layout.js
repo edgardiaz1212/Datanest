@@ -15,6 +15,7 @@ import Home from "./pages/Home.jsx";
 // Asegúrate que las rutas de importación sean correctas
 import Login from "./pages/auth/Login.jsx";
 import Register from "./pages/auth/Register.jsx";
+import Usuarios from "./pages/Usuarios.jsx";
 
 /**
  * Componente que renderiza la estructura principal de la página (Navbar, Contenido, Footer).
@@ -49,6 +50,7 @@ const LayoutContent = () => {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path ="usuarios" element={<Usuarios />} />
             <Route path="/forba7d" element={<Formulary />} />
             <Route path="/register-data/:user_id" element={<DataTable />} />
             <Route path="/complete-data" element={<CompleteData />} />

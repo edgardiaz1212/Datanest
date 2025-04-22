@@ -7,6 +7,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       isAuthenticated: !!localStorage.getItem("trackerUser"), // O basado en un token si usas
       loading: false,
       error: null,
+      trackerUsers: [],
     },
     actions: {
       // Use getActions to call a function within a function
@@ -435,6 +436,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       console.log("Tracker user logged out");
       // Podrías añadir lógica para redirigir al login aquí si es necesario
     },
+    //para pagina principal
     registerTrackerUser: async (userData) => {
       const store = getStore();
       setStore({ loading: true, error: null }); // Inicia carga y limpia errores
@@ -474,6 +476,86 @@ const getState = ({ getStore, getActions, setStore }) => {
         });
         return false; // Indica fallo
       }
+    },
+    fetchTrackerUsers: async () => {
+      const store = getStore();
+      // Solo admin puede ver la lista completa (podrías añadir esta lógica aquí o en el componente)
+      if (store.trackerUser?.rol !== 'admin') {
+        setStore({ error: "Acceso denegado.", loading: false, trackerUsers: [] });
+        return;
+      }
+      setStore({ loading: true, error: null });
+      try {
+        // Llama al endpoint GET /tracker/users (que ya existe en tu backend)
+        // Pasa 'activos=false' si quieres ver todos, incluyendo inactivos
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/users?activos=false`);
+        const data = await response.json();
+
+        if (response.ok) {
+          setStore({ trackerUsers: data, loading: false });
+        } else {
+          setStore({ error: data.msg || "Error al cargar usuarios", loading: false, trackerUsers: [] });
+          console.error("Error fetching tracker users:", data.msg);
+        }
+      } catch (error) {
+        console.error("Network error fetching tracker users:", error);
+        setStore({ error: "Error de red al cargar usuarios.", loading: false, trackerUsers: [] });
+      }
+    },
+
+    //Actualiza los datos de un TrackerUsuario específico (para Admin).
+    updateTrackerUser: async (userId, updatedData) => {
+      const store = getStore();
+      const actions = getActions();
+      setStore({ loading: true, error: null }); // Puedes usar un loading específico si prefieres
+
+      try {
+        // Llama al endpoint PUT /tracker/user/<id> (que ya existe en tu backend)
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/user/${userId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            // Aquí podrías añadir un token de autenticación si es necesario
+            // "Authorization": `Bearer ${store.token}`
+          },
+          body: JSON.stringify(updatedData),
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          setStore({ loading: false, error: null });
+          // Actualiza la lista local de usuarios en el store
+          const updatedList = store.trackerUsers.map(user =>
+            user.id === userId ? { ...user, ...responseData } : user // Asume que responseData es el usuario actualizado
+          );
+          setStore({ trackerUsers: updatedList });
+          console.log("Tracker user updated successfully:", responseData);
+          return true; // Indica éxito
+        } else {
+          setStore({ error: responseData.msg || "Error al actualizar usuario", loading: false });
+          console.error("Error updating tracker user:", responseData.msg);
+          return false; // Indica fallo
+        }
+      } catch (error) {
+        console.error("Network error updating tracker user:", error);
+        setStore({ error: "Error de red al actualizar usuario.", loading: false });
+        return false; // Indica fallo
+      }
+    },
+    //   Agrega un nuevo TrackerUsuario (realizado por un Admin/Supervisor).
+
+    addTrackerUserByAdmin: async (newUserData) => {
+      const store = getStore();
+      const actions = getActions();
+      // Llama a la acción de registro existente
+      const success = await actions.registerTrackerUser(newUserData);
+      if (success) {
+        // Si el registro fue exitoso, refresca la lista de usuarios
+        await actions.fetchTrackerUsers();
+      }
+      // El manejo de loading/error ya está en registerTrackerUser
+      return success;
     },
 
     
