@@ -14,9 +14,9 @@ export const NavbarMain = () => {
             {/* Logo y Título (sin cambios aquí) */}
             <Link to="/" className="logo navbar-brand text-white me-auto"> {/* 'me-auto' puede ayudar a empujar los links si justify-content no es suficiente */}
               <span className="logo-icon-wrapper">
-                <img className="logo-icon" src={logo} alt="icon" style={{ height: '30px', marginRight: '10px' }} /> {/* Añadí un estilo inline para el tamaño y margen del logo */}
+                <img className="logo-icon" src={logo} alt="icon" style={{ height: '50px', marginRight: '10px' }} /> {/* Añadí un estilo inline para el tamaño y margen del logo */}
               </span>
-              <span className="text">Pagina <span className="highlight">Infraestructura</span></span>
+              <span className="text">Infraestructura <span className="highlight">DCCE</span></span>
             </Link>
 
             {/* Botón Toggler para pantallas pequeñas (Importante para navbar-expand-md) */}

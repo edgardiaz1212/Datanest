@@ -1,121 +1,117 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Card, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// Asegúrate que useAppContext esté disponible y funcione en tu contexto JS
-import { useAppContext } from '../../context/AppContext'; 
+import { Context } from '../store/appContext';
 import { FiLogIn } from 'react-icons/fi';
 
-const Login = () => { // Quitamos React.FC
-  const [identifier, setIdentifier] = useState(''); // Cambiado de username a identifier
+const Login = () => {
+  const { store, actions } = useContext(Context);
+  const { loading, error, isAuthenticated } = store;
+  const { loginTrackerUser, clearAuthError } = actions;
+
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [validated, setValidated] = useState(false);
-  // Asume que tu AppContext provee estas funciones/estados adaptados para JS
-  const { login, loading, error, clearError, isAuthenticated } = useAppContext(); 
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Limpiar error al montar el componente
-    if (clearError) clearError(); // Verifica si clearError existe antes de llamar
-
-    // Si ya está autenticado, redirigir al dashboard
+    if (clearAuthError) clearAuthError();
     if (isAuthenticated) {
       navigate('/dashboard');
     }
-    // Asegúrate que las dependencias sean correctas para tu AppContext JS
-  }, [clearError, isAuthenticated, navigate]); 
+  }, [clearAuthError, isAuthenticated, navigate]);
 
-  const handleSubmit = async (e) => { // Quitamos el tipo del evento
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
-
-    if (form.checkValidity() === false) {
-      e.stopPropagation();
-      setValidated(true);
-      return;
-    }
-
-    setValidated(true);
-
-    // Llama a la función login del contexto, pasando identifier y password
-    // Asume que la función login en tu AppContext JS ahora usa 'identifier'
-    const success = await login(identifier, password); 
+    const success = await loginTrackerUser(identifier, password);
     if (success) {
-      navigate('/dashboard'); // O a donde necesites redirigir
+      navigate('/dashboard');
     }
   };
 
+  // Envolvemos todo en un contenedor y sistema de rejilla
   return (
-    <Card className="auth-form shadow">
-      <Card.Body>
-        <Card.Title className="text-center mb-4">
-          <h2>Iniciar Sesión</h2>
-          {/* Puedes ajustar este subtítulo si es necesario */}
-          <small className="text-muted">Sistema de Monitoreo AC</small> 
-        </Card.Title>
+    <div className="container mt-5"> 
+      <div className="row justify-content-center">
+        <div className="col-md-8 col-lg-6 col-xl-5"> 
 
-        {error && (
-          <Alert variant="danger" dismissible onClose={clearError}>
-            {error}
-          </Alert>
-        )}
+          {/* Tu tarjeta de login original va aquí dentro */}
+          <div className="card auth-form shadow">
+            <div className="card-body">
+              <div className="card-title text-center mb-4">
+                <h2>Iniciar Sesión</h2>
+                <small className="text-muted">Sistema de Monitoreo AC</small>
+              </div>
 
-        <Form noValidate validated={validated} onSubmit={handleSubmit}>
-          {/* Cambiado controlId y Label/Placeholder para reflejar 'identifier' */}
-          <Form.Group className="mb-3" controlId="formIdentifier"> 
-            <Form.Label>Usuario o Email</Form.Label> 
-            <Form.Control
-              type="text"
-              placeholder="Ingrese su usuario o email" 
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-            />
-            <Form.Control.Feedback type="invalid">
-              Por favor ingrese su nombre de usuario o email.
-            </Form.Control.Feedback>
-          </Form.Group>
+              {error && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                  {error}
+                  <button type="button" className="btn-close" onClick={clearAuthError} aria-label="Close"></button>
+                </div>
+              )}
 
-          <Form.Group className="mb-3" controlId="formPassword">
-            <Form.Label>Contraseña</Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="Ingrese su contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <Form.Control.Feedback type="invalid">
-              Por favor ingrese su contraseña.
-            </Form.Control.Feedback>
-          </Form.Group>
+              <form noValidate onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label htmlFor="formIdentifier" className="form-label">Usuario o Email</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="formIdentifier"
+                    placeholder="Ingrese su usuario o email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required
+                  />
+                  <div className="invalid-feedback">
+                    Por favor ingrese su nombre de usuario o email.
+                  </div>
+                </div>
 
-          <Button
-            variant="primary"
-            type="submit"
-            className="w-100 mt-3"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Iniciando sesión...
-              </>
-            ) : (
-              <>
-                <FiLogIn className="me-2" /> Iniciar Sesión
-              </>
-            )}
-          </Button>
-        </Form>
+                <div className="mb-3">
+                  <label htmlFor="formPassword" className="form-label">Contraseña</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    id="formPassword"
+                    placeholder="Ingrese su contraseña"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <div className="invalid-feedback">
+                    Por favor ingrese su contraseña.
+                  </div>
+                </div>
 
-        <div className="text-center mt-3">
-          <p>
-            {/* Asegúrate que la ruta '/register' corresponda a tu componente de registro */}
-            ¿No tienes una cuenta? <Link to="/register">Regístrate</Link> 
-          </p>
-        </div>
-      </Card.Body>
-    </Card>
+                <button
+                  type="submit"
+                  className="btn btn-primary w-100 mt-3"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Iniciando sesión...
+                    </>
+                  ) : (
+                    <>
+                      <FiLogIn className="me-2" /> Iniciar Sesión
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="text-center mt-3">
+                <p>
+                  ¿No tienes una cuenta? <Link to="/register">Regístrate</Link>
+                </p>
+              </div>
+            </div>
+          </div>
+          {/* Fin de la tarjeta de login */}
+
+        </div> {/* Cierre de col-md-6 */}
+      </div> {/* Cierre de row */}
+    </div> // Cierre de container
   );
 };
 

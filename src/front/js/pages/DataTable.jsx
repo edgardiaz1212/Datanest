@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { Context } from "../store/appContext";
+import { Context } from "../store/appContext.js";
 import { useNavigate, useParams } from "react-router-dom";
 import DownloadModal from "../component/Formulary/DownloadModal.jsx";
 import DeleteButton from "../component/Formulary/DeleteButton.jsx";
