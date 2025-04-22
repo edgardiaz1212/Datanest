@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom'; // Asegúrate de que Link esté importado
 import '../../styles/home.css';
-import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart } from 'lucide-react';
+import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart, Handshake } from 'lucide-react';
 import heroBgImage from '../../img/racks1.jpeg';
 
 function Home() {
@@ -104,9 +104,33 @@ function Home() {
           </div>
         </div>
       </section>
-
+      <section className="py-5 bg-light"> {/* Puedes alternar bg-light y bg-white */}
+        <div className="container">
+          <div className="row align-items-center"> {/* align-items-center para centrar verticalmente si las columnas tienen alturas distintas */}
+            <div className="col-lg-6 text-center text-lg-start mb-4 mb-lg-0"> {/* Centrado en móvil, izquierda en large */}
+               {/* Puedes usar un icono representativo */}
+               <Handshake size={80} className="text-primary mb-3" />
+               {/* O <Briefcase size={80} className="text-primary mb-3" /> */}
+               {/* O <Users size={80} className="text-primary mb-3" /> */}
+            </div>
+            <div className="col-lg-6">
+              <h2 className="fw-bold mb-3">Trabajo en Equipo: Interno y Externo</h2>
+              <p className="text-secondary mb-3">
+                En Infraestructura DCCE, creemos en la fuerza de la colaboración. Trabajamos de la mano
+                tanto con las diversas unidades internas de la corporación como con nuestros valiosos
+                clientes externos.
+              </p>
+              <p className="text-secondary">
+                Esta sinergia nos permite entender a fondo cada necesidad y ofrecer soluciones integrales
+                y eficientes, asegurando que cada proyecto en nuestro centro de datos sea un éxito compartido.
+                ¡Juntos construimos una infraestructura sólida y confiable!
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* Why Us Section */}
-      <section className="py-5 bg-light"> {/* Esta es bg-light */}
+      <section className="py-5 bg-white"> {/* Esta es bg-light */}
         <div className="container">
           <h2 className="text-center fw-bold mb-5">¿Por qué elegirnos?</h2>
 
@@ -174,7 +198,7 @@ function Home() {
         </div>
       </section>
 
-      <section className="py-5 bg-white">
+      {/* <section className="py-5 bg-white">
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-md-8 text-center">
@@ -191,7 +215,7 @@ function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   )
 }
