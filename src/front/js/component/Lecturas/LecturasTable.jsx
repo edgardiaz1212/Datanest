@@ -84,7 +84,6 @@ const LecturasTable = ({
       <Table hover>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Aire Acondicionado</th>
             <th>Ubicación</th>
             <th><FiCalendar className="me-1" />Fecha</th>
@@ -104,7 +103,6 @@ const LecturasTable = ({
 
             return (
               <tr key={lectura.id}>
-                <td>{lectura.id}</td>
                 <td>{lectura.aire_nombre || 'N/A'}</td>
                 <td>{lectura.ubicacion || 'N/A'}</td>
                 <td>

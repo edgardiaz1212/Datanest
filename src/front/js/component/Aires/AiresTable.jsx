@@ -56,7 +56,8 @@ const AiresTable = ({
                     <tr>
                         <th>Nombre</th>
                         <th>Ubicación</th>
-                        <th>Fecha de Instalación</th>
+                        <th>Tipo</th>
+                        <th>Toneladas</th>
                         {/* Columna de acciones solo si tiene permisos */}
                         {canManage && <th className="text-end">Acciones</th>}
                     </tr>
@@ -77,7 +78,8 @@ const AiresTable = ({
                       >
                         <td>{aire.nombre || 'N/A'}</td>
                         <td>{aire.ubicacion || 'N/A'}</td>
-                        <td>{formatDate(aire.fecha_instalacion)}</td>
+                        <td>{aire.tipo || 'N/A'}</td>
+                        <td>{aire.toneladas || 'N/A'}</td>
                         {canManage && (
                           <td className="text-end" onClick={(e) => e.stopPropagation()}>
                             {/* Botón Ver Detalles */}
