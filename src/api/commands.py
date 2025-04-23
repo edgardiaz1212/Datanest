@@ -14,7 +14,7 @@ def db_cli():
     pass
 
 @db_cli.command("create-default-user")
-@with_appcontext # Asegura que estamos en el contexto de la aplicación
+@with_appcontext # Asegura que estamos en el contexto de la aplica  ción
 def create_default_user_command():
     """Crea el usuario Tracker predefinido si no existe."""
     default_username = os.getenv('DEFAULT_TRACKER_USERNAME', 'admin_tracker')

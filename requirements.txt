@@ -9,7 +9,7 @@ gunicorn
 psycopg2-binary
 python-dotenv
 sqlalchemy
-
+flask_admin
 
 
 flask-swagger
