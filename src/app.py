@@ -14,6 +14,7 @@ from api.admin import setup_admin
 from api.commands import setup_commands
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
+from datetime import timedelta 
 
 load_dotenv()
 
@@ -22,8 +23,14 @@ static_file_dir = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '../public/')
 app = Flask(__name__)
 app.url_map.strict_slashes = False
-app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY') 
+
+# --- Configuración JWT ---
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY')
+# Establece la duración del token de acceso a 2 horas
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2)
 jwt = JWTManager(app)
+# --- Fin Configuración JWT ---
+
 # database condiguration
 db_url = os.getenv("DATABASE_URL")
 if db_url is not None:

@@ -1,22 +1,19 @@
-// src/front/js/component/OtrosEquipos/OtrosEquiposAddEditModal.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Modal, Button, Form, Row, Col, Spinner, Alert } from 'react-bootstrap';
 
-// Remove TypeScript interfaces
-
-const OtrosEquiposAddEditModal = ({ // Remove : React.FC<OtrosEquiposAddEditModalProps>
+const OtrosEquiposAddEditModal = ({ 
     show,
     onHide,
     modalTitle,
     formData,
     formMode,
-    loadingEditDetails, // Loading state when fetching details for edit
-    editError,          // Error specific to this modal (loading or submit)
+    loadingEditDetails, 
+    editError,          
     onSubmit,
     onChange,
-    isSubmitting,       // Added prop to disable buttons during submit
+    // Set default value directly here using JavaScript default parameters
+    isSubmitting = false,
 }) => {
 
     // Define allowed types directly in the component
@@ -199,13 +196,7 @@ OtrosEquiposAddEditModal.propTypes = {
     editError: PropTypes.string, // Can be null
     onSubmit: PropTypes.func.isRequired,
     onChange: PropTypes.func.isRequired,
-    isSubmitting: PropTypes.bool, // Optional, defaults to false if not passed
+    isSubmitting: PropTypes.bool, // Optional, default handles this
 };
-
-// Default prop for isSubmitting
-OtrosEquiposAddEditModal.defaultProps = {
-    isSubmitting: false,
-};
-
 
 export default OtrosEquiposAddEditModal;

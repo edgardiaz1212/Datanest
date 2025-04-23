@@ -7,7 +7,7 @@ const Usuarios = () => {
 
   const { store, actions } = useContext(Context);
   // Destructure relevant state and actions
-  const { trackerUser: currentUser, trackerUsers, loading, error } = store; 
+  const { trackerUser: currentUser, trackerUsers, loading, error } = store;
   const { fetchTrackerUsers, updateTrackerUser, addTrackerUserByAdmin, clearAuthError } = actions;
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,7 +28,7 @@ const Usuarios = () => {
     rol: 'operador'
   });
   const [selectedUserId, setSelectedUserId] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Determine user permissions based on the logged-in user from the store
   const isAdmin = currentUser?.rol === 'admin';
@@ -228,8 +228,8 @@ const Usuarios = () => {
             </div>
           ) : (
             <div className="table-responsive">
-              <Table hover responsive> {/* Added responsive */}
-                <thead>
+              {/* Ensure no whitespace directly inside Table */}
+              <Table hover responsive><thead>
                   <tr>
                     <th>ID</th>
                     <th>Usuario</th>
@@ -241,8 +241,7 @@ const Usuarios = () => {
                     <th>Última Conexión</th>
                     <th className="text-end">Acciones</th>
                   </tr>
-                </thead>
-                <tbody>
+                </thead><tbody>
                   {trackerUsers.map(usuario => (
                     <tr key={usuario.id} className={!usuario.activo ? 'text-muted' : ''}>
                       <td>{usuario.id}</td>
@@ -288,8 +287,7 @@ const Usuarios = () => {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </Table>
+                </tbody></Table> {/* Ensure no whitespace before closing tag */}
             </div>
           )}
         </Card.Body>

@@ -54,7 +54,7 @@ function Home() {
 
       <section className="py-5 bg-white"> {/* Esta se mantiene bg-white */}
         <div className="container">
-          <h2 className="text-center fw-bold mb-5">Nuestros Servicios</h2>
+          <h2 className="text-center fw-bold mb-5">Nuestras Actividades</h2>
 
           <div className="row g-4">
             <div className="col-md-4">

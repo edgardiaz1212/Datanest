@@ -1,18 +1,15 @@
-// src/front/js/layout.jsx
-
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import PropTypes from 'prop-types';
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Container } from 'react-bootstrap';
 import { Context } from "./store/appContext.js";
-
 // Import Navigation Components
-import SidebarMonitoreo from "./component/SidebarMonitoreo.jsx"; // Ajusta la ruta si es necesario
-import NavbarPrincipal from "./component/NavbarPrincipal.jsx"; // Ajusta la ruta si es necesario
-import {NavbarMain} from "./component/NavbarMain.js"; // <-- IMPORTA TU NAVBAR ANTERIOR (ajusta ruta)
+import SidebarMonitoreo from "./component/SidebarMonitoreo.jsx"; 
+import NavbarPrincipal from "./component/NavbarPrincipal.jsx"; 
+import {NavbarMain} from "./component/NavbarMain.js"; 
 // Import Footer if you have one
 import {Footer} from "./component/footer";
-import madDataIcon from "../img/mad_data.png"; // Adjust path
+import madDataIcon from "../img/mad_data.png"; 
 
 // Import CSS for layout
 import "../styles/layout.css";
@@ -27,8 +24,27 @@ const Layout = () => {
     const toggleSidebar = () => {
         setSidebarCollapsed(!sidebarCollapsed);
     };
+// Este efecto se ejecutará cada vez que cambie isAuthenticated o la ubicación
+useEffect(() => {
+    // Si el usuario NO está autenticado Y está intentando acceder a una ruta protegida
+    // (Aquí asumimos que /login y /registro son las únicas públicas, ajusta según necesites)
+    const publicPaths = ['/login', '/registro']; // Añade otras rutas públicas si existen
+    const requiresAuth = !publicPaths.includes(location.pathname);
 
-    // --- Determina qué layout/navegación mostrar ---
+    if (!store.isAuthenticated && requiresAuth) {
+        console.log("Usuario no autenticado o token expirado, redirigiendo a /login...");
+        // Opcional: Puedes guardar la ruta actual para redirigir de vuelta después del login
+        // localStorage.setItem('redirectAfterLogin', location.pathname);
+        navigate('/');
+    }
+
+    // Opcional: Si el usuario ESTÁ autenticado y va a /login, redirigir al dashboard
+     if (store.isAuthenticated && location.pathname === '/login') {
+         navigate('/dashboard'); 
+     }
+
+}, [store.isAuthenticated, location.pathname, navigate]); // Dependencias clave
+
     const getLayoutType = () => {
         const { pathname } = location;
 
