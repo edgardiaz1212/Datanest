@@ -1,52 +1,45 @@
-// src/front/js/pages/Aires.jsx
-
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Card, Button, Alert, Spinner } from 'react-bootstrap'; // Added Spinner
 import { FiPlus } from 'react-icons/fi';
-// Import your Flux context
 import { Context } from '../store/appContext';
-
-// Import the child components (assuming they are converted/created as .jsx)
 import AiresTable from '../component/Aires/AiresTable.jsx';
 import AiresAddEditModal from '../component/Aires/AiresAddEditModal.jsx';
 import AiresViewModal from '../component/Aires/AiresViewModal.jsx';
 
-// --- Remove TypeScript interfaces ---
 
-// --- Componente Contenedor Principal ---
-const Aires = () => { // Remove : React.FC
-  // --- Get Store and Actions from Context ---
+const Aires = () => { 
+
   const { store, actions } = useContext(Context);
   const {
-    trackerUser: user, // Logged-in user info
-    aires: airesList,  // Use list from store, rename for consistency
-    airesLoading: loading, // Use specific loading state from store
-    airesError: error,     // Use specific error state from store
+    trackerUser: user, 
+    aires: airesList,  
+    airesLoading: loading, 
+    airesError: error,     
   } = store;
   const {
     fetchAires,
-    fetchAireDetails, // Action to get details
+    fetchAireDetails, 
     addAire,
     updateAire,
     deleteAire,
-    clearAiresError // Action to clear the error
+    clearAiresError 
   } = actions;
 
-  // --- Local State for Modals, Forms, Details ---
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
-  const [formData, setFormData] = useState({}); // Form data for add/edit
-  const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'
-  const [loadingEditDetails, setLoadingEditDetails] = useState(false); // Loading state for modal details
-  const [editError, setEditError] = useState(null); // Specific error for the edit/add modal
+  const [formData, setFormData] = useState({}); 
+  const [formMode, setFormMode] = useState('add'); 
+  const [loadingEditDetails, setLoadingEditDetails] = useState(false); 
+  const [editError, setEditError] = useState(null); 
 
   const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedAireDetails, setSelectedAireDetails] = useState(null); // Details for view modal
-  const [loadingDetails, setLoadingDetails] = useState(false); // Loading state for view modal
-  const [viewError, setViewError] = useState(null); // Specific error for view modal
+  const [selectedAireDetails, setSelectedAireDetails] = useState(null); 
+  const [loadingDetails, setLoadingDetails] = useState(false); 
+  const [viewError, setViewError] = useState(null); 
 
-  const [isSubmitting, setIsSubmitting] = useState(false); // For modal submit buttons
+  const [isSubmitting, setIsSubmitting] = useState(false); 
 
   // Determine user permissions
   const canManage = user?.rol === 'admin' || user?.rol === 'supervisor';
@@ -91,7 +84,7 @@ const Aires = () => { // Remove : React.FC
     return () => {
       if (clearAiresError) clearAiresError();
     };
-  }, [fetchAires, clearAiresError]); // Add dependencies
+  }, [fetchAires, clearAiresError]); 
 
   // --- Handlers ---
 
@@ -131,7 +124,7 @@ const Aires = () => { // Remove : React.FC
   }, [formatDate, clearAiresError]);
 
   // Open Edit Modal (fetches details via Flux action)
-  const handleEdit = useCallback(async (aireListItem) => { // Remove type
+  const handleEdit = useCallback(async (aireListItem) => { 
     setFormMode('edit');
     setModalTitle('Editar Aire Acondicionado');
     setEditError(null);
@@ -163,7 +156,7 @@ const Aires = () => { // Remove : React.FC
   }, [formatDate, fetchAireDetails, clearAiresError]);
 
   // Delete AC (calls Flux action)
-  const handleDelete = useCallback(async (id) => { // Remove type
+  const handleDelete = useCallback(async (id) => { 
     if (window.confirm('¿Está seguro de eliminar este aire acondicionado? Esta acción no se puede deshacer.')) {
       if (clearAiresError) clearAiresError();
       setIsSubmitting(true); // Indicate activity
@@ -171,14 +164,13 @@ const Aires = () => { // Remove : React.FC
       setIsSubmitting(false);
       if (!success) {
         // Error is handled globally
-        // alert("Error al eliminar"); // Optional local feedback
+         alert("Error al eliminar"); 
       }
-      // UI updates optimistically via Flux
     }
   }, [deleteAire, clearAiresError]);
 
   // Submit Add/Edit Form (calls Flux action)
-  const handleSubmit = useCallback(async (e) => { // Remove type
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setEditError(null);
     if (clearAiresError) clearAiresError();
@@ -195,7 +187,18 @@ const Aires = () => { // Remove : React.FC
     });
 
     if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(field => { /* ... (switch case for names) ... */ return field; }).join(', ');
+      const fieldNames = missingFields.map(field => {
+        switch(field) {
+            case 'nombre': return 'Nombre';
+            case 'ubicacion': return 'Ubicación';
+            case 'fecha_instalacion': return 'Fecha de Instalación';
+            case 'evaporadora_serial': return 'Serial Evap.';
+            case 'evaporadora_codigo_inventario': return 'Inventario Evap.';
+            case 'condensadora_serial': return 'Serial Cond.';
+            case 'condensadora_codigo_inventario': return 'Inventario Cond.';
+            default: return field; // Nombre técnico si no hay mapeo
+        }
+    }).join(', ');
       setEditError(`Los siguientes campos son requeridos: ${fieldNames}.`);
       return;
     }
@@ -227,7 +230,6 @@ const Aires = () => { // Remove : React.FC
         setShowEditModal(false); // Close modal on success
         // fetchAires is called within the action on success
       }
-      // If !success, error is set in Flux store
 
     } catch (error) {
       console.error('Error saving aire:', error);

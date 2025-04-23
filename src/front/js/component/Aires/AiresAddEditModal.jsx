@@ -1,30 +1,24 @@
-// src/front/js/component/Aires/AiresAddEditModal.jsx
-
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Modal, Form, Button, Row, Col, Spinner, Alert, Accordion } from 'react-bootstrap';
 import { FiInfo, FiPackage, FiZap } from 'react-icons/fi';
 
-// --- Remove TypeScript imports and interfaces ---
-// import { AireAcondicionado } from '../../pages/Aires';
-// interface AiresAddEditModalProps { ... }
-
 // Componente funcional del Modal
-const AiresAddEditModal = ({ // Remove : React.FC<AiresAddEditModalProps>
+const AiresAddEditModal = ({
     show,
     onHide,
     modalTitle,
-    formData, // Prop now uses validation below
+    formData,
     formMode,
     loadingEditDetails,
     editError,
     onSubmit,
     onChange,
-    isSubmitting // Added prop for disabling during submit
+    // Set default value directly here
+    isSubmitting = false
 }) => {
 
     // Helper para manejar cambios en checkboxes (llama al onChange general)
-    // No type annotation needed for 'e'
     const handleCheckboxChange = (e) => {
         onChange(e); // Forward the event to the parent's onChange handler
     };
@@ -260,24 +254,19 @@ const AiresAddEditModal = ({ // Remove : React.FC<AiresAddEditModalProps>
     );
 };
 
-// Add PropTypes for runtime type checking
+// PropTypes remain the same
 AiresAddEditModal.propTypes = {
     show: PropTypes.bool.isRequired,
     onHide: PropTypes.func.isRequired,
     modalTitle: PropTypes.string.isRequired,
-    formData: PropTypes.object.isRequired, // Keep as object, specific shape checked in parent
+    formData: PropTypes.object.isRequired,
     formMode: PropTypes.oneOf(['add', 'edit']).isRequired,
     loadingEditDetails: PropTypes.bool.isRequired,
-    editError: PropTypes.string, // Can be null
+    editError: PropTypes.string,
     onSubmit: PropTypes.func.isRequired,
     onChange: PropTypes.func.isRequired,
-    isSubmitting: PropTypes.bool, // Optional, defaults handled by defaultProps
+    // PropType for isSubmitting is still useful for validation
+    isSubmitting: PropTypes.bool,
 };
-
-// Default prop for isSubmitting
-AiresAddEditModal.defaultProps = {
-    isSubmitting: false,
-};
-
 
 export default AiresAddEditModal;

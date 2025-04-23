@@ -1,25 +1,20 @@
-// src/front/js/component/Aires/AiresViewModal.jsx
-
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Modal, Button, Spinner, Alert, Row, Col } from 'react-bootstrap';
 
-// --- Remove TypeScript imports and interfaces ---
-// import { AireAcondicionado } from '../../pages/Aires';
-// interface AiresViewModalProps { ... }
-
 // Componente funcional del Modal de Vista
-const AiresViewModal = ({ // Remove : React.FC<AiresViewModalProps>
+const AiresViewModal = ({
     show,
     onHide,
-    selectedAireDetails, // Prop now uses validation below
+    // Use default parameters here instead of defaultProps
+    selectedAireDetails = null,
     loadingDetails,
-    viewError,
+    viewError = null,
     formatDate,
 }) => {
 
-    // Helper para renderizar un par etiqueta-valor (remove type annotations)
-    const renderDetail = (label, value) => { // Remove : string, : string | number | boolean | null | undefined
+    // Helper para renderizar un par etiqueta-valor
+    const renderDetail = (label, value) => {
         let displayValue = '-'; // Default value if null, undefined, or empty
 
         // Format the value for display
@@ -117,11 +112,11 @@ const AiresViewModal = ({ // Remove : React.FC<AiresViewModalProps>
     );
 };
 
-// Add PropTypes for runtime type checking
+// PropTypes remain the same
 AiresViewModal.propTypes = {
     show: PropTypes.bool.isRequired,
     onHide: PropTypes.func.isRequired,
-    selectedAireDetails: PropTypes.shape({ // Can be null, so not isRequired at top level
+    selectedAireDetails: PropTypes.shape({
         id: PropTypes.number.isRequired,
         nombre: PropTypes.string,
         ubicacion: PropTypes.string,
@@ -140,16 +135,10 @@ AiresViewModal.propTypes = {
         condensadora_serial: PropTypes.string,
         condensadora_codigo_inventario: PropTypes.string,
         condensadora_ubicacion_instalacion: PropTypes.string,
-    }),
+    }), // Note: It's okay that this is nullable here, the default parameter handles it
     loadingDetails: PropTypes.bool.isRequired,
-    viewError: PropTypes.string, // Can be null
+    viewError: PropTypes.string, // Note: It's okay that this is nullable here, the default parameter handles it
     formatDate: PropTypes.func.isRequired,
-};
-
-// Default props
-AiresViewModal.defaultProps = {
-    selectedAireDetails: null,
-    viewError: null,
 };
 
 
