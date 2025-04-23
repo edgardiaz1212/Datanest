@@ -1,15 +1,10 @@
-// src/front/js/component/lecturas/LecturasFilter.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Dropdown } from 'react-bootstrap';
 import { FiFilter } from 'react-icons/fi';
 
-// --- Remove TypeScript interfaces ---
-// interface AireAcondicionado { ... }
-// interface LecturasFilterProps { ... }
 
-const LecturasFilter = ({ // Remove : React.FC<LecturasFilterProps>
+const LecturasFilter = ({ 
   aires,
   filtroAire,
   onFilterChange
@@ -83,12 +78,5 @@ LecturasFilter.propTypes = {
   filtroAire: PropTypes.number, // Can be null
   onFilterChange: PropTypes.func.isRequired,
 };
-
-// Default props for aires
-LecturasFilter.defaultProps = {
-  aires: [], // Default to empty array
-  filtroAire: null,
-};
-
 
 export default LecturasFilter;

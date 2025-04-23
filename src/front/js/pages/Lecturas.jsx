@@ -1,28 +1,19 @@
-// src/front/js/pages/Lecturas.jsx
-
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
-import { Card, Button, Alert, Spinner } from 'react-bootstrap'; // Added Spinner
+import { Card, Button, Alert, Spinner } from 'react-bootstrap';
 import { FiPlus } from 'react-icons/fi';
-// Import your Flux context
 import { Context } from '../store/appContext';
-
-// Import the child components (assuming they are converted/created as .jsx)
 import LecturasFilter from '../component/Lecturas/LecturasFilter.jsx';
 import LecturasTable from '../component/Lecturas/LecturasTable.jsx';
 import LecturasAddModal from '../component/Lecturas/LecturasAddModal.jsx';
 
-// Remove TypeScript interfaces
 
-// --- Componente Principal (Contenedor) ---
-const Lecturas = () => { // Remove : React.FC
-  // Get store and actions from Flux context
+const Lecturas = () => { 
   const { store, actions } = useContext(Context);
   const {
     trackerUser: user,
     lecturas,
-    aires, // Needed for filter and add modal
-    umbrales, // Needed for table highlighting
+    aires, 
+    umbrales, 
     lecturasLoading: loading,
     lecturasError: error,
   } = store;
@@ -31,13 +22,12 @@ const Lecturas = () => { // Remove : React.FC
     addLectura,
     deleteLectura,
     clearLecturasError,
-    // fetchAires and fetchUmbrales are called within fetchLecturas
   } = actions;
 
   // Local state
-  const [filtroAire, setFiltroAire] = useState(null); // number | null -> null
+  const [filtroAire, setFiltroAire] = useState(null); 
   const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Form submission state
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const [formData, setFormData] = useState({
     aire_id: '',
     fecha: '',
@@ -51,9 +41,7 @@ const Lecturas = () => { // Remove : React.FC
   // Assuming anyone logged in can add readings, adjust if needed
   const canAdd = !!user;
 
-  // --- Fetch data via Flux action ---
   useEffect(() => {
-    // Pass the current filter to the action
     const filters = {};
     if (filtroAire) {
       filters.aire_id = filtroAire;
@@ -69,13 +57,13 @@ const Lecturas = () => { // Remove : React.FC
   // --- Handlers ---
 
   // Filter by aire
-  const handleFiltrarPorAire = useCallback((aireId) => { // Remove type number | null
+  const handleFiltrarPorAire = useCallback((aireId) => { 
     setFiltroAire(aireId);
     // useEffect will trigger fetchLecturas with the new filter
   }, []);
 
   // Handle form input changes
-  const handleChange = useCallback((e) => { // Remove type annotation
+  const handleChange = useCallback((e) => { 
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -107,14 +95,12 @@ const Lecturas = () => { // Remove : React.FC
       const success = await deleteLectura(id);
       if (!success) {
         // Error is handled globally
-        // alert("Error al eliminar"); // Optional local feedback
+        alert("Error al eliminar"); 
       }
-      // UI updates optimistically via Flux
     }
   }, [deleteLectura, clearLecturasError]);
 
-  // Submit Add Reading Form (calls Flux action)
-  const handleSubmit = useCallback(async (e) => { // Remove type React.FormEvent
+  const handleSubmit = useCallback(async (e) => { 
     e.preventDefault();
     if (clearLecturasError) clearLecturasError();
     setIsSubmitting(true);
@@ -138,7 +124,7 @@ const Lecturas = () => { // Remove : React.FC
       // Combine date and time for backend (adjust format if backend expects differently)
       // Ensure time has seconds if backend expects HH:MM:SS
       const timeWithSeconds = formData.hora.includes(':') ? `${formData.hora}:00` : '00:00:00';
-      const fechaHoraString = `${formData.fecha}T${timeWithSeconds}`; // ISO-like format often works
+      const fechaHoraString = `${formData.fecha}T${timeWithSeconds}`; 
 
       const payload = {
         // aire_id is part of the URL for the action
@@ -153,17 +139,15 @@ const Lecturas = () => { // Remove : React.FC
       if (success) {
         setShowModal(false); // Close modal on success
       }
-      // If !success, error is set in Flux store
-
     } catch (err) {
       console.error('Error submitting lectura:', err);
       // Set error in Flux store
       actions.setLecturasError(err.message || 'Error al guardar la lectura.'); // Need to create this action
-      // Or use local error: setError(err.message || 'Error al guardar la lectura.');
+      setError(err.message || 'Error al guardar la lectura.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, addLectura, clearLecturasError]); // Dependencies
+  }, [formData, addLectura, clearLecturasError]); 
 
   // --- Formatting Helpers (remain the same, remove types) ---
   const formatearFecha = useCallback((fechaStr) => {

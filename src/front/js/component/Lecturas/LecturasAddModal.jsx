@@ -1,22 +1,16 @@
-// src/front/js/component/lecturas/LecturasAddModal.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 
-// --- Remove TypeScript interfaces ---
-// interface AireAcondicionado { ... }
-// interface FormData { ... }
-// interface LecturasAddModalProps { ... }
-
-const LecturasAddModal = ({ // Remove : React.FC<LecturasAddModalProps>
+const LecturasAddModal = ({
   show,
   onHide,
   aires,
   formData,
   onChange,
   onSubmit,
-  isSubmitting // Default value handled by defaultProps
+  // Set default value directly here using JavaScript default parameters
+  isSubmitting = false
 }) => {
   return (
     // Prevent closing during submit
@@ -136,7 +130,7 @@ const LecturasAddModal = ({ // Remove : React.FC<LecturasAddModalProps>
   );
 };
 
-// Add PropTypes for runtime type checking
+// PropTypes remain the same
 LecturasAddModal.propTypes = {
   show: PropTypes.bool.isRequired,
   onHide: PropTypes.func.isRequired,
@@ -154,12 +148,9 @@ LecturasAddModal.propTypes = {
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired, // onSubmit can be async, but prop type is just func
-  isSubmitting: PropTypes.bool, // Optional, defaults handled by defaultProps
+  // PropType for isSubmitting is still useful for validation
+  isSubmitting: PropTypes.bool,
 };
 
-// Set default value for isSubmitting
-LecturasAddModal.defaultProps = {
-  isSubmitting: false,
-};
 
 export default LecturasAddModal;

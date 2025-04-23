@@ -1,16 +1,9 @@
-// src/front/js/component/lecturas/LecturasTable.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Table, Spinner, Badge, Button } from 'react-bootstrap';
 import { FiThermometer, FiDroplet, FiCalendar, FiClock, FiTrash2, FiPlus } from 'react-icons/fi';
 
-// --- Remove TypeScript interfaces ---
-// interface Lectura { ... }
-// interface LecturasTableProps { ... }
-// interface UmbralConfiguracion { ... }
-
-const LecturasTable = ({ // Remove : React.FC<LecturasTableProps>
+const LecturasTable = ({
   lecturas,
   loading,
   canDelete,
@@ -18,9 +11,10 @@ const LecturasTable = ({ // Remove : React.FC<LecturasTableProps>
   onAdd,
   formatearFecha,
   formatearHora,
-  umbrales,
-  filtroAire, // Added from parent for empty state message context
-  aires,      // Added from parent for empty state message context
+  // Set default values directly here using JavaScript default parameters
+  umbrales = [],
+  filtroAire = null,
+  aires = [],
 }) => {
 
   if (loading) {
@@ -49,8 +43,7 @@ const LecturasTable = ({ // Remove : React.FC<LecturasTableProps>
           {/* Add context if filtered */}
           {nombreAireFiltrado ? ` para ${nombreAireFiltrado}` : ""}
         </h4>
-        {/* Show Add button only if user can add (assuming canAdd logic is in parent) */}
-        {/* We pass onAdd, assuming parent checks permissions */}
+
         <Button variant="primary" className="mt-3" onClick={onAdd}>
           <FiPlus className="me-2" /> Agregar primera lectura
         </Button>
@@ -115,23 +108,18 @@ const LecturasTable = ({ // Remove : React.FC<LecturasTableProps>
                 <td>{lectura.aire_nombre || 'N/A'}</td>
                 <td>{lectura.ubicacion || 'N/A'}</td>
                 <td>
-                  {/* <FiCalendar className="me-1" /> */} {/* Icon already in header */}
                   {formatearFecha(lectura.fecha)}
                 </td>
                 <td>
-                  {/* <FiClock className="me-1" /> */} {/* Icon already in header */}
                   {formatearHora(lectura.fecha)}
                 </td>
                 <td>
                   <Badge bg={tempColor}>
-                    {/* <FiThermometer className="me-1" /> */} {/* Icon already in header */}
-                    {/* Ensure toFixed(1) works even if value is integer */}
                     {Number(lectura.temperatura).toFixed(1)} °C
                   </Badge>
                 </td>
                 <td>
                   <Badge bg={humColor}>
-                    {/* <FiDroplet className="me-1" /> */} {/* Icon already in header */}
                     {Number(lectura.humedad).toFixed(1)} %
                   </Badge>
                 </td>
@@ -156,7 +144,7 @@ const LecturasTable = ({ // Remove : React.FC<LecturasTableProps>
   );
 };
 
-// Add PropTypes for runtime type checking
+// PropTypes remain the same
 LecturasTable.propTypes = {
   lecturas: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number.isRequired,
@@ -173,7 +161,8 @@ LecturasTable.propTypes = {
   onAdd: PropTypes.func.isRequired,
   formatearFecha: PropTypes.func.isRequired,
   formatearHora: PropTypes.func.isRequired,
-  umbrales: PropTypes.arrayOf(PropTypes.shape({ // Define shape for umbrales
+  // PropType for umbrales is still useful for validation, even with default
+  umbrales: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number.isRequired,
       nombre: PropTypes.string,
       es_global: PropTypes.bool,
@@ -183,18 +172,11 @@ LecturasTable.propTypes = {
       hum_min: PropTypes.number,
       hum_max: PropTypes.number,
       notificar_activo: PropTypes.bool,
-  })).isRequired,
-  // Added props for empty state context
+  })), // Removed .isRequired as it now has a default
+  // PropType for filtroAire is still useful
   filtroAire: PropTypes.number,
+  // PropType for aires is still useful
   aires: PropTypes.array,
 };
-
-// Default props
-LecturasTable.defaultProps = {
-    umbrales: [], // Default to empty array if not provided
-    filtroAire: null,
-    aires: [],
-};
-
 
 export default LecturasTable;
