@@ -1,7 +1,7 @@
 import os
 import click
 from flask.cli import with_appcontext
-from .models import db, UserForm, Rack, Equipment, Description # Importa los modelos
+from .models import db, UserForm, Rack, Equipment, Description, TrackerUsuario # Importa los modelos
 from dotenv import load_dotenv
 from datetime import datetime, timedelta # Importa datetime y timedelta
 from sqlalchemy.orm import joinedload # Para cargar relaciones eficientemente
