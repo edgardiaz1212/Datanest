@@ -1,8 +1,16 @@
 from flask_sqlalchemy import SQLAlchemy
+import base64
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+
 
 db = SQLAlchemy()
 
-class User(db.Model):
+class UserForm(db.Model):
+    __tablename__ = 'user_form'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120),  nullable=False)
@@ -11,10 +19,10 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     
     # Relación con Racks (un cliente puede tener muchos racks)
-    racks = db.relationship('Rack', backref='user', lazy=True)
+    racks = db.relationship('Rack', backref='user_form', lazy=True)
     
     # Relación con Equipos (un cliente puede tener muchos equipos)
-    equipments = db.relationship('Equipment', backref='user', lazy=True)
+    equipments = db.relationship('Equipment', backref='user_form', lazy=True)
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -100,7 +108,7 @@ class Rack(db.Model):
     description_id = db.Column(db.Integer, db.ForeignKey('description.id'), nullable=False)
     description = db.relationship('Description', uselist=False, back_populates='rack', cascade='all, delete')
 
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_form.id'), nullable=False)
 
     # Relación con Equipos (un rack puede tener varios equipos)
     equipments = db.relationship('Equipment', backref='rack')
@@ -170,7 +178,7 @@ class Equipment(db.Model):
     description_id = db.Column(db.Integer, db.ForeignKey('description.id'), nullable=False)
     description = db.relationship('Description', uselist=False, back_populates='equipment', cascade = "all,delete")
     
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_form.id'), nullable=False)
     
     # Relación con Rack (un equipo pertenece a un rack)
     rack_id = db.Column(db.Integer, db.ForeignKey('rack.id'), nullable=True)
@@ -211,3 +219,264 @@ class Equipment(db.Model):
             'description':self.description.serialize(),
             'user':self.user.serialize()
              }
+# --- Nuevos Modelos (Temperature Tracker) ---
+class AireAcondicionado(db.Model):
+    __tablename__ = 'aires_acondicionados'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    ubicacion = db.Column(db.String(200), comment="Ubicación general del equipo completo")
+    fecha_instalacion = db.Column(db.Date, nullable=True)
+    tipo = db.Column(db.String(50), nullable=True, comment="Tipo de aire (precision, confort, etc.)")
+    toneladas = db.Column(db.Float, nullable=True, comment="Capacidad en toneladas de refrigeración")
+
+    # --- Detalles Evaporadora ---
+    evaporadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la evaporadora")
+    evaporadora_marca = db.Column(db.String(100), nullable=True)
+    evaporadora_modelo = db.Column(db.String(100), nullable=True)
+    evaporadora_serial = db.Column(db.String(100), nullable=True, unique=True)
+    evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True, unique=True)
+    evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
+
+    # --- Detalles Condensadora ---
+    condensadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la condensadora")
+    condensadora_marca = db.Column(db.String(100), nullable=True)
+    condensadora_modelo = db.Column(db.String(100), nullable=True)
+    condensadora_serial = db.Column(db.String(100), nullable=True, unique=True)
+    condensadora_codigo_inventario = db.Column(db.String(100), nullable=True, unique=True)
+    condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
+
+    # Relaciones
+    lecturas = db.relationship("Lectura", back_populates="aire", cascade="all, delete-orphan")
+    mantenimientos = db.relationship("Mantenimiento", back_populates="aire", cascade="all, delete-orphan")
+    umbrales = db.relationship("UmbralConfiguracion", back_populates="aire", cascade="all, delete-orphan") # Relación añadida para umbrales específicos
+
+    def __repr__(self):
+        return f"<AireAcondicionado(id={self.id}, nombre='{self.nombre}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'ubicacion': self.ubicacion,
+            'fecha_instalacion': self.fecha_instalacion.isoformat() if self.fecha_instalacion else None,
+            'tipo': self.tipo,
+            'toneladas': self.toneladas,
+            'evaporadora_operativa': self.evaporadora_operativa,
+            'evaporadora_marca': self.evaporadora_marca,
+            'evaporadora_modelo': self.evaporadora_modelo,
+            'evaporadora_serial': self.evaporadora_serial,
+            'evaporadora_codigo_inventario': self.evaporadora_codigo_inventario,
+            'evaporadora_ubicacion_instalacion': self.evaporadora_ubicacion_instalacion,
+            'condensadora_operativa': self.condensadora_operativa,
+            'condensadora_marca': self.condensadora_marca,
+            'condensadora_modelo': self.condensadora_modelo,
+            'condensadora_serial': self.condensadora_serial,
+            'condensadora_codigo_inventario': self.condensadora_codigo_inventario,
+            'condensadora_ubicacion_instalacion': self.condensadora_ubicacion_instalacion,
+            # No serializar relaciones por defecto para evitar data muy grande/recursión
+            # 'lecturas': [l.serialize() for l in self.lecturas],
+            # 'mantenimientos': [m.serialize() for m in self.mantenimientos],
+            # 'umbrales': [u.serialize() for u in self.umbrales]
+        }
+
+class Lectura(db.Model):
+    __tablename__ = 'lecturas'
+
+    id = db.Column(db.Integer, primary_key=True)
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False) # Asegurar que no sea nulo
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now) # Default a ahora
+    temperatura = db.Column(db.Float, nullable=False)
+    humedad = db.Column(db.Float, nullable=False)
+
+    # Relación
+    aire = db.relationship("AireAcondicionado", back_populates="lecturas")
+
+    def __repr__(self):
+        return f"<Lectura(id={self.id}, aire_id={self.aire_id}, fecha='{self.fecha}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'aire_id': self.aire_id,
+            'fecha': self.fecha.isoformat() if self.fecha else None,
+            'temperatura': self.temperatura,
+            'humedad': self.humedad
+        }
+
+class Mantenimiento(db.Model):
+    __tablename__ = 'mantenimientos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=True)
+    otro_equipo_id = db.Column(db.Integer, db.ForeignKey('otros_equipos.id'), nullable=True)
+
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    tipo_mantenimiento = db.Column(db.String(100), nullable=False)
+    descripcion = db.Column(db.Text)
+    tecnico = db.Column(db.String(100))
+    imagen_nombre = db.Column(db.String(255))
+    imagen_tipo = db.Column(db.String(50))
+    imagen_datos = db.Column(db.LargeBinary)
+
+    # Relaciones
+    aire = db.relationship("AireAcondicionado", back_populates="mantenimientos")
+    otro_equipo = db.relationship("OtroEquipo", back_populates="mantenimientos")
+
+    # Restricción para asegurar que solo uno de aire_id u otro_equipo_id esté lleno
+    __table_args__ = (
+        db.CheckConstraint('(aire_id IS NOT NULL AND otro_equipo_id IS NULL) OR (aire_id IS NULL AND otro_equipo_id IS NOT NULL)',
+                        name='chk_mantenimiento_target'),
+    )
+
+    def __repr__(self):
+        target_id = f"aire_id={self.aire_id}" if self.aire_id else f"otro_equipo_id={self.otro_equipo_id}"
+        return f"<Mantenimiento(id={self.id}, {target_id}, fecha='{self.fecha}')>"
+
+    # Método para convertir la imagen a base64
+    def get_imagen_base64(self):
+        if self.imagen_datos and self.imagen_tipo:
+            b64_data = base64.b64encode(self.imagen_datos).decode('utf-8')
+            return f"data:{self.imagen_tipo};base64,{b64_data}"
+        return None
+
+    def serialize(self):
+        tiene_imagen = bool(self.imagen_datos) # True if imagen_datos is not None/empty, False otherwise
+
+        return {
+            'id': self.id,
+            'aire_id': self.aire_id,
+            'otro_equipo_id': self.otro_equipo_id,
+            'fecha': self.fecha.isoformat() if self.fecha else None,
+            'tipo_mantenimiento': self.tipo_mantenimiento,
+            'descripcion': self.descripcion,
+            'tecnico': self.tecnico,
+            'imagen_nombre': self.imagen_nombre,
+            'imagen_tipo': self.imagen_tipo,
+            'tiene_imagen': tiene_imagen,
+
+        }
+
+class UmbralConfiguracion(db.Model):
+    __tablename__ = 'umbrales_configuracion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=True) # Nulo si es global
+    nombre = db.Column(db.String(100), nullable=False)
+    es_global = db.Column(db.Boolean, default=False, nullable=False) # No permitir nulo
+
+    # Umbrales
+    temp_min = db.Column(db.Float, nullable=False)
+    temp_max = db.Column(db.Float, nullable=False)
+    hum_min = db.Column(db.Float, nullable=False)
+    hum_max = db.Column(db.Float, nullable=False)
+
+    # Notificaciones
+    notificar_activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
+
+    # Timestamps
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # Relación (opcional, solo si no es global)
+    aire = db.relationship("AireAcondicionado", back_populates="umbrales")
+
+    def __repr__(self):
+        target = "global" if self.es_global else f"aire_id={self.aire_id}"
+        return f"<UmbralConfiguracion(id={self.id}, nombre='{self.nombre}', {target})>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'aire_id': self.aire_id,
+            'nombre': self.nombre,
+            'es_global': self.es_global,
+            'temp_min': self.temp_min,
+            'temp_max': self.temp_max,
+            'hum_min': self.hum_min,
+            'hum_max': self.hum_max,
+            'notificar_activo': self.notificar_activo,
+            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None,
+            'ultima_modificacion': self.ultima_modificacion.isoformat() if self.ultima_modificacion else None,
+        }
+
+class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
+    __tablename__ = 'tracker_usuarios' # Nombre de tabla cambiado
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False)
+    apellido = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False, unique=True)
+    username = db.Column(db.String(50), nullable=False, unique=True)
+    password = db.Column(db.String(255), nullable=False) 
+    rol = db.Column(db.String(20), nullable=False, default='operador')
+    activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    ultima_conexion = db.Column(db.DateTime, nullable=True)
+
+    def set_password(self, password_plaintext):
+        """Genera y guarda el hash de la contraseña."""
+        # Usamos un método más seguro que el SHA-256 simple
+        # Werkzeug genera hashes con salt automáticamente
+        self.password = generate_password_hash(password_plaintext)
+
+    def check_password(self, password_plaintext):
+        """Verifica la contraseña contra el hash almacenado."""
+        # Werkzeug compara el texto plano con el hash almacenado
+        return check_password_hash(self.password, password_plaintext)
+
+    def serialize(self):
+        # ¡NUNCA serializar la contraseña!
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'apellido': self.apellido,
+            'email': self.email,
+            'username': self.username,
+            'rol': self.rol,
+            'activo': self.activo,
+            'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
+            'ultima_conexion': self.ultima_conexion.isoformat() if self.ultima_conexion else None,
+        }
+
+class OtroEquipo(db.Model):
+    __tablename__ = 'otros_equipos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(100), nullable=False, comment="Nombre descriptivo del equipo")
+    tipo = db.Column(db.String(50), nullable=False, comment="Tipo de equipo (Motogenerador, UPS, PDU, etc.)")
+    ubicacion = db.Column(db.String(200), nullable=True)
+    marca = db.Column(db.String(100), nullable=True)
+    modelo = db.Column(db.String(100), nullable=True)
+    serial = db.Column(db.String(100), nullable=True, unique=True)
+    codigo_inventario = db.Column(db.String(100), nullable=True, unique=True)
+    fecha_instalacion = db.Column(db.Date, nullable=True)
+    estado_operativo = db.Column(db.Boolean, nullable=False, default=True)
+    notas = db.Column(db.Text, nullable=True, comment="Información adicional relevante")
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    # Relación
+    mantenimientos = db.relationship("Mantenimiento", back_populates="otro_equipo", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<OtroEquipo(id={self.id}, nombre='{self.nombre}', tipo='{self.tipo}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'tipo': self.tipo,
+            'ubicacion': self.ubicacion,
+            'marca': self.marca,
+            'modelo': self.modelo,
+            'serial': self.serial,
+            'codigo_inventario': self.codigo_inventario,
+            'fecha_instalacion': self.fecha_instalacion.isoformat() if self.fecha_instalacion else None,
+            'estado_operativo': self.estado_operativo,
+            'notas': self.notas,
+            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None,
+            'ultima_modificacion': self.ultima_modificacion.isoformat() if self.ultima_modificacion else None,
+            # No serializar mantenimientos por defecto
+            # 'mantenimientos': [m.serialize() for m in self.mantenimientos]
+        }

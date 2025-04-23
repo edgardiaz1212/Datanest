@@ -1,8 +1,9 @@
 import React, { useContext, useState, useEffect } from "react";
-import { Context } from "../store/appContext";
+import { Context } from "../store/appContext.js";
 import { useNavigate, useParams } from "react-router-dom";
-import DownloadModal from "../component/DownloadModal.jsx";
-import DeleteButton from "../component/DeleteButton.jsx";
+import DownloadModal from "../component/Formulary/DownloadModal.jsx";
+import DeleteButton from "../component/Formulary/DeleteButton.jsx";
+import "../../styles/formulary.css";
 
 const DataTable = () => {
   const { user_id } = useParams();
@@ -17,7 +18,7 @@ const DataTable = () => {
       partNumber: "",
     },
   ]);
-  
+
   const [formData, setFormData] = useState({});
   const [savedEntries, setSavedEntries] = useState([]);
 
@@ -27,7 +28,7 @@ const DataTable = () => {
     const { name, value } = e.target;
     const updatedEntries = [...entries];
     const currentEntry = updatedEntries[index];
-  
+
     // Solo actualiza si el valor ha cambiado
     if (currentEntry[name] !== value) {
       updatedEntries[index][name] = value;
@@ -38,21 +39,22 @@ const DataTable = () => {
 
   useEffect(() => {
     let isMounted = true; // Evita actualizaciones innecesarias si el componente se desmonta
-  
+
     const fetchData = async () => {
       if (!user_id) {
         console.warn("User ID is undefined.");
+        console.log(user_id)
         return;
       }
-  
+
       try {
         const userEntries = await actions.getDescriptionsByUser(user_id);
-  
+
         if (isMounted && userEntries?.length > 0) {
           const filteredEntries = userEntries.filter(
             (desc) => parseInt(desc.user_id) === parseInt(user_id)
           );
-  
+
           setSavedEntries(filteredEntries); // Actualiza solo si hay cambios
           console.log("Filtered descriptions:", filteredEntries);
         }
@@ -60,14 +62,13 @@ const DataTable = () => {
         console.error("Error fetching user data:", error);
       }
     };
-  
+
     fetchData();
-  
+
     return () => {
       isMounted = false; // Limpieza para evitar llamadas redundantes
     };
   }, [user_id]); // Evita incluir `actions` como dependencia a menos que sea necesario
-  
 
   const handleAddEntry = () => {
     setEntries([
@@ -327,9 +328,7 @@ const DataTable = () => {
 
         <div className="mt-3 gap-3">
           <div className="end&download mb-2"></div>
-          {savedEntries.length > 0 && (
-            <DownloadModal />
-          )}
+          {savedEntries.length > 0 && <DownloadModal />}
 
           <button
             type="button"

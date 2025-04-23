@@ -1,0 +1,188 @@
+/* src/front/styles/layout.css */
+
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f8f9fa; /* Light background for content area */
+  }
+  
+  .sidebar {
+    width: 250px; /* Standard width */
+    background-color: #343a40; /* Dark background */
+    color: #fff;
+    transition: width 0.3s ease;
+    height: 100vh; /* Full height */
+    position: fixed; /* Fixed position */
+    top: 0;
+    left: 0;
+    overflow-y: auto; /* Allow scrolling if content overflows */
+    z-index: 1030; /* Ensure it's above content */
+  }
+  
+  .sidebar-collapsed {
+    width: 70px; /* Collapsed width */
+  }
+  
+  .sidebar-header {
+    border-bottom: 1px solid #495057; /* Separator */
+  }
+  
+  .sidebar .nav-link.sidebar-link {
+    padding: 0.75rem 1rem;
+    transition: background-color 0.2s ease;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden; /* Hide text when collapsed */
+  }
+  
+  .sidebar .nav-link.sidebar-link:hover {
+    background-color: #495057; /* Hover effect */
+  }
+  
+  .sidebar .nav-link.sidebar-link .ms-3 { /* Style for the text span */
+      opacity: 1;
+      transition: opacity 0.3s ease;
+  }
+  
+  .sidebar-collapsed .nav-link.sidebar-link .ms-3 {
+      opacity: 0;
+      width: 0; /* Ensure it doesn't take space */
+  }
+  
+  .sidebar-collapsed .nav-link.sidebar-link {
+      display: flex;
+      justify-content: center; /* Center icon when collapsed */
+      padding: 0.75rem 0; /* Adjust padding */
+  }
+  
+  .sidebar-collapsed .sidebar-header {
+      justify-content: center !important; /* Center toggle button */
+  }
+  
+  .main-content {
+    flex-grow: 1;
+    margin-left: 250px; /* Same as sidebar width */
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column; /* Stack navbar, content, footer */
+    min-height: 100vh; /* Ensure it takes full height */
+  }
+  
+  .main-content-collapsed {
+    margin-left: 70px; /* Same as collapsed sidebar width */
+  }
+  
+  .main-navbar {
+      /* Optional: Add styles if needed */
+      position: sticky; /* Make navbar sticky */
+      top: 0;
+      z-index: 1020;
+  }
+  
+  .page-content {
+      flex-grow: 1; /* Allow content to take remaining space */
+      padding-top: 1rem; /* Add some padding below navbar */
+      padding-bottom: 60px; /* Add padding to prevent overlap with footer */
+  }
+  
+  .app-footer {
+    background-color: #e9ecef; /* Light background for footer */
+    padding: 1rem 0;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+    margin-top: auto; /* Push footer to bottom */
+    /* position: fixed; */ /* Alternative: Fixed footer */
+    /* bottom: 0; */
+    /* width: calc(100% - var(--sidebar-width)); */ /* Adjust width if fixed */
+    /* margin-left: var(--sidebar-width); */ /* Adjust margin if fixed */
+  }
+  
+  /* Ensure body has no margin */
+  body {
+      margin: 0;
+  }
+  
+  /* Optional: Style for no-layout container */
+  .no-layout-container {
+      padding: 1rem; /* Example basic padding */
+  }
+  
+  /* Adjust dashboard card styling if needed */
+  .dashboard-card {
+      margin-bottom: 1.5rem;
+  }
+  
+  /* src/front/styles/layout.css (o tu archivo CSS principal) */
+
+/* Contenedor principal del layout público */
+.public-layout-container {
+    display: flex; /* Habilita Flexbox */
+    flex-direction: column; /* Apila los elementos verticalmente (Navbar, Contenido, Footer) */
+    min-height: 100vh; /* Asegura que el contenedor ocupe al menos toda la altura de la pantalla */
+  }
+  
+  /* Contenedor del contenido de la página pública */
+  .page-content-public {
+    flex-grow: 1; /* Hace que este contenedor crezca y ocupe el espacio sobrante */
+    padding-top: 1rem; /* Añade espacio debajo del NavbarMain */
+    padding-bottom: 1rem; /* Añade espacio antes del Footer */
+  }
+  
+  /* Footer para el layout público (si necesitas estilos específicos) */
+  .app-footer-public {
+    background-color: #e9ecef;
+    padding: 1rem 0;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+    /* Ya no necesita margin-top: auto; porque flex-grow se encarga */
+  }
+  
+  /* Asegúrate que el body y html no tengan márgenes que interfieran */
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Asegúrate que el root de React también ocupe toda la altura */
+  #app {
+    min-height: 100%;
+    display: flex; /* Puede ser necesario si #app es el contenedor directo */
+    flex-direction: column; /* Puede ser necesario si #app es el contenedor directo */
+  }
+  
+  /* --- Estilos existentes para el layout de monitoreo --- */
+  .app-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+  }
+  
+  /* ... (resto de tus estilos para .sidebar, .main-content, .app-footer, etc.) ... */
+  
+  .main-content {
+    flex-grow: 1;
+    margin-left: 250px;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  .main-content-collapsed {
+    margin-left: 70px;
+  }
+  
+  .page-content {
+      flex-grow: 1;
+      padding-top: 1rem;
+      padding-bottom: 1rem; /* Ajusta si es necesario para el footer del app-container */
+  }
+  
+  .app-footer {
+    background-color: #e9ecef;
+    padding: 1rem 0;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+    /* margin-top: auto; */ /* Quita esto si .main-content ya es flex column */
+  }
+  

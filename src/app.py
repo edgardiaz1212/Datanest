@@ -5,6 +5,7 @@ import os
 from flask import Flask, request, jsonify, url_for, send_from_directory
 from flask_migrate import Migrate
 from flask_swagger import swagger
+from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from api.utils import APIException, generate_sitemap
 from api.models import db
@@ -12,14 +13,23 @@ from api.routes import api
 from api.admin import setup_admin
 from api.commands import setup_commands
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash
+from datetime import timedelta 
+
 load_dotenv()
-# from models import Person
 
 ENV = "development" if os.getenv("FLASK_DEBUG") == "1" else "production"
 static_file_dir = os.path.join(os.path.dirname(
     os.path.realpath(__file__)), '../public/')
 app = Flask(__name__)
 app.url_map.strict_slashes = False
+
+# --- Configuración JWT ---
+app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY')
+# Establece la duración del token de acceso a 2 horas
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=2)
+jwt = JWTManager(app)
+# --- Fin Configuración JWT ---
 
 # database condiguration
 db_url = os.getenv("DATABASE_URL")

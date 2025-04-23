@@ -8,12 +8,12 @@ import {
 } from "pdf-lib";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { Context } from "../store/appContext";
-import pdfBase from "../../pdf/FOR BA7D ED5.pdf";
+import { Context } from "../../store/appContext";
+import pdfBase from "../../../pdf/FOR BA7D ED5.pdf";
 
 function DownloadModal() {
   const { actions, store } = useContext(Context);
-  const FONT_SIZE = 12
+  const FONT_SIZE = 12;
   const fillField = (field, value) => {
     if (field instanceof PDFTextField) {
       field.setText(value || "N/A");
@@ -29,7 +29,6 @@ function DownloadModal() {
       }
     } else if (field instanceof PDFRadioGroup) {
       field.select(value || "N/A");
-      
     }
   };
 
@@ -164,31 +163,19 @@ function DownloadModal() {
         fillField(form.getTextField("Fases"), data.fases);
         fillField(form.getTextField("Receptaculos"), data.output_connector);
         fillField(form.getRadioGroup("NEUTRO"), data.neutro ? "si" : "no");
-      //Rellenar más campos de Equipment con "N/A"
-      fillField(form.getTextField("Alto_Equipo"), "N/A");
+        //Rellenar más campos de Equipment con "N/A"
+        fillField(form.getTextField("Alto_Equipo"), "N/A");
         fillField(form.getTextField("Ancho_Equipo"), "N/A");
-        fillField(
-          form.getTextField("Profundidad_Equipo"),
-          "N/A"
-        );
+        fillField(form.getTextField("Profundidad_Equipo"), "N/A");
         fillField(form.getTextField("Alto_Embalaje"), "N/A");
         fillField(form.getTextField("Ancho_Embalaje"), "N/A");
-        fillField(
-          form.getTextField("Profundidad embalaje"),
-          "N/A"
-        );
+        fillField(form.getTextField("Profundidad embalaje"), "N/A");
         fillField(form.getTextField("Peso_Maximo"), "N/A");
         fillField(form.getTextField("Tipo_Anclaje"), "N/A");
         fillField(form.getTextField("Altura_Puerta"), "N/A");
         fillField(form.getTextField("Ancho_Puerta"), "N/A");
-        fillField(
-          form.getTextField("Inclinacion_Puerta"),
-          "N/A"
-        );
-        fillField(
-          form.getTextField("Ubicacion_fila_Numero_Rack"),
-          "N/A"
-        );
+        fillField(form.getTextField("Inclinacion_Puerta"), "N/A");
+        fillField(form.getTextField("Ubicacion_fila_Numero_Rack"), "N/A");
         fillField(form.getTextField("Posicion_U"), "N/A");
         fillField(form.getTextField("Total_Unidades"), "N/A");
         fillField(form.getTextField("ACDC"), "N/A");
@@ -198,7 +185,6 @@ function DownloadModal() {
         fillField(form.getTextField("Temperatura"), "N/A");
         fillField(form.getTextField("BTUHr"), "N/A");
         fillField(form.getDropdown("Fuentes"), "N/A");
-      
       }
 
       if (modelType !== "Rack") {
@@ -252,24 +238,18 @@ function DownloadModal() {
         fillField(form.getTextField("BTUHr"), data.thermal_disipation);
         fillField(form.getDropdown("Fuentes"), data.power_config);
         // Rellenar Racks con N/A
-        fillField(form.getTextField("Total_Gabinetes"), 'N/A');
-        fillField(form.getTextField("Tipo_Seguridad"), 'N/A')
-        fillField(
-          form.getTextField("Ubicacion_Extractores"),
-          'N/A'
-        );
-        fillField(
-          form.getTextField("Ubicacion_Puertas"),
-          'N/A'
-        );
-        fillField(form.getTextField("Total_RU"), 'N/A');
+        fillField(form.getTextField("Total_Gabinetes"), "N/A");
+        fillField(form.getTextField("Tipo_Seguridad"), "N/A");
+        fillField(form.getTextField("Ubicacion_Extractores"), "N/A");
+        fillField(form.getTextField("Ubicacion_Puertas"), "N/A");
+        fillField(form.getTextField("Total_RU"), "N/A");
         fillField(form.getTextField("Posicion_Rack"), "N/A");
         fillField(
           form.getTextField("Tipo_Accesorio"),
           data.accessory_description
         );
         fillField(form.getTextField("Alto_Rack"), "N/A");
-        fillField(form.getTextField("Ancho_Rack"),"N/A");
+        fillField(form.getTextField("Ancho_Rack"), "N/A");
         fillField(form.getTextField("Profundo_Rack"), "N/A");
         fillField(form.getTextField("PDU_Internos"), "N/A");
         fillField(form.getTextField("Toma_Entrada"), "N/A");
@@ -289,7 +269,7 @@ function DownloadModal() {
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, `Planillas ${store.currentUser.clientName}.zip` );
+    saveAs(zipBlob, `Planillas ${store.currentUser.clientName}.zip`);
   };
 
   return (
