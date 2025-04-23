@@ -592,6 +592,60 @@ def update_tracker_user(user_id):
         traceback.print_exc()
         return jsonify({"msg": "Error updating tracker user", "error": str(error)}), 500
 
+@api.route('/tracker/user/password', methods=['PUT'])
+@jwt_required()
+def change_tracker_user_password():
+    """
+    Permite al usuario autenticado cambiar su propia contraseña.
+    Requiere autenticación JWT.
+    Recibe 'current_password' y 'new_password' en el cuerpo JSON.
+    """
+    current_user_id_str = get_jwt_identity() # El identity es un string
+    try:
+        current_user_id = int(current_user_id_str)
+    except ValueError:
+        return jsonify({"msg": "Identidad de usuario inválida en el token"}), 400
+
+    user = db.session.get(TrackerUsuario, current_user_id)
+    if not user:
+        # Esto no debería pasar si el token es válido, pero por seguridad
+        return jsonify({"msg": "Usuario no encontrado"}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+
+    if not current_password or not new_password:
+        return jsonify({"msg": "Se requieren 'current_password' y 'new_password'"}), 400
+
+    # Verificar la contraseña actual
+    if not user.check_password(current_password):
+        return jsonify({"msg": "La contraseña actual es incorrecta"}), 401 # Unauthorized o Bad Request
+
+    # Validar longitud mínima de la nueva contraseña (opcional pero recomendado)
+    if len(new_password) < 6:
+         return jsonify({"msg": "La nueva contraseña debe tener al menos 6 caracteres"}), 400
+
+    # Establecer y hashear la nueva contraseña
+    try:
+        user.set_password(new_password)
+        db.session.commit()
+        return jsonify({"msg": "Contraseña actualizada correctamente"}), 200
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al cambiar contraseña para usuario {current_user_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al actualizar la contraseña."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al cambiar contraseña para usuario {current_user_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al actualizar la contraseña."}), 500
+
+
 @api.route('/tracker/user/<int:user_id>', methods=['DELETE'])
 @jwt_required() # <--- Añadido aquí
 def delete_tracker_user(user_id):

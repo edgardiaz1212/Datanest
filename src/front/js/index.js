@@ -10,7 +10,7 @@ import injectContext from "./store/appContext";
 
 // Importa tus componentes de página
 import Login from "./pages/auth/Login.jsx";
-import Register from "./pages/auth/Register.jsx"; // Asume que existe
+import Register from "./pages/auth/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Aires from "./pages/Aires.jsx";
 import Lecturas from "./pages/Lecturas.jsx";
@@ -19,8 +19,8 @@ import OtrosEquipos from "./pages/OtrosEquipos.jsx";
 import Mantenimientos from "./pages/Mantenimientos.jsx";
 import Umbrales from "./pages/Umbrales.jsx";
 import Usuarios from "./pages/Usuarios.jsx";
-//import UserProfile from "./pages/UserProfile.jsx"; // Asume que existe
-import NotFound from "./pages/NotFound.jsx"; // Asume que existe
+import Perfil from "./pages/Perfil.jsx";
+import NotFound from "./pages/NotFound.jsx"; 
 import Formulary from "./pages/Formulary.jsx";
 import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
@@ -66,7 +66,7 @@ const App = () => {
                     <Route path="/mantenimientos" element={<Mantenimientos />} />
                     <Route path="/umbrales" element={<Umbrales />} />
                     <Route path="/usuarios" element={<Usuarios />} />
-                    {/* <Route path="/perfil" element={<UserProfile />} /> */}
+                     <Route path="/perfil" element={<Perfil />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />

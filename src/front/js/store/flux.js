@@ -590,6 +590,107 @@ const getState = ({ getStore, getActions, setStore }) => {
       }
       return success;
     },
+    updateCurrentUserProfile: async (updatedData) => {
+      const store = getStore();
+      const actions = getActions(); // Para llamar a logout si es necesario
+
+      if (!store.trackerUser || !store.trackerUser.id) {
+        console.error("No hay usuario logueado para actualizar.");
+        setStore({ error: "No hay usuario logueado para actualizar.", loading: false });
+        return false;
+      }
+
+      const userId = store.trackerUser.id;
+      setStore({ loading: true, error: null }); // Inicia carga, limpia error
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/user/${userId}`, {
+          method: "PUT",
+          headers: getAuthHeaders(), // Usa cabeceras con token y Content-Type
+          body: JSON.stringify({
+            nombre: updatedData.nombre,
+            apellido: updatedData.apellido,
+            email: updatedData.email,
+            // No enviar rol, activo, username, password desde aquí
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          // Actualizar store y localStorage con los datos devueltos por el backend
+          setStore({
+            trackerUser: responseData, // Usa la respuesta del backend
+            loading: false,
+            error: null
+          });
+          localStorage.setItem("trackerUser", JSON.stringify(responseData));
+          console.log("Perfil actualizado correctamente:", responseData);
+          return true; // Indica éxito
+        } else {
+          // Manejar error 401 (Unauthorized) - podría desloguear
+          if (response.status === 401) {
+            actions.logoutTrackerUser();
+            setStore({ error: "Sesión expirada o inválida. Por favor, inicia sesión de nuevo.", loading: false });
+          } else {
+            setStore({ error: responseData.msg || "Error al actualizar el perfil.", loading: false });
+          }
+          console.error("Error actualizando perfil:", responseData.msg);
+          return false; // Indica fallo
+        }
+      } catch (error) {
+        console.error("Error de red actualizando perfil:", error);
+        setStore({ error: "Error de conexión o del servidor al actualizar el perfil.", loading: false });
+        return false; // Indica fallo
+      }
+    },
+    changeCurrentUserPassword: async (passwordInfo) => {
+      const store = getStore();
+      const actions = getActions();
+
+      if (!store.trackerUser || !store.trackerUser.id) {
+        console.error("No hay usuario logueado para cambiar contraseña.");
+        setStore({ error: "No hay usuario logueado.", loading: false }); // loading podría ser passwordLoading
+        return false;
+      }
+
+      setStore({ loading: true, error: null }); // O usar un estado 'passwordLoading' dedicado
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/tracker/user/password`, { // Nueva ruta
+          method: "PUT",
+          headers: getAuthHeaders(), // Necesita token y Content-Type
+          body: JSON.stringify({
+            current_password: passwordInfo.current_password,
+            new_password: passwordInfo.new_password,
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          setStore({ loading: false, error: null });
+          console.log("Contraseña actualizada correctamente.");
+          // No es necesario actualizar el trackerUser en el store aquí
+          return true; // Indica éxito
+        } else {
+          // Manejar error 401 (Unauthorized) - podría desloguear
+          if (response.status === 401) {
+            actions.logoutTrackerUser();
+            setStore({ error: "Sesión expirada o inválida. Por favor, inicia sesión de nuevo.", loading: false });
+          } else {
+            // El mensaje de error específico (ej: "Contraseña actual incorrecta") vendrá del backend
+            setStore({ error: responseData.msg || "Error al cambiar la contraseña.", loading: false });
+          }
+          console.error("Error cambiando contraseña:", responseData.msg);
+          return false; // Indica fallo
+        }
+      } catch (error) {
+        console.error("Error de red cambiando contraseña:", error);
+        setStore({ error: "Error de conexión o del servidor al cambiar la contraseña.", loading: false });
+        return false; // Indica fallo
+      }
+    },
 
     // --- Aires Actions ---
     fetchAires: async () => {
