@@ -30,7 +30,7 @@ function Formulary() {
                                     <div className="item-content container">
                                         <div className="item-content-inner">
                                             <h2 className="heading">
-                                                Bienvenido a DataNest al Sistema de Gestion de Solicitudes de Colocacion DCCE
+                                                Bienvenido a DataNest al Sistema de Gestión de Solicitudes de Colocacion DCCE
                                             </h2>
                                             <p className="intro">
                                                 Aca podras registrar de manera sencilla las solicitudes respecto a colocacion de los clientes del Centro de Datos el Hatillo!
