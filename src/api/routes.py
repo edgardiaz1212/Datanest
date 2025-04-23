@@ -474,10 +474,7 @@ def login_tracker_user():
             user.ultima_conexion = datetime.utcnow()
             db.session.commit()
 
-            # --- Generar el token JWT ---
-            # La 'identity' puede ser cualquier dato único del usuario (ID es común)
-            # Puedes añadir más información al token con 'additional_claims' si lo necesitas
-            access_token = create_access_token(identity=user.id)
+            access_token = create_access_token(identity=str(user.id)) 
 
             # --- Devolver el token junto con los datos del usuario ---
             return jsonify({
@@ -1224,26 +1221,26 @@ def get_aires_por_ubicacion_route(ubicacion):
 # Ruta para obtener estadísticas por ubicación (todas o una específica)
 @api.route('/estadisticas/ubicacion', defaults={'ubicacion': None}, methods=['GET'])
 @api.route('/estadisticas/ubicacion/<string:ubicacion>', methods=['GET'])
+@jwt_required() # Asegúrate que esta ruta también esté protegida si es necesario
 def get_estadisticas_por_ubicacion_route(ubicacion):
     """
     Endpoint para obtener estadísticas por ubicación.
     Si no se especifica ubicación en la URL, devuelve para todas.
     Si se especifica /estadisticas/ubicacion/NombreUbicacion, filtra por esa.
     """
-    df_stats = obtener_estadisticas_por_ubicacion_helper(ubicacion)
+    # El helper ahora devuelve una lista de diccionarios o None
+    stats_list = obtener_estadisticas_por_ubicacion_helper(ubicacion)
 
-    if df_stats is None: # Error ocurrido en el helper
+    if stats_list is None: # Error ocurrido en el helper
         msg = f"Error al calcular estadísticas para la ubicación '{ubicacion}'." if ubicacion else "Error al calcular estadísticas por ubicación."
         return jsonify({"msg": msg}), 500
 
-    # Si el DataFrame está vacío (porque no se encontraron datos), devuelve lista vacía JSON
-    if df_stats.empty:
-        return jsonify([]), 200
+    # --- CORRECCIÓN ---
+    # Verificar si la lista está vacía (en lugar de df_stats.empty)
+    if not stats_list:
+        return jsonify([]), 200 # Devuelve lista vacía JSON si no hay datos
 
-    # Convertir DataFrame a lista de diccionarios para la respuesta JSON
-    stats_list = df_stats.to_dict(orient='records')
-    return jsonify(stats_list), 200
-
+    return jsonify(stats_list), 200 # Devuelve la lista directamente
 # --- Helper Functions (Opcional, pero recomendado para organización) ---
 
 def agregar_otro_equipo_helper(data):
@@ -1285,43 +1282,6 @@ def agregar_otro_equipo_helper(data):
     # El commit se maneja en la ruta para poder hacer rollback general
     return nuevo_equipo
 
-# --- Rutas de API ---
-
-@api.route('/aires/<int:aire_id>', methods=['DELETE'])
-def eliminar_aire_route(aire_id):
-    """
-    Endpoint para eliminar un aire acondicionado específico por su ID.
-    Las lecturas y mantenimientos asociados deberían eliminarse en cascada
-    si la relación en el modelo está configurada con cascade='all, delete-orphan'.
-    """
-    try:
-        aire = db.session.get(AireAcondicionado, aire_id)
-
-        if not aire:
-            return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
-
-        # Eliminar el objeto
-        db.session.delete(aire)
-        db.session.commit()
-
-        # Devolver 204 No Content es estándar para DELETE exitoso sin cuerpo
-        return '', 204
-        # Opcional: devolver un mensaje de éxito
-        # return jsonify({"msg": f"Aire acondicionado {aire_id} eliminado correctamente."}), 200
-
-    except SQLAlchemyError as e: # Captura errores específicos de DB
-        db.session.rollback()
-        print(f"!!! ERROR SQLAlchemy al eliminar aire ID {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        # Podría ser un error de restricción si algo más depende de este aire y no hay cascada
-        return jsonify({"msg": "Error de base de datos al eliminar el aire."}), 500
-    except Exception as e:
-        db.session.rollback()
-        print(f"!!! ERROR inesperado al eliminar aire ID {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error inesperado en el servidor al eliminar el aire."}), 500
-
-
 # --- Rutas para OtroEquipo ---
 
 @api.route('/otros_equipos', methods=['POST'])
@@ -1331,12 +1291,11 @@ def agregar_otro_equipo_route():
     Endpoint para agregar un nuevo equipo diverso (no Aire Acondicionado).
     Requiere autenticación. Recibe los datos en formato JSON.
     """
-    # --- Opcional: Verificación de Permisos ---
-    # current_user_id = get_jwt_identity()
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
-    #     return jsonify({"msg": "Acceso no autorizado para agregar equipos diversos"}), 403
-    # --- Fin Verificación ---
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para agregar equipos diversos"}), 403
+
 
     data = request.get_json()
     if not data:
@@ -2283,11 +2242,11 @@ def contar_entidades_helper():
 def contar_alertas_activas_helper():
     """
     Helper para contar el número de aires con al menos una alerta activa
-    basada en su última lectura y los umbrales activos.
+    basada en su última lectura y los umbrales activos. (OPTIMIZADO)
     """
-    print("\n--- [DEBUG] Iniciando contar_alertas_activas_helper ---")
+    print("\n--- [DEBUG] Iniciando contar_alertas_activas_helper (Optimizado) ---")
     try:
-        # 1. Obtener la última lectura de cada aire
+        # 1. Obtener la última lectura de cada aire (sin cambios)
         print("[DEBUG] Obteniendo últimas lecturas...")
         subquery = db.session.query(
             Lectura.aire_id,
@@ -2300,41 +2259,59 @@ def contar_alertas_activas_helper():
         ).all()
         print(f"[DEBUG] Últimas lecturas encontradas: {len(ultimas_lecturas)}")
 
-        # 2. Obtener todos los umbrales activos (sin Pandas)
-        print("[DEBUG] Obteniendo umbrales activos...")
-        umbrales_activos = db.session.query(UmbralConfiguracion).filter(
-            UmbralConfiguracion.notificar_activo == True
+        # --- OPTIMIZACIÓN: Pre-cargar y organizar umbrales ---
+        print("[DEBUG] Pre-cargando y organizando umbrales activos...")
+
+        # Pre-fetch global thresholds once
+        global_umbrales = db.session.query(UmbralConfiguracion).filter(
+            UmbralConfiguracion.notificar_activo == True,
+            UmbralConfiguracion.es_global == True
         ).all()
-        print(f"[DEBUG] Umbrales ACTIVOS encontrados: {len(umbrales_activos)}")
+        print(f"[DEBUG] Global umbrales ACTIVOS encontrados: {len(global_umbrales)}")
 
-        if not umbrales_activos:
-            print("[DEBUG] No hay umbrales activos. Devolviendo 0.")
-            return 0 # No hay umbrales activos, no puede haber alertas
+        # Pre-fetch specific thresholds into a dictionary {aire_id: [umbral1, umbral2]}
+        specific_umbrales_raw = db.session.query(UmbralConfiguracion).filter(
+            UmbralConfiguracion.notificar_activo == True,
+            UmbralConfiguracion.es_global == False,
+            UmbralConfiguracion.aire_id != None # Asegura que aire_id no sea null
+        ).all()
+        specific_umbrales_dict = {}
+        for u in specific_umbrales_raw:
+            if u.aire_id not in specific_umbrales_dict:
+                specific_umbrales_dict[u.aire_id] = []
+            specific_umbrales_dict[u.aire_id].append(u)
+        print(f"[DEBUG] Specific umbrales ACTIVOS encontrados: {len(specific_umbrales_raw)} (organizados por aire_id)")
+        # --- FIN OPTIMIZACIÓN ---
 
-        # 3. Verificar cada última lectura contra los umbrales aplicables
+        # Si no hay ningún umbral activo (ni global ni específico), no puede haber alertas
+        if not global_umbrales and not specific_umbrales_dict:
+             print("[DEBUG] No hay umbrales activos (globales ni específicos). Devolviendo 0.")
+             return 0
+
+        # 3. Verificar cada última lectura contra los umbrales aplicables (usando los pre-cargados)
         alertas_count = 0
-        aires_con_alerta = set() # Para no contar el mismo aire múltiples veces
-        print("[DEBUG] Iniciando verificación de lecturas vs umbrales...")
+        aires_con_alerta = set()
+        print("[DEBUG] Iniciando verificación de lecturas vs umbrales pre-cargados...")
 
         for lectura in ultimas_lecturas:
             print(f"\n[DEBUG] Verificando Aire ID: {lectura.aire_id} (T:{lectura.temperatura}, H:{lectura.humedad})")
             alerta_encontrada_para_este_aire = False
 
-            # Filtrar umbrales aplicables para esta lectura (globales o específicos)
-            umbrales_aplicables_para_aire = [
-                u for u in umbrales_activos
-                if u.es_global or u.aire_id == lectura.aire_id
-            ]
-            print(f"[DEBUG]   Umbrales aplicables para este aire: {len(umbrales_aplicables_para_aire)}")
+            # --- OPTIMIZACIÓN: Obtener umbrales aplicables eficientemente ---
+            umbrales_specific_para_aire = specific_umbrales_dict.get(lectura.aire_id, [])
+            umbrales_aplicables_para_aire = global_umbrales + umbrales_specific_para_aire # Combinar listas
+            # --- FIN OPTIMIZACIÓN ---
+
+            print(f"[DEBUG]   Umbrales aplicables para este aire: {len(umbrales_aplicables_para_aire)} (Global: {len(global_umbrales)}, Specific: {len(umbrales_specific_para_aire)})")
 
             if not umbrales_aplicables_para_aire:
                 print("[DEBUG]   No hay umbrales aplicables para este aire.")
                 continue
 
+            # El resto del bucle de comparación permanece igual...
             for umbral in umbrales_aplicables_para_aire:
                 print(f"[DEBUG]     Comparando con Umbral ID: {umbral.id} (T:[{umbral.temp_min},{umbral.temp_max}], H:[{umbral.hum_min},{umbral.hum_max}])")
                 try:
-                    # Convertir a float por seguridad
                     temp_lectura = float(lectura.temperatura)
                     hum_lectura = float(lectura.humedad)
                     temp_min = float(umbral.temp_min)
@@ -2365,11 +2342,11 @@ def contar_alertas_activas_helper():
             if not alerta_encontrada_para_este_aire:
                  print(f"[DEBUG]   Lectura DENTRO de todos los umbrales aplicables para Aire ID {lectura.aire_id}.")
 
-        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper. Total alertas contadas: {alertas_count} ---")
+        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper (Optimizado). Total alertas contadas: {alertas_count} ---")
         return alertas_count
 
     except Exception as e:
-        print(f"!!! ERROR GENERAL en contar_alertas_activas_helper: {e}", file=sys.stderr)
+        print(f"!!! ERROR GENERAL en contar_alertas_activas_helper (Optimizado): {e}", file=sys.stderr)
         traceback.print_exc()
         return -1 # Indicar error con -1
 
