@@ -1252,33 +1252,100 @@ const getState = ({ getStore, getActions, setStore }) => {
     },
 
     fetchEstadisticasAire: async (aireId) => {
-      // Rutas protegidas, necesitan token
-      if (aireId === null || aireId === undefined) { /* ... clear state ... */ return; }
+      // Clear state and exit if no aireId is provided
+      if (aireId === null || aireId === undefined) {
+        setStore({
+          estadisticasAire: null,
+          _rawLecturasAire: [],
+          statsLoadingAire: false,
+          statsLoadingChartsAire: false, // Also reset chart loading
+          statsError: null
+        });
+        return;
+      }
+
+      // Set loading states
       setStore({ statsLoadingAire: true, statsLoadingChartsAire: true, statsError: null });
+
       try {
+        // --- Helper to check responses ---
+        // (Assuming this helper exists elsewhere or is defined here)
+        // It should handle response.ok, parse JSON, and manage 401 errors by calling logoutTrackerUser
+        const checkResp = async (resp, name) => {
+          if (!resp.ok) {
+            const errorData = await resp.json().catch(() => ({ msg: 'Failed to parse error response' }));
+            if (resp.status === 401) getActions().logoutTrackerUser(); // Logout on 401
+            throw new Error(`Error cargando ${name}: ${errorData.msg || resp.status}`);
+          }
+          // Handle cases where the response might be empty (e.g., 204 No Content)
+          const text = await resp.text();
+          try {
+            return text ? JSON.parse(text) : null; // Return null for empty responses
+          } catch (e) {
+            console.error(`Failed to parse JSON for ${name}:`, text);
+            throw new Error(`Respuesta inválida del servidor para ${name}.`);
+          }
+        };
+        // --- End Helper ---
+
+        // Fetch stats and readings concurrently
         const [statsResponse, lecturasResponse] = await Promise.all([
           fetch(`${process.env.BACKEND_URL}/aires/${aireId}/estadisticas`, { headers: getAuthHeaders() }),
-          fetch(`${process.env.BACKEND_URL}/aires/${aireId}/lecturas?limit=50`, { headers: getAuthHeaders() })
+          fetch(`${process.env.BACKEND_URL}/aires/${aireId}/lecturas?limit=50`, { headers: getAuthHeaders() }) // Fetch last 50 readings
         ]);
 
-        const checkResp = async (resp, name) => { /* ... as above ... */ };
+        // Process responses using the helper
         const statsData = await checkResp(statsResponse, `estadísticas aire ${aireId}`);
         const lecturasData = await checkResp(lecturasResponse, `lecturas aire ${aireId}`);
 
-        // Process data as before...
+        // Ensure lecturasData is an array, default to empty if not
+        const validLecturas = Array.isArray(lecturasData) ? lecturasData : [];
+
+        // --- Calculate Variations ---
+        let variacionTemp = 0;
+        let variacionHum = 0;
+        if (validLecturas.length > 1) { // Need at least 2 readings for variation
+          const temps = validLecturas.map(l => l.temperatura);
+          const hums = validLecturas.map(l => l.humedad);
+          const tempMax = Math.max(...temps);
+          const tempMin = Math.min(...temps);
+          const humMax = Math.max(...hums);
+          const humMin = Math.min(...hums);
+          variacionTemp = tempMax - tempMin;
+          variacionHum = humMax - humMin;
+        }
+        // --- End Variation Calculation ---
+
+        // Get AC info from store
         const store = getStore();
         const aireInfo = store.aires.find(a => a.id === aireId);
-        const variacionTemp = lecturasData.map(lectura => lectura.temperatura).reduce((a, b) => a - b, 0);
-        const variacionHum = lecturasData.map(lectura => lectura.humedad).reduce((a, b) => a - b, 0);
-        const processedStatsAire = { /* ... */ };
 
+        // --- Combine data into processedStatsAire ---
+        const processedStatsAire = {
+          // Spread the fetched stats (handle if statsData is null)
+          ...(statsData || {}),
+          // Add calculated variations
+          variacion_temperatura: variacionTemp,
+          variacion_humedad: variacionHum,
+          // Add AC name and location for convenience
+          aire_id: aireId, // Ensure aire_id is present
+          nombre: aireInfo?.nombre || 'Desconocido',
+          ubicacion: aireInfo?.ubicacion || 'Desconocida',
+        };
+        // --- End Combine Data ---
+
+        // Update the store
         setStore({
           estadisticasAire: processedStatsAire,
-          _rawLecturasAire: lecturasData || [],
+          _rawLecturasAire: validLecturas, // Store the validated/defaulted array
           statsLoadingAire: false,
+          // Note: statsLoadingChartsAire might be set to false later,
+          // after the component processes _rawLecturasAire in its useEffect
         });
+
       } catch (error) {
         console.error(`Error in fetchEstadisticasAire for ${aireId}:`, error);
+        // Update store with error and reset loading/data states
         setStore({
           statsError: error.message || `Error cargando datos para el aire ${aireId}.`,
           statsLoadingAire: false,
@@ -1288,6 +1355,11 @@ const getState = ({ getStore, getActions, setStore }) => {
         });
       }
     },
+
+    clearStatsError: () => {
+      setStore({ statsError: null });
+    },
+
 
     clearStatsError: () => {
       setStore({ statsError: null });

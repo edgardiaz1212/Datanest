@@ -1,26 +1,19 @@
-// src/front/js/component/estadisticas/EstadisticasGeneral.jsx
-
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
-import { Row, Col, Card, Spinner, Table } from 'react-bootstrap'; // Removed unused imports Card, Table
-// Icons are not directly used here, they are likely used within EstadisticasResumenCard
-// import { FiBarChart2, FiThermometer, FiDroplet, FiClock } from 'react-icons/fi';
-
-// --- Remove TypeScript imports and interfaces ---
-// import { ChartDataType } from '../../pages/Estadisticas';
-// interface EstadisticasGenerales { ... }
-// interface EstadisticasGeneralProps { ... }
+import PropTypes from 'prop-types'; 
+import { Row, Col } from 'react-bootstrap'; 
 
 // Import child components (assuming they are .jsx)
 import ChartContainer from './ChartContainer.jsx'
 import EstadisticasResumenCard from './EstadisticasResumenCard.jsx';
 
-const EstadisticasGeneral = ({ // Remove : React.FC<EstadisticasGeneralProps>
-  estadisticasGenerales,
-  graficoGeneralTemp,
-  graficoGeneralHum,
-  graficoComparativoTemp,
-  graficoComparativoHum,
+const EstadisticasGeneral = ({
+  // Set default values directly here using JavaScript default parameters
+  estadisticasGenerales = null,
+  graficoGeneralTemp = null,
+  graficoGeneralHum = null,
+  graficoComparativoTemp = null,
+  graficoComparativoHum = null,
+  // Required props don't need defaults
   loadingGeneral,
   loadingChartsGeneral,
   loadingUbicacion
@@ -99,7 +92,7 @@ EstadisticasGeneral.propTypes = {
     humedad_maxima: PropTypes.number,
     humedad_minima: PropTypes.number,
     total_lecturas: PropTypes.number,
-  }), // Can be null
+  }), // Can be null (default handles this)
   // Chart data props are objects, specific shape validation done in ChartContainer
   graficoGeneralTemp: PropTypes.object,
   graficoGeneralHum: PropTypes.object,
@@ -109,15 +102,6 @@ EstadisticasGeneral.propTypes = {
   loadingGeneral: PropTypes.bool.isRequired,
   loadingChartsGeneral: PropTypes.bool.isRequired,
   loadingUbicacion: PropTypes.bool.isRequired,
-};
-
-// Default props for potentially null objects
-EstadisticasGeneral.defaultProps = {
-  estadisticasGenerales: null,
-  graficoGeneralTemp: null,
-  graficoGeneralHum: null,
-  graficoComparativoTemp: null,
-  graficoComparativoHum: null,
 };
 
 export default EstadisticasGeneral;

@@ -1,16 +1,10 @@
-// src/front/js/component/estadisticas/EstadisticasResumenCard.jsx
-
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Card, Table, Spinner } from 'react-bootstrap';
 import { FiThermometer, FiDroplet, FiClock } from 'react-icons/fi';
 
-// --- Remove TypeScript interfaces ---
-// interface EstadisticasGenerales { ... }
-// interface EstadisticasResumenCardProps { ... }
-
-const EstadisticasResumenCard = ({ // Remove : React.FC<EstadisticasResumenCardProps>
-  estadisticas,
+const EstadisticasResumenCard = ({
+  estadisticas = null,
   loading
 }) => {
   return (
@@ -80,13 +74,9 @@ EstadisticasResumenCard.propTypes = {
     humedad_maxima: PropTypes.number,
     humedad_minima: PropTypes.number,
     total_lecturas: PropTypes.number,
-  }), // Can be null
+  }), // Can be null (default value handles this)
   loading: PropTypes.bool.isRequired,
 };
 
-// Default props for potentially null object
-EstadisticasResumenCard.defaultProps = {
-  estadisticas: null,
-};
 
 export default EstadisticasResumenCard;

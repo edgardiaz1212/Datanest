@@ -1,19 +1,15 @@
-// src/front/js/component/estadisticas/EstadisticasPorUbicacion.jsx
-
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Card, Row, Col, Form, Spinner, Table } from 'react-bootstrap';
 import { FiMapPin, FiThermometer, FiDroplet, FiUsers, FiActivity } from 'react-icons/fi';
 
-// --- Remove TypeScript imports and interfaces ---
-// import { EstadisticasUbicacion } from '../../pages/Estadisticas';
-// interface EstadisticasPorUbicacionProps { ... }
-
-const EstadisticasPorUbicacion = ({ // Remove : React.FC<EstadisticasPorUbicacionProps>
-  ubicaciones,
-  ubicacionSeleccionada,
+const EstadisticasPorUbicacion = ({
+  // Set default values directly here using JavaScript default parameters
+  ubicaciones = [],
+  ubicacionSeleccionada = null,
+  estadisticasUbicacion = [],
+  // Required props don't need defaults
   setUbicacionSeleccionada,
-  estadisticasUbicacion,
   loadingUbicacion
 }) => {
   return (
@@ -69,16 +65,16 @@ const EstadisticasPorUbicacion = ({ // Remove : React.FC<EstadisticasPorUbicacio
                   <th><FiActivity className="me-1" />Lecturas</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody>{/* <-- Start tbody */}
                 {estadisticasUbicacion
                   // Filter if a specific location is selected
                   .filter(est => !ubicacionSeleccionada || est.ubicacion === ubicacionSeleccionada)
                   .map((est, index) => (
                     // Defensive check for item validity
                     est && est.ubicacion ? (
-                      <tr key={index}> {/* Use index as key if ubicacion isn't guaranteed unique, otherwise est.ubicacion */}
+                      // Use ubicacion for key if guaranteed unique and stable, otherwise index is okay for non-interactive lists
+                      <tr key={est.ubicacion || index}>
                         <td>{est.ubicacion}</td>
-                        {/* Use the correct property name: num_aires */}
                         <td>{est.num_aires ?? 'N/A'}</td>
                         <td>{est.temperatura_promedio?.toFixed(1) ?? 'N/A'} °C</td>
                         <td>{est.temperatura_min?.toFixed(1) ?? 'N/A'} °C</td>
@@ -90,7 +86,7 @@ const EstadisticasPorUbicacion = ({ // Remove : React.FC<EstadisticasPorUbicacio
                       </tr>
                     ) : null // Don't render invalid items
                   ))
-                }
+                }{/* <-- Closing tbody tag immediately after the map's closing brace */}
               </tbody>
             </Table>
           ) : (
@@ -109,8 +105,8 @@ const EstadisticasPorUbicacion = ({ // Remove : React.FC<EstadisticasPorUbicacio
 
 // Define PropTypes for the component
 EstadisticasPorUbicacion.propTypes = {
-  ubicaciones: PropTypes.arrayOf(PropTypes.string), // Not required, might be loading
-  ubicacionSeleccionada: PropTypes.string, // Can be null
+  ubicaciones: PropTypes.arrayOf(PropTypes.string), // Not required, default handles this
+  ubicacionSeleccionada: PropTypes.string, // Can be null, default handles this
   setUbicacionSeleccionada: PropTypes.func.isRequired,
   estadisticasUbicacion: PropTypes.arrayOf(PropTypes.shape({ // Define shape for stats
       ubicacion: PropTypes.string.isRequired,
@@ -118,21 +114,14 @@ EstadisticasPorUbicacion.propTypes = {
       temperatura_promedio: PropTypes.number,
       temperatura_min: PropTypes.number,
       temperatura_max: PropTypes.number,
-      temperatura_std: PropTypes.number,
+      temperatura_std: PropTypes.number, // Note: This field exists in PropTypes but not used in render
       humedad_promedio: PropTypes.number,
       humedad_min: PropTypes.number,
       humedad_max: PropTypes.number,
-      humedad_std: PropTypes.number,
+      humedad_std: PropTypes.number, // Note: This field exists in PropTypes but not used in render
       lecturas_totales: PropTypes.number,
-  })).isRequired, // Data array itself is required
+  })), // Not required, default handles this
   loadingUbicacion: PropTypes.bool.isRequired,
-};
-
-// Default props
-EstadisticasPorUbicacion.defaultProps = {
-    ubicaciones: [],
-    ubicacionSeleccionada: null,
-    estadisticasUbicacion: [], // Default to empty array
 };
 
 export default EstadisticasPorUbicacion;

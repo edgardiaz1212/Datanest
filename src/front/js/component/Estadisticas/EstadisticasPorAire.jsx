@@ -1,27 +1,19 @@
-// src/front/js/component/estadisticas/EstadisticasPorAire.jsx
-
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Card, Row, Col, Form, Spinner, Table } from 'react-bootstrap';
 import { FiMapPin, FiThermometer, FiDroplet, FiWind } from 'react-icons/fi';
-
-// --- Remove TypeScript imports and interfaces ---
-// import { ChartDataType, AireAcondicionado } from '../../pages/Estadisticas';
-// interface EstadisticasAire { ... }
-// interface EstadisticasPorAireProps { ... }
-
-// Import child components (assuming they are .jsx)
 import ChartContainer from './ChartContainer.jsx';
 
-const EstadisticasPorAire = ({ // Remove : React.FC<EstadisticasPorAireProps>
-  aires,
-  aireSeleccionado,
+const EstadisticasPorAire = ({
+  // Set default values directly here using JavaScript default parameters
+  aires = [],
+  aireSeleccionado = null,
   setAireSeleccionado,
-  estadisticasAire,
-  graficoAireTemp,
-  graficoAireHum,
-  loadingAires, // Renamed from loadingGeneral for clarity
-  loadingAireStats, // Renamed from loadingAire
+  estadisticasAire = null,
+  graficoAireTemp = null,
+  graficoAireHum = null,
+  loadingAires, 
+  loadingAireStats, 
   loadingChartsAire
 }) => {
 
@@ -78,13 +70,12 @@ const EstadisticasPorAire = ({ // Remove : React.FC<EstadisticasPorAireProps>
               <Row>
                 {/* Temperature Stats Table */}
                 <Col md={6} className="mb-3 mb-md-0"> {/* Add margin bottom for small screens */}
-                  <Table striped hover size="sm" responsive> {/* Added responsive */}
-                    <thead>
+                  {/* Ensure no whitespace directly inside Table */}
+                  <Table striped hover size="sm" responsive><thead>
                         <tr>
                             <th colSpan="2"><FiThermometer className="me-2 text-danger" />Temperatura</th>
                         </tr>
-                    </thead>
-                    <tbody>
+                    </thead><tbody>
                       <tr>
                         <td>Promedio</td>
                         <td><strong>{estadisticasAire.temperatura_promedio?.toFixed(1) ?? 'N/A'} °C</strong></td>
@@ -101,18 +92,16 @@ const EstadisticasPorAire = ({ // Remove : React.FC<EstadisticasPorAireProps>
                         <td>Variación</td>
                         <td><strong>±{estadisticasAire.variacion_temperatura?.toFixed(2) ?? 'N/A'} °C</strong></td>
                       </tr>
-                    </tbody>
-                  </Table>
+                    </tbody></Table> {/* Ensure no whitespace before closing tag */}
                 </Col>
                 {/* Humidity Stats Table */}
                 <Col md={6}>
-                  <Table striped hover size="sm" responsive> {/* Added responsive */}
-                     <thead>
+                  {/* Ensure no whitespace directly inside Table */}
+                  <Table striped hover size="sm" responsive><thead>
                         <tr>
                             <th colSpan="2"><FiDroplet className="me-2 text-primary" />Humedad</th>
                         </tr>
-                    </thead>
-                    <tbody>
+                    </thead><tbody>
                       <tr>
                         <td>Promedio</td>
                         <td><strong>{estadisticasAire.humedad_promedio?.toFixed(1) ?? 'N/A'} %</strong></td>
@@ -129,8 +118,7 @@ const EstadisticasPorAire = ({ // Remove : React.FC<EstadisticasPorAireProps>
                         <td>Variación</td>
                         <td><strong>±{estadisticasAire.variacion_humedad?.toFixed(2) ?? 'N/A'} %</strong></td>
                       </tr>
-                    </tbody>
-                  </Table>
+                    </tbody></Table> {/* Ensure no whitespace before closing tag */}
                 </Col>
               </Row>
             </Card.Body>
@@ -201,15 +189,5 @@ EstadisticasPorAire.propTypes = {
   loadingAireStats: PropTypes.bool.isRequired, // Renamed prop
   loadingChartsAire: PropTypes.bool.isRequired,
 };
-
-// Default props
-EstadisticasPorAire.defaultProps = {
-  aires: [],
-  aireSeleccionado: null,
-  estadisticasAire: null,
-  graficoAireTemp: null,
-  graficoAireHum: null,
-};
-
 
 export default EstadisticasPorAire;

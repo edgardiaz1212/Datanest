@@ -2,19 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Card, Spinner } from 'react-bootstrap';
 import { Line, Bar } from 'react-chartjs-2';
-// ChartJS registration should happen in the parent or a central setup file
 
-// --- Remove TypeScript imports and interfaces ---
-// import { ChartDataType } from '../../pages/Estadisticas';
-// import { ChartOptions } from 'chart.js';
-// interface ChartContainerProps { ... }
-
-// Base options remain the same (remove type annotations)
-const opcionesLineaBase = { // Remove : ChartOptions<'line'>
+// Base options remain the same
+const opcionesLineaBase = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top' }, // Remove 'as const'
+      legend: { position: 'top' },
       title: { display: true } // Title text will be added dynamically
     },
     scales: {
@@ -27,12 +21,12 @@ const opcionesLineaBase = { // Remove : ChartOptions<'line'>
     }
   };
 
-const opcionesBarraBase = { // Remove : ChartOptions<'bar'>
+const opcionesBarraBase = {
     responsive: true,
     maintainAspectRatio: false,
     indexAxis: 'x', // Keep as 'x' for vertical bars
     plugins: {
-      legend: { position: 'top' }, // Remove 'as const'
+      legend: { position: 'top' },
       title: { display: true } // Title text will be added dynamically
     },
     scales: {
@@ -46,16 +40,15 @@ const opcionesBarraBase = { // Remove : ChartOptions<'bar'>
     }
   };
 
-const ChartContainer = ({ // Remove : React.FC<ChartContainerProps>
+const ChartContainer = ({
   title,
   yAxisLabel,
-  data,
+  // Set default value directly here using JavaScript default parameters
+  data = null,
   loading,
   type
 }) => {
 
-  // Define final options conditionally inside the return statement
-  // using Immediately Invoked Function Expressions (IIFE)
 
   return (
     <Card className="dashboard-card h-100"> {/* Added h-100 for consistent height */}
@@ -139,7 +132,7 @@ const ChartContainer = ({ // Remove : React.FC<ChartContainerProps>
   );
 };
 
-// Add PropTypes for runtime type checking
+// PropTypes remain the same
 ChartContainer.propTypes = {
   title: PropTypes.string.isRequired,
   yAxisLabel: PropTypes.string.isRequired,
@@ -152,14 +145,9 @@ ChartContainer.propTypes = {
           backgroundColor: PropTypes.oneOfType([PropTypes.string, PropTypes.arrayOf(PropTypes.string)]),
           // Add other dataset properties if needed
       }))
-  }), // Can be null
+  }), // Can be null (default value handles this)
   loading: PropTypes.bool.isRequired,
   type: PropTypes.oneOf(['line', 'bar']).isRequired, // Ensure type is one of these
-};
-
-// Default props
-ChartContainer.defaultProps = {
-    data: null, // Default data to null
 };
 
 
