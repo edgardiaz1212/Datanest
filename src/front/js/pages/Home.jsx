@@ -130,7 +130,7 @@ function Home() {
         </div>
       </section>
       {/* Why Us Section */}
-      <section className="py-5 bg-white"> {/* Esta es bg-light */}
+      {/*<section className="py-5 bg-white">   
         <div className="container">
           <h2 className="text-center fw-bold mb-5">¿Por qué elegirnos?</h2>
 
@@ -196,7 +196,7 @@ function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* <section className="py-5 bg-white">
         <div className="container">
