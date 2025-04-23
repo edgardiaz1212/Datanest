@@ -3,58 +3,72 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Card, Table, Button, Modal, Form, Row, Col, Spinner, Alert, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { FiPlus, FiEdit, FiTrash2, FiSlash, FiBell, FiGlobe, FiWind, FiAlertTriangle, FiThermometer, FiDroplet } from 'react-icons/fi';
-// Import your Flux context
 import { Context } from '../store/appContext';
 
-// Remove TypeScript interfaces
-
-const Umbrales = () => { // Remove : React.FC
-  // Get store and actions from Flux context
+const Umbrales = () => {
   const { store, actions } = useContext(Context);
-  // Destructure relevant state and actions
   const {
-    trackerUser: currentUser, // Logged-in user info
-    aires,                   // List of air conditioners from store
-    umbrales,                // List of thresholds from store
-    umbralesLoading: loading,// Use specific loading state
-    umbralesError: error,    // Use specific error state
+    trackerUser: currentUser,
+    aires,
+    umbrales,
+    umbralesLoading: loading,
+    umbralesError: error,
   } = store;
   const {
     fetchUmbrales,
     addUmbral,
     updateUmbral,
     deleteUmbral,
-    clearUmbralesError // Action to clear the error
+    clearUmbralesError,
+    setUmbralesError // Assuming you might add this action as suggested before
   } = actions;
 
-  // Local state for modals and forms (remains mostly the same)
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ // Remove Partial<Umbral>
+  const [formData, setFormData] = useState({
     nombre: '',
     es_global: true,
-    aire_id: undefined, // Use undefined or null for non-selection
+    aire_id: undefined,
     temp_min: 18,
     temp_max: 25,
     hum_min: 30,
     hum_max: 70,
     notificar_activo: true
   });
-  const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'
-  const [selectedUmbralId, setSelectedUmbralId] = useState(null); // number | null
-  const [isSubmitting, setIsSubmitting] = useState(false); // For modal submit buttons
+  const [formMode, setFormMode] = useState('add');
+  const [selectedUmbralId, setSelectedUmbralId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Verificar si el usuario puede agregar/editar umbrales
+  // --- Access Control ---
+  // Check if the user has the required role to view/edit thresholds
   const canEdit = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor';
+  // --- End Access Control ---
 
-  // Cargar umbrales (and aires via fetchUmbrales action)
   useEffect(() => {
-    fetchUmbrales(); // Call the Flux action on mount
+    // Only fetch data if the user has permission
+    if (canEdit) {
+      fetchUmbrales();
+    }
 
-    // Cleanup function to clear error when component unmounts
     return () => {
       if (clearUmbralesError) clearUmbralesError();
     };
-  }, [fetchUmbrales, clearUmbralesError]); // Add dependencies
+    // Add canEdit to dependencies: if the user logs out/in with different roles, this effect re-evaluates
+  }, [fetchUmbrales, clearUmbralesError, canEdit]);
+
+  // --- Early Return for Access Denied ---
+  if (!canEdit) {
+    return (
+      <div className="container mt-4">
+        <h1>Umbrales de Temperatura y Humedad</h1>
+        <Alert variant="warning">
+          <Alert.Heading>Acceso Restringido</Alert.Heading>
+          <p>Solo los administradores y supervisores pueden acceder a la gestión de umbrales.</p>
+        </Alert>
+      </div>
+    );
+  }
+  // --- End Early Return ---
+
 
   // Manejar cambios en el formulario (remove type annotations)
   const handleChange = (e) => {
@@ -188,8 +202,12 @@ const Umbrales = () => { // Remove : React.FC
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
       // Set error state in Flux or show local alert
-      actions.setUmbralesError(validationErrors.join('. ')); // Need to create this action if preferred
-      // Alternatively: setError(validationErrors.join('. ')); // If using local error state for form
+      if (setUmbralesError) {
+        setUmbralesError(validationErrors.join('. '));
+      } else {
+        // Fallback if setUmbralesError action doesn't exist
+        alert(validationErrors.join('. '));
+      }
       return;
     }
 
@@ -222,11 +240,12 @@ const Umbrales = () => { // Remove : React.FC
     // Error display is handled by the global 'umbralesError' state
   };
 
-  // --- Render Logic (mostly the same, just use store values) ---
+  // --- Render Logic (only runs if canEdit is true) ---
   return (
     <div className="container mt-4"> {/* Add container */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>Umbrales de Temperatura y Humedad</h1>
+        {/* Button is already conditional based on canEdit */}
         {canEdit && (
           <Button variant="primary" onClick={handleAdd}>
             <FiPlus className="me-2" /> Agregar Configuración
@@ -282,6 +301,7 @@ const Umbrales = () => { // Remove : React.FC
             <div className="text-center p-5">
               <FiAlertTriangle size={50} className="text-muted mb-3" />
               <h4>No hay configuraciones de umbrales</h4>
+              {/* Button is already conditional based on canEdit */}
               {canEdit && (
                 <Button variant="primary" className="mt-3" onClick={handleAdd}>
                   <FiPlus className="me-2" /> Agregar configuración
@@ -299,6 +319,7 @@ const Umbrales = () => { // Remove : React.FC
                     <th>Temperatura (°C)</th>
                     <th>Humedad (%)</th>
                     <th>Notificaciones</th>
+                    {/* Header is already conditional based on canEdit */}
                     {canEdit && <th className="text-end">Acciones</th>}
                   </tr>
                 </thead>
@@ -361,6 +382,7 @@ const Umbrales = () => { // Remove : React.FC
                           </Badge>
                         )}
                       </td>
+                      {/* Action buttons are already conditional based on canEdit */}
                       {canEdit && (
                         <td className="text-end">
                           <Button
@@ -393,6 +415,7 @@ const Umbrales = () => { // Remove : React.FC
       </Card>
 
       {/* Modal de formulario (remove type annotations, adjust value handling) */}
+      {/* The modal itself doesn't need extra protection as it's only opened by buttons that are already protected by canEdit */}
       <Modal show={showModal} onHide={() => !isSubmitting && setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>

@@ -1,5 +1,3 @@
-// src/front/js/pages/Dashboard.jsx
-
 import React, { useState, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { Row, Col, Card, Alert, Spinner, Table } from 'react-bootstrap'; // Added Table
@@ -10,29 +8,17 @@ import { format } from 'date-fns';
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // No necesitas un estado local 'resumen' si lees directamente del store
-  // const [resumen, setResumen] = useState(null);
-
   const { store, actions } = useContext(Context);
-  // Lee directamente del store para evitar desincronización
   const { dashboardResumen, dashboardLoading, dashboardError, trackerUser } = store;
 
   useEffect(() => {
     const cargarResumen = async () => {
-      // Usa la acción para cargar los datos. El estado se manejará en Flux.
       await actions.fetchDashboardResumen();
     };
-
     cargarResumen();
+  }, [actions.fetchDashboardResumen]); 
 
-    // No necesitas cleanup para setError si lees dashboardError del store
-    // return () => setError(null);
 
-    // --- LA CORRECCIÓN ---
-    // Depende SOLO de la acción específica que usas.
-  }, [actions.fetchDashboardResumen]); // <--- CORREGIDO: Dependencia específica
-
-  // --- Render Logic ---
 
   // Usa los estados de carga y error del store
   if (dashboardLoading) {

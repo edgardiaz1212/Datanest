@@ -490,8 +490,9 @@ def login_tracker_user():
              return jsonify({"msg": "An error occurred during tracker login", "error": str(error)}), 500
     else:
         # Mensaje de error genérico por seguridad
-        return jsonify({"msg": "Invalid credentials or inactive tracker user"}), 401@api.route('/tracker/users', methods=['GET'])
-
+        return jsonify({"msg": "Invalid credentials or inactive tracker user"}), 401
+    
+@api.route('/tracker/users', methods=['GET'])
 def get_tracker_users():
     """Obtiene todos los usuarios TrackerUsuario (opcionalmente solo activos)."""
     try:
@@ -1846,12 +1847,11 @@ def crear_umbral_configuracion_route():
     Endpoint para crear una nueva configuración de umbrales. Requiere autenticación.
     Recibe los datos en formato JSON.
     """
-    # --- Opcional: Verificación de Permisos ---
-    # current_user_id = get_jwt_identity()
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
-    #     return jsonify({"msg": "Acceso no autorizado para crear umbrales"}), 403
-    # --- Fin Verificación ---
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para crear umbrales"}), 403
+
 
     data = request.get_json()
     if not data:
@@ -1901,7 +1901,7 @@ def crear_umbral_configuracion_route():
         db.session.add(nuevo_umbral)
         db.session.commit()
 
-        return jsonify(nuevo_umbral.serialize_with_details()), 201
+        return jsonify(nuevo_umbral.serialize()), 201
 
     except (ValueError, TypeError) as ve:
         db.session.rollback()
@@ -1947,7 +1947,7 @@ def obtener_umbrales_configuracion_route():
             )
 
         umbrales = query.order_by(UmbralConfiguracion.es_global.desc(), UmbralConfiguracion.nombre).all()
-        results = [u.serialize_with_details() for u in umbrales]
+        results = [u.serialize() for u in umbrales]
 
         return jsonify(results), 200
 
@@ -1969,7 +1969,7 @@ def obtener_umbral_por_id_route(umbral_id):
         if not umbral:
             return jsonify({"msg": f"Umbral con ID {umbral_id} no encontrado."}), 404
 
-        return jsonify(umbral.serialize_with_details()), 200
+        return jsonify(umbral.serialize()), 200
 
     except Exception as e:
         print(f"!!! ERROR inesperado en obtener_umbral_por_id_route para ID {umbral_id}: {e}", file=sys.stderr)
@@ -1978,19 +1978,18 @@ def obtener_umbral_por_id_route(umbral_id):
 
 
 @api.route('/umbrales/<int:umbral_id>', methods=['PUT'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required() 
 def actualizar_umbral_configuracion_route(umbral_id):
     """
     Endpoint para actualizar una configuración de umbral existente. Requiere autenticación.
     No permite cambiar 'es_global' ni 'aire_id'.
     """
-    # --- Opcional: Verificación de Permisos ---
-    # current_user_id = get_jwt_identity()
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
-    #     return jsonify({"msg": "Acceso no autorizado para actualizar umbrales"}), 403
-    # --- Fin Verificación ---
-
+    
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar umbrales"}), 403
+    
     umbral = db.session.get(UmbralConfiguracion, umbral_id)
     if not umbral:
         return jsonify({"msg": f"Umbral con ID {umbral_id} no encontrado."}), 404
@@ -2037,9 +2036,9 @@ def actualizar_umbral_configuracion_route(umbral_id):
 
         if updated:
             db.session.commit()
-            return jsonify(umbral.serialize_with_details()), 200
+            return jsonify(umbral.serialize()), 200
         else:
-            return jsonify(umbral.serialize_with_details()), 200
+            return jsonify(umbral.serialize()), 200
 
     except (ValueError, TypeError) as ve:
         db.session.rollback()

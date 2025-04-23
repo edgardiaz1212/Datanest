@@ -533,10 +533,11 @@ const getState = ({ getStore, getActions, setStore }) => {
       try {
         const response = await fetch(`${process.env.BACKEND_URL}/tracker/users?activos=false`, {
           method: "GET",
-          headers: getAuthHeaders() // <--- Usa cabeceras con token
+          headers: getAuthHeaders() 
         });
         const data = await response.json();
         if (response.ok) {
+          console.log("Tracker users fetched successfully:", data);
           setStore({ trackerUsers: data, loading: false });
         } else {
           // Manejar error 401 (Unauthorized) - podría desloguear
@@ -765,10 +766,20 @@ const getState = ({ getStore, getActions, setStore }) => {
       // Ruta protegida, necesita token
       setStore({ umbralesLoading: true, umbralesError: null });
       try {
-        const updatePayload = { /* ... payload como antes ... */ };
+        const updatePayload = {
+          nombre: formData.nombre,
+          // Note: Backend might not allow changing es_global or aire_id on PUT
+          es_global: formData.es_global,
+          aire_id: formData.es_global ? null : formData.aire_id,
+          temp_min: parseFloat(formData.temp_min),
+          temp_max: parseFloat(formData.temp_max),
+          hum_min: parseFloat(formData.hum_min),
+          hum_max: parseFloat(formData.hum_max),
+          notificar_activo: formData.notificar_activo
+        };
         const response = await fetch(`${process.env.BACKEND_URL}/umbrales/${umbralId}`, {
           method: "PUT",
-          headers: getAuthHeaders(), // <--- Usa cabeceras con token
+          headers: getAuthHeaders(), 
           body: JSON.stringify(updatePayload),
         });
         const responseData = await response.json();

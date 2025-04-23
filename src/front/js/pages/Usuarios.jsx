@@ -1,21 +1,15 @@
 import React, { useState, useEffect, useContext } from 'react';
-// Assuming react-bootstrap is installed and CSS imported
 import { Card, Table, Button, Modal, Form, Row, Col, Spinner, Alert, Badge } from 'react-bootstrap';
 import { FiEdit, FiCheckCircle, FiUserX, FiUser, FiUsers, FiMail, FiCalendar, FiClock, FiShield, FiCheck, FiX, FiPlus } from 'react-icons/fi';
-// Import your Flux context
 import { Context } from '../store/appContext';
-// Assuming you have an api service configured (like axios instance)
-// If not, you'll use fetch directly within actions
-// import api from '../services/api'; // We'll move API calls to Flux actions
 
 const Usuarios = () => {
-  // Get store and actions from Flux context
+
   const { store, actions } = useContext(Context);
   // Destructure relevant state and actions
-  const { trackerUser: currentUser, trackerUsers, loading, error } = store; // Assuming 'trackerUsers' holds the list
+  const { trackerUser: currentUser, trackerUsers, loading, error } = store; 
   const { fetchTrackerUsers, updateTrackerUser, addTrackerUserByAdmin, clearAuthError } = actions;
 
-  // Local state for modals and forms
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -34,13 +28,13 @@ const Usuarios = () => {
     rol: 'operador'
   });
   const [selectedUserId, setSelectedUserId] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // For modal submit buttons
+  const [isSubmitting, setIsSubmitting] = useState(false); 
 
   // Determine user permissions based on the logged-in user from the store
   const isAdmin = currentUser?.rol === 'admin';
   const canAdd = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor';
 
-  // Fetch users when the component mounts or when isAdmin status changes
+
   useEffect(() => {
     if (isAdmin) {
       fetchTrackerUsers(); // Call the Flux action
