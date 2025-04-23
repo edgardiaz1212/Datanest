@@ -29,11 +29,11 @@ const Layout = () => {
     useEffect(() => {
         // Define ALL paths accessible without authentication
         const publicPaths = [
-            '/',             // Public home page
+            '/', // Página principal pública
             '/login',
-            '/registro',     // Or '/register' if that's the actual path
-            '/forba7d'       // The form page
-            // Add any other public paths here (e.g., '/password-reset')
+            '/register', // Si tienes página de registro
+            '/forba7d', // Tu ruta de formulario
+             '/register-data', '/complete-data', '/edit-data'
         ];
 
         // Check if the current path is NOT one of the public paths
@@ -70,7 +70,7 @@ const Layout = () => {
             '/login',
             '/register', // Si tienes página de registro
             '/forba7d', // Tu ruta de formulario
-             '/register-data', '/complete-data', '/edit-data' // These might need auth? Check logic.
+             '/register-data', '/complete-data', '/edit-data' 
         ];
 
         // Rutas que NO deben tener NINGUNA navegación
