@@ -1,20 +1,16 @@
-// src/front/js/component/Mantenimientos/MantenimientoFilter.jsx
-
 import React from "react";
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Dropdown } from "react-bootstrap";
 import { FiFilter } from "react-icons/fi";
-// Remove TypeScript import: import { AireAcondicionadoOption } from '../../pages/Mantenimientos';
 
-// Remove TypeScript interface: MantenimientoFilterProps
+const MantenimientoFilter = ({
 
-const MantenimientoFilter = ({ // Remove : React.FC<MantenimientoFilterProps>
-  aires, // Receive the prop
-  filtroAire,
+  aires = [],
+  filtroAire = null,
+  // Required props don't need defaults
   onFilterChange,
 }) => {
-  // --- DEFENSE: Check if 'aires' is a valid array ---
-  // This check is still useful in JavaScript
+
   const isValidAiresArray = Array.isArray(aires);
 
   // Find the filtered item only if 'aires' is a valid array
@@ -77,16 +73,9 @@ MantenimientoFilter.propTypes = {
     id: PropTypes.number.isRequired,
     nombre: PropTypes.string.isRequired,
     ubicacion: PropTypes.string,
-  })), // Can be null or undefined initially, so not .isRequired
-  filtroAire: PropTypes.number, // Can be null
+  })), // Not required, default handles this
+  filtroAire: PropTypes.number, // Can be null, default handles this
   onFilterChange: PropTypes.func.isRequired,
 };
-
-// Default props in case 'aires' is not provided initially
-MantenimientoFilter.defaultProps = {
-  aires: [], // Default to an empty array
-  filtroAire: null,
-};
-
 
 export default MantenimientoFilter;

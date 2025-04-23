@@ -1,16 +1,13 @@
-// src/front/js/component/Mantenimientos/MantenimientoImagenModal.jsx
-
 import React from "react";
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Modal, Button, Image, Spinner, Alert } from "react-bootstrap"; // Added Spinner, Alert
 
-// Remove TypeScript interface: MantenimientoImagenModalProps
 
-const MantenimientoImagenModal = ({ // Remove : React.FC<MantenimientoImagenModalProps>
+const MantenimientoImagenModal = ({ 
   show,
   onHide,
-  imagenUrl, // Can be null, 'error', or a base64 string
-  loading,   // Added loading prop
+  imagenUrl = null,
+  loading = false,
 }) => {
   return (
     <Modal show={show} onHide={onHide} centered size="lg">
@@ -50,15 +47,8 @@ const MantenimientoImagenModal = ({ // Remove : React.FC<MantenimientoImagenModa
 MantenimientoImagenModal.propTypes = {
   show: PropTypes.bool.isRequired,
   onHide: PropTypes.func.isRequired,
-  imagenUrl: PropTypes.string, // Can be null or 'error' string
-  loading: PropTypes.bool,     // Added loading prop type
+  imagenUrl: PropTypes.string, // Can be null or 'error' string, default handles this
+  loading: PropTypes.bool,     // Added loading prop type, default handles this
 };
-
-// Default props
-MantenimientoImagenModal.defaultProps = {
-  imagenUrl: null,
-  loading: false,
-};
-
 
 export default MantenimientoImagenModal;

@@ -341,6 +341,8 @@ class Mantenimiento(db.Model):
         return None
 
     def serialize(self):
+        tiene_imagen = bool(self.imagen_datos) # True if imagen_datos is not None/empty, False otherwise
+
         return {
             'id': self.id,
             'aire_id': self.aire_id,
@@ -351,8 +353,8 @@ class Mantenimiento(db.Model):
             'tecnico': self.tecnico,
             'imagen_nombre': self.imagen_nombre,
             'imagen_tipo': self.imagen_tipo,
-            # No incluir imagen_datos directamente en JSON, usar get_imagen_base64 si es necesario
-            'imagen_base64': self.get_imagen_base64() # Opcional: incluir versión base64
+            'tiene_imagen': tiene_imagen,
+
         }
 
 class UmbralConfiguracion(db.Model):

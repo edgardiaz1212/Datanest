@@ -1514,19 +1514,16 @@ def agregar_mantenimiento_aire_route(aire_id):
     Endpoint para agregar un registro de mantenimiento a un Aire Acondicionado específico.
     Requiere autenticación. Recibe datos como multipart/form-data.
     """
-    # --- Opcional: Verificación de Permisos ---
-    # current_user_id = get_jwt_identity()
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
-    #     return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
-    # --- Fin Verificación ---
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+        return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
 
     # Verificar que el aire existe
     aire = db.session.get(AireAcondicionado, aire_id)
     if not aire:
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
 
-    # (Resto del código sin cambios...)
     if 'tipo_mantenimiento' not in request.form or 'descripcion' not in request.form or 'tecnico' not in request.form:
         return jsonify({"msg": "Faltan campos requeridos en el formulario: tipo_mantenimiento, descripcion, tecnico"}), 400
 
@@ -1562,7 +1559,7 @@ def agregar_mantenimiento_aire_route(aire_id):
         )
         db.session.add(nuevo_mantenimiento)
         db.session.commit()
-        return jsonify(nuevo_mantenimiento.serialize_with_details()), 201 # Usar serialize_with_details
+        return jsonify(nuevo_mantenimiento.serialize()), 201 # Usar serialize_with_details
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1578,7 +1575,7 @@ def agregar_mantenimiento_aire_route(aire_id):
 
 # Ruta para agregar mantenimiento a un OtroEquipo
 @api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['POST'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def agregar_mantenimiento_otro_equipo_route(equipo_id):
     """
     Endpoint para agregar un registro de mantenimiento a un OtroEquipo específico.
@@ -1648,7 +1645,7 @@ def agregar_mantenimiento_otro_equipo_route(equipo_id):
 
 # Ruta para obtener TODOS los mantenimientos (opcionalmente filtrados por query param)
 @api.route('/mantenimientos', methods=['GET'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def obtener_todos_mantenimientos_route():
     """
     Endpoint para obtener todos los registros de mantenimiento. Requiere autenticación.
@@ -1666,7 +1663,7 @@ def obtener_todos_mantenimientos_route():
             query = query.filter(Mantenimiento.otro_equipo_id == otro_equipo_id_filter)
 
         mantenimientos = query.order_by(Mantenimiento.fecha.desc()).all()
-        results = [m.serialize_with_details() for m in mantenimientos]
+        results = [m.serialize() for m in mantenimientos]
         return jsonify(results), 200
 
     except Exception as e:
