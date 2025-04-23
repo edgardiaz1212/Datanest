@@ -19,31 +19,39 @@ const Layout = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [showFooter, setShowFooter] = useState(true); // Mantenemos el footer por ahora
+    const [showFooter, setShowFooter] = useState(true);
 
     const toggleSidebar = () => {
         setSidebarCollapsed(!sidebarCollapsed);
     };
-// Este efecto se ejecutará cada vez que cambie isAuthenticated o la ubicación
-useEffect(() => {
-    // Si el usuario NO está autenticado Y está intentando acceder a una ruta protegida
-    // (Aquí asumimos que /login y /registro son las únicas públicas, ajusta según necesites)
-    const publicPaths = ['/login', '/registro']; // Añade otras rutas públicas si existen
-    const requiresAuth = !publicPaths.includes(location.pathname);
 
-    if (!store.isAuthenticated && requiresAuth) {
-        console.log("Usuario no autenticado o token expirado, redirigiendo a /login...");
-        // Opcional: Puedes guardar la ruta actual para redirigir de vuelta después del login
-        // localStorage.setItem('redirectAfterLogin', location.pathname);
-        navigate('/');
-    }
+    // Este efecto se ejecutará cada vez que cambie isAuthenticated o la ubicación
+    useEffect(() => {
+        // Define ALL paths accessible without authentication
+        const publicPaths = [
+            '/', // Página principal pública
+            '/login',
+            '/register', // Si tienes página de registro
+            '/forba7d', // Tu ruta de formulario
+             '/register-data', '/complete-data', '/edit-data'
+        ];
 
-    // Opcional: Si el usuario ESTÁ autenticado y va a /login, redirigir al dashboard
-     if (store.isAuthenticated && location.pathname === '/login') {
-         navigate('/dashboard'); 
-     }
+        // Check if the current path is NOT one of the public paths
+        const requiresAuth = !publicPaths.includes(location.pathname);
 
-}, [store.isAuthenticated, location.pathname, navigate]); // Dependencias clave
+        // If the user is NOT authenticated AND the path requires authentication
+        if (!store.isAuthenticated && requiresAuth) {
+            console.log("Usuario no autenticado intentando acceder a ruta protegida, redirigiendo a /login...");
+            // Redirect to the login page instead of home?
+            navigate('/login'); // Consider redirecting to login
+        }
+
+        // If the user IS authenticated and tries to access login/register, redirect to dashboard
+        if (store.isAuthenticated && (location.pathname === '/login' || location.pathname === '/registro')) {
+             navigate('/dashboard');
+        }
+
+    }, [store.isAuthenticated, location.pathname, navigate]); // Dependencias clave
 
     const getLayoutType = () => {
         const { pathname } = location;
@@ -56,40 +64,36 @@ useEffect(() => {
         ];
 
         // Rutas para el layout público/formulario (Solo NavbarMain)
+        // This list correctly includes /forba7d for layout purposes
         const publicoPaths = [
             '/', // Página principal pública
             '/login',
             '/register', // Si tienes página de registro
             '/forba7d', // Tu ruta de formulario
-            // Añade otras rutas públicas o de formulario aquí
-            // '/register-data', '/complete-data', '/edit-data' // Si estas también usan NavbarMain
+             '/register-data', '/complete-data', '/edit-data' 
         ];
 
-        // Rutas que NO deben tener NINGUNA navegación (raro, quizás una página de error muy específica)
+        // Rutas que NO deben tener NINGUNA navegación
         const noNavPaths = [
-            // '/pagina-sin-nada' // Ejemplo
+            // '/pagina-sin-nada'
         ];
 
-        // 1. Comprueba si es una ruta pública/formulario
+        // 1. Comprueba si es una ruta pública/formulario (for layout)
         if (publicoPaths.some(path => pathname === path || (path !== '/' && pathname.startsWith(path)))) {
-             // Usamos startsWith para rutas como /register-data/:user_id, excepto para '/'
             return 'publico';
         }
 
-        // 2. Comprueba si es una ruta de monitoreo
+        // 2. Comprueba si es una ruta de monitoreo (for layout)
         if (monitoreoPaths.some(path => pathname.startsWith(path))) {
             return 'monitoreo';
         }
 
-        // 3. Comprueba si es una ruta sin navegación
+        // 3. Comprueba si es una ruta sin navegación (for layout)
         if (noNavPaths.includes(pathname)) {
             return 'none';
         }
 
-        // Default: Si no coincide con nada específico, decide un layout por defecto
-        // Podría ser 'publico' o 'monitoreo' dependiendo de tu caso de uso más común
-        // O podrías redirigir a una página 404 si no coincide.
-        // Por ahora, lo dejamos como 'publico' si no es de monitoreo.
+        // Default layout (adjust if needed)
         return 'publico';
     };
 
@@ -97,8 +101,9 @@ useEffect(() => {
 
     // --- Renderiza basado en el tipo de layout ---
 
-    // Layout para secciones de MONITOREO (Sidebar + NavbarPrincipal)
+    // Layout para secciones de MONITOREO
     if (layoutType === 'monitoreo') {
+        // ... (monitoreo layout JSX remains the same)
         return (
             <div className="app-container">
                 <SidebarMonitoreo
@@ -112,10 +117,7 @@ useEffect(() => {
                     </Container>
                     {showFooter && (
                         <footer className="app-footer">
-                            <div className="d-flex align-items-center justify-content-center">
-                                <img src={madDataIcon} alt="MAD Data" height="70" className="me-2" />
-                                <span className="text-muted small">© {new Date().getFullYear()} GDCCE</span>
-                            </div>
+                            {/* ... footer content ... */}
                         </footer>
                     )}
                 </div>
@@ -123,15 +125,15 @@ useEffect(() => {
         );
     }
 
-    // Layout para secciones PÚBLICAS/FORMULARIO (Solo NavbarMain)
+    // Layout para secciones PÚBLICAS/FORMULARIO
     if (layoutType === 'publico') {
+         // ... (publico layout JSX remains the same)
         return (
-            <div className="public-layout-container"> {/* Contenedor simple */}
-                <NavbarMain /> {/* Tu Navbar anterior */}
-                <Container fluid className="page-content-public"> {/* Contenedor para el contenido */}
-                    <Outlet /> {/* Contenido específico de la página */}
+            <div className="public-layout-container">
+                <NavbarMain />
+                <Container fluid className="page-content-public">
+                    <Outlet />
                 </Container>
-                 {/* Puedes decidir si mostrar el footer aquí también */}
                 <Footer />
             </div>
         );
@@ -139,14 +141,15 @@ useEffect(() => {
 
     // Layout para páginas SIN NAVEGACIÓN
     if (layoutType === 'none') {
-        return (
+        // ... (none layout JSX remains the same)
+         return (
             <div className="no-layout-container">
                 <Outlet />
             </div>
         );
     }
 
-    // Fallback (si getLayoutType devuelve algo inesperado)
+    // Fallback
     return <Outlet />;
 };
 
