@@ -76,6 +76,7 @@
 	"dependencies": {
 		"bootstrap": "^5.3.5",
 		"chart.js": "^4.4.9",
+		"chartjs-adapter-date-fns": "^3.0.0",
 		"date-fns": "^4.1.0",
 		"file-saver": "^2.0.5",
 		"jspdf": "^3.0.1",

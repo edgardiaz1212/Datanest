@@ -50,6 +50,9 @@ const getState = ({ getStore, getActions, setStore }) => {
       lecturas: [],
       lecturasLoading: false,
       lecturasError: null,
+      lecturasUbicacion: [],
+      lecturasUbicacionLoading: false,
+      lecturasUbicacionError: null,
       // --- Estadisticas ---
       estadisticasGenerales: null,
       estadisticasAire: null,
@@ -1282,11 +1285,48 @@ const getState = ({ getStore, getActions, setStore }) => {
       setStore({ lecturasError: null });
     },
 
-    // --- Estadisticas Actions ---
-    // Nota: Las rutas de estadísticas (/estadisticas/*, /aires/ubicaciones, etc.)
-    // también deberían protegerse con @jwt_required() en el backend si contienen
-    // información sensible o si solo usuarios logueados deben verlas.
-    // Asumiremos que SÍ necesitan protección.
+    fetchLecturasPorUbicacion: async (ubicacion) => {
+      // Limpiar si no hay ubicación
+      if (!ubicacion) {
+        setStore({
+          lecturasUbicacion: [],
+          lecturasUbicacionLoading: false,
+          lecturasUbicacionError: null
+        });
+        return;
+      }
+
+      setStore({ lecturasUbicacionLoading: true, lecturasUbicacionError: null });
+      try {
+        // Usar encodeURIComponent por si la ubicación tiene caracteres especiales
+        const url = `${process.env.BACKEND_URL}/lecturas/ubicacion/${encodeURIComponent(ubicacion)}?limite=100`; // Pide últimas 100
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(errorData.msg || `Error ${response.status}`);
+        }
+
+        const data = await response.json();
+        setStore({
+          lecturasUbicacion: data || [],
+          lecturasUbicacionLoading: false
+        });
+
+      } catch (error) {
+        console.error(`Error fetching lecturas for ubicacion ${ubicacion}:`, error);
+        setStore({
+          lecturasUbicacionError: error.message || "Error cargando datos para el gráfico.",
+          lecturasUbicacionLoading: false,
+          lecturasUbicacion: []
+        });
+      }
+    },
 
     fetchEstadisticasIniciales: async () => {
       // Rutas protegidas, necesitan token
@@ -1297,26 +1337,37 @@ const getState = ({ getStore, getActions, setStore }) => {
           estGenResponse,
           estUbicResponse,
           lecturasGenResponse,
-          contadoresResponse, // Fetch counters
-          alertasCountResponse // Fetch alert count
+          contadoresResponse,
+          alertasCountResponse,
+          // --- AÑADIR LLAMADA PARA UBICACIONES ---
+          ubicacionesResponse
         ] = await Promise.all([
           getActions().fetchUmbrales(), // Handles auth internally
           fetch(`${process.env.BACKEND_URL}/estadisticas/generales`, { headers: getAuthHeaders() }),
           fetch(`${process.env.BACKEND_URL}/estadisticas/ubicacion`, { headers: getAuthHeaders() }),
-          fetch(`${process.env.BACKEND_URL}/lecturas/ultimas?limite=50`, { headers: getAuthHeaders() }), // Fetch last 50 global
+          fetch(`${process.env.BACKEND_URL}/lecturas/ultimas?limite=50`, { headers: getAuthHeaders() }),
           fetch(`${process.env.BACKEND_URL}/contadores`, { headers: getAuthHeaders() }),
-          fetch(`${process.env.BACKEND_URL}/alertas/activas/count`, { headers: getAuthHeaders() })
+          fetch(`${process.env.BACKEND_URL}/alertas/activas/count`, { headers: getAuthHeaders() }),
+          // --- LLAMADA A LA RUTA DE UBICACIONES ---
+          fetch(`${process.env.BACKEND_URL}/aires/ubicaciones`, { headers: getAuthHeaders() })
         ]);
 
         // Check all responses for errors (including 401)
         const checkResp = async (resp, name) => {
-          if (!resp) throw new Error(`Error en la acción interna para ${name}.`); // For internal actions like fetchUmbrales
+          if (!resp) throw new Error(`Error en la acción interna para ${name}.`);
           if (!resp.ok) {
             const errorData = await resp.json().catch(() => ({}));
             if (resp.status === 401) getActions().logoutTrackerUser();
             throw new Error(`Error cargando ${name}: ${errorData.msg || resp.status}`);
           }
-          return resp.json();
+          // Manejar respuesta vacía o no JSON
+          const text = await resp.text();
+          try {
+            return text ? JSON.parse(text) : []; // Devuelve array vacío si no hay contenido
+          } catch (e) {
+             console.warn(`Respuesta no JSON para ${name}:`, text);
+             return []; // Devuelve array vacío si no es JSON
+          }
         };
 
         // Parse JSON data safely
@@ -1325,30 +1376,34 @@ const getState = ({ getStore, getActions, setStore }) => {
         const lecturasGenData = await checkResp(lecturasGenResponse, 'lecturas generales');
         const contadoresData = await checkResp(contadoresResponse, 'contadores');
         const alertasCountData = await checkResp(alertasCountResponse, 'contador de alertas');
+        // --- OBTENER DATOS DE UBICACIONES ---
+        const ubicacionesData = await checkResp(ubicacionesResponse, 'ubicaciones');
 
-        const store = getStore();
-        const ubicacionesUnicas = Array.from(new Set(store.aires.map(aire => aire.ubicacion))).filter(Boolean);
+        // Ya no necesitas derivar las ubicaciones desde store.aires
+        // const store = getStore();
+        // const ubicacionesUnicas = Array.from(new Set(store.aires.map(aire => aire.ubicacion))).filter(Boolean);
 
         setStore({
-          ubicaciones: ubicacionesUnicas,
+          // --- USAR DATOS DIRECTOS DE LA API ---
+          ubicaciones: Array.isArray(ubicacionesData) ? ubicacionesData : [], // Asegura que sea un array
+          // --- Resto de actualizaciones ---
           estadisticasGenerales: estGenData || null,
-          estadisticasUbicacion: estUbicData || [],
-          _rawLecturasGenerales: lecturasGenData || [],
-          // Store counters and alert count for dashboard
-          dashboardResumen: { // Populate dashboard data
+          estadisticasUbicacion: Array.isArray(estUbicData) ? estUbicData : [],
+          _rawLecturasGenerales: Array.isArray(lecturasGenData) ? lecturasGenData : [],
+          dashboardResumen: {
               totalAires: contadoresData?.aires ?? 0,
               totalLecturas: contadoresData?.lecturas ?? 0,
               totalMantenimientos: contadoresData?.mantenimientos ?? 0,
               totalOtrosEquipos: contadoresData?.otros_equipos ?? 0,
               alertas_activas_count: alertasCountData?.alertas_activas_count ?? 0,
-              ultimasLecturas: lecturasGenData || [], // Use last readings for dashboard table
+              ultimasLecturas: Array.isArray(lecturasGenData) ? lecturasGenData : [],
           },
           // Reset loading states
           statsLoadingGeneral: false,
           statsLoadingUbicacion: false,
           statsLoadingChartsGeneral: false,
           statsLoadingUmbrales: false,
-          dashboardLoading: false, // Reset dashboard loading
+          dashboardLoading: false,
         });
 
       } catch (error) {
@@ -1360,7 +1415,8 @@ const getState = ({ getStore, getActions, setStore }) => {
           statsLoadingUbicacion: false,
           statsLoadingChartsGeneral: false,
           statsLoadingUmbrales: false,
-          dashboardLoading: false, // Reset dashboard loading
+          dashboardLoading: false,
+          ubicaciones: [], // Limpia ubicaciones en caso de error
         });
       }
     },

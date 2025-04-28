@@ -1,3 +1,5 @@
+// src/front/js/store/appContext.js
+
 import React, { useState, useEffect } from "react";
 import getState from "./flux.js";
 
@@ -8,19 +10,24 @@ export const Context = React.createContext(null);
 // https://github.com/4GeeksAcademy/react-hello-webapp/blob/master/src/js/layout.js#L35
 const injectContext = PassedComponent => {
 	const StoreWrapper = props => {
-		//this will be passed as the contenxt value
-		const [state, setState] = useState(
-			getState({
-				getStore: () => state.store,
-				getActions: () => state.actions,
+		// --- MODIFICACIÓN 1: Inicializar useState con una función ---
+		// Esto asegura que getState solo se llame una vez al inicio.
+		const [state, setState] = useState(() => {
+			return getState({
+				getStore: () => state.store, // Se resolverá correctamente en el closure de setStore
+				getActions: () => state.actions, // Se resolverá correctamente en el closure de setStore
+				// --- MODIFICACIÓN 2: setStore mantiene la referencia de actions ---
 				setStore: updatedStore =>
-					setState({
-						store: Object.assign(state.store, updatedStore),
-						actions: { ...state.actions }
-					})
-			})
-		);
+					setState(prevState => ({
+						// Combina el store anterior con las actualizaciones
+						store: Object.assign({}, prevState.store, updatedStore),
+						// ¡Importante! Mantiene la misma referencia al objeto actions
+						actions: prevState.actions
+					}))
+			});
+		});
 
+		// --- MODIFICACIÓN 3: Asegurar que useEffect se ejecute solo una vez (si es la intención) ---
 		useEffect(() => {
 			/**
 			 * EDIT THIS!
@@ -28,8 +35,9 @@ const injectContext = PassedComponent => {
 			 * you should do your ajax requests or fetch api requests here. Do not use setState() to save data in the
 			 * store, instead use actions, like this:
 			 **/
-			; // <---- calling this function from the flux.js actions
-		}, []);
+			// Ejemplo: state.actions.fetchEstadisticasIniciales(); // Llama aquí si necesitas cargar datos al inicio
+			// state.actions.fetchAires(); // O cualquier otra acción inicial
+		}, []); // <-- Array de dependencias vacío para ejecutar solo al montar
 
 		// The initial value for the context is not null anymore, but the current state of this component,
 		// the context will now have a getStore, getActions and setStore functions available, because they were declared

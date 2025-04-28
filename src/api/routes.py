@@ -2451,7 +2451,48 @@ def obtener_ultimas_lecturas_con_info_aire_helper(limite=5):
         traceback.print_exc()
         return None # Indicar error
 
+@api.route('/lecturas/ubicacion/<path:ubicacion>', methods=['GET']) # Usar <path:> para capturar slashes en la ubicación
+@jwt_required()
+def obtener_lecturas_por_ubicacion_route(ubicacion):
+    """
+    Obtiene las últimas N lecturas para una ubicación específica.
+    Requiere autenticación.
+    Acepta query param 'limite' (default 50).
+    """
+    try:
+        limite = request.args.get('limite', default=50, type=int)
+        if limite <= 0 or limite > 500: # Limitar a 500 por rendimiento
+            limite = 50
+    except ValueError:
+        limite = 50
 
+    try:
+        # Buscar los IDs de los aires en esa ubicación
+        aires_en_ubicacion = db.session.query(AireAcondicionado.id)\
+            .filter(AireAcondicionado.ubicacion == ubicacion)\
+            .all()
+
+        if not aires_en_ubicacion:
+            return jsonify([]), 200 # No hay aires, devuelve lista vacía
+
+        aire_ids = [a.id for a in aires_en_ubicacion]
+
+        # Obtener las últimas 'limite' lecturas para esos aires
+        lecturas = db.session.query(Lectura)\
+            .filter(Lectura.aire_id.in_(aire_ids))\
+            .order_by(Lectura.fecha.desc())\
+            .limit(limite)\
+            .all()
+
+        # Ordenar por fecha ascendente para el gráfico
+        lecturas.reverse()
+
+        return jsonify([l.serialize() for l in lecturas]), 200
+
+    except Exception as e:
+        print(f"Error obteniendo lecturas para ubicación '{ubicacion}': {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error al obtener lecturas por ubicación."}), 500
 # --- Rutas de API ---
 
 @api.route('/contadores', methods=['GET'])

@@ -55,8 +55,8 @@ const Estadisticas = () => { // Remove : React.FC
     statsLoadingGeneral,
     statsLoadingAire,
     statsLoadingUbicacion,
-    // statsLoadingChartsGeneral, // We'll manage chart loading locally after processing
-    // statsLoadingChartsAire,    // We'll manage chart loading locally after processing
+    statsLoadingChartsGeneral, // We'll manage chart loading locally after processing
+    statsLoadingChartsAire,    // We'll manage chart loading locally after processing
     statsLoadingUmbrales,
     statsError: error, // Rename for clarity
   } = store;
