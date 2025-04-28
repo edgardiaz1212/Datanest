@@ -21,6 +21,8 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     { path: '/estadisticas', icon: FiBarChart2, label: 'Estadísticas' },
     { path: '/otros-equipos', icon: FiZap, label: 'Otros Equipos' },
     { path: '/mantenimientos', icon: FiTool, label: 'Mantenimientos' },
+    { path: '/reportes', icon: FiTool, label: 'Reportes' },
+
     
   ];
 

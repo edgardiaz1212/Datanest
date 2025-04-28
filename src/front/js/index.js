@@ -26,6 +26,7 @@ import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
 import EditData from "./pages/EditData.jsx";
 import Home from "./pages/Home.jsx"; // Página pública Home
+import Reportes from "./pages/Reportes.jsx"; // Página de reportes
 
 // Tus otros imports (CSS)
 import "../styles/index.css";
@@ -67,6 +68,7 @@ const App = () => {
                     <Route path="/umbrales" element={<Umbrales />} />
                     <Route path="/usuarios" element={<Usuarios />} />
                      <Route path="/perfil" element={<Perfil />} />
+                     <Route path="/reportes" element={<Reportes />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />

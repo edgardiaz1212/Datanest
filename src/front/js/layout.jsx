@@ -59,7 +59,7 @@ const Layout = () => {
         // Rutas para el layout principal de monitoreo (Sidebar + NavbarPrincipal)
         const monitoreoPaths = [
             '/dashboard', '/aires', '/lecturas', '/estadisticas',
-            '/otros-equipos', '/mantenimientos', '/umbrales', '/usuarios', '/perfil'
+            '/otros-equipos', '/mantenimientos', '/umbrales', '/usuarios', '/perfil', '/reportes',
             // Añade otras rutas de monitoreo aquí
         ];
 
