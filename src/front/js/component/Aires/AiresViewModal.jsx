@@ -64,7 +64,7 @@ const AiresViewModal = ({
                 {selectedAireDetails && !loadingDetails && (
                     <Row className="g-3"> {/* g-3 adds gap between columns */}
                         {/* General Information */}
-                        {renderDetail('ID', selectedAireDetails.id)}
+
                         {renderDetail('Nombre', selectedAireDetails.nombre)}
                         {renderDetail('Ubicación', selectedAireDetails.ubicacion)}
                         {renderDetail('Fecha Instalación', formatDate(selectedAireDetails.fecha_instalacion))}
