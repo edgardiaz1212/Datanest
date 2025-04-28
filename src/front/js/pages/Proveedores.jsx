@@ -138,9 +138,9 @@ const Proveedores = () => {
     }
   };
 
-  const handleDeleteProveedorClick = async (proveedorId) => {
+  const handleDeleteProveedorClick = async (proveedorId, proveedorName) => {
     if (!canDeleteProveedores) return;
-    if (window.confirm(`¿Está seguro de eliminar el proveedor ID ${proveedorId} y todos sus contactos? Esta acción no se puede deshacer.`)) {
+    if (window.confirm(`¿Está seguro de eliminar el proveedor ${proveedorName} y todos sus contactos? Esta acción no se puede deshacer.`)) {
       const success = await deleteProveedor(proveedorId);
       if (success && selectedProveedor?.id === proveedorId) {
         setSelectedProveedor(null); // Deseleccionar si se eliminó el proveedor actual
@@ -165,9 +165,9 @@ const Proveedores = () => {
     if (success) closeModals();
   };
 
-  const handleDeleteContactoClick = async (contactoId) => {
+  const handleDeleteContactoClick = async (contactoId, contactoNombre) => {
     if (!canManageProveedores) return;
-    if (window.confirm(`¿Está seguro de eliminar el contacto ID ${contactoId}?`)) {
+    if (window.confirm(`¿Está seguro de eliminar el contacto ${contactoNombre}?`)) {
       await deleteContacto(contactoId, selectedProveedor?.id);
     }
   };
@@ -241,7 +241,7 @@ const Proveedores = () => {
                           </Button>
                         )}
                         {canDeleteProveedores && (
-                          <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id); }}>
+                          <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id, p.nombre); }}>
                             <FiTrash2 size={12} />
                           </Button>
                         )}
@@ -316,7 +316,7 @@ const Proveedores = () => {
                                     <Button variant="outline-primary" size="sm" className="me-1" onClick={() => openEditContacto(c)}>
                                       <FiEdit />
                                     </Button>
-                                    <Button variant="outline-danger" size="sm" onClick={() => handleDeleteContactoClick(c.id)}>
+                                    <Button variant="outline-danger" size="sm" onClick={() => handleDeleteContactoClick(c.id, c.nombre_contacto)}>
                                       <FiTrash2 />
                                     </Button>
                                   </>
