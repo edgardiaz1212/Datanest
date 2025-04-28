@@ -4,7 +4,7 @@ import {
   Dropdown, InputGroup, ListGroup, Badge
 } from 'react-bootstrap';
 import {
-  FiUsers, FiPlus, FiEdit, FiTrash2, FiMail, FiPhone, FiUser, FiSearch, FiX, FiBuilding
+  FiUsers, FiPlus, FiEdit, FiTrash2, FiMail, FiPhone, FiUser, FiSearch, FiX, FiBriefcase
 } from 'react-icons/fi';
 import { Context } from '../store/appContext';
 
@@ -175,7 +175,7 @@ const Proveedores = () => {
   // --- Renderizado ---
   return (
     <Container fluid className="mt-4">
-      <h1><FiBuilding className="me-2" />Gestión de Proveedores</h1>
+      <h1><FiBriefcase className="me-2" />Gestión de Proveedores</h1>
 
       {/* --- Sección de Proveedores --- */}
       <Row className="mb-4">
@@ -216,7 +216,7 @@ const Proveedores = () => {
               )}
               {!proveedoresLoading && !proveedoresError && filteredProveedores.length === 0 && (
                 <div className="text-center p-5 text-muted flex-grow-1 d-flex flex-column align-items-center justify-content-center">
-                  <FiBuilding size={40} className="mb-2" />
+                  <FiBriefcase size={40} className="mb-2" />
                   {proveedores.length === 0 ? 'No hay proveedores registrados.' : 'No se encontraron proveedores.'}
                 </div>
               )}
