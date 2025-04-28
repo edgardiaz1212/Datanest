@@ -72,14 +72,15 @@ const Reportes = () => {
     const doc = new jsPDF();
     const tableColumn = [
       "Nombre (TAG)", "Tipo","Capacidad (Ton)", "Marca (Evap.)", "Modelo (Evap.)",
-      "Serial (Evap.)", "Inventario (Evap.)",  "Ubicación(Evap.)", "Estado (Evap.)", "Marca (Cond.)", "Modelo (Cond.)",
+      "Serial (Evap.)", "Inventario (Evap.)",  "Ubicación(Evap.)", "Estado (Evap.)", 
+      "Marca (Cond.)", "Modelo (Cond.)",
       "Serial (Cond.)", "Inventario (Cond.)", "Ubicación(Cond.)", "Estado (Cond.)"
       
     ];
     const tableRows = [];
 
     doc.setFontSize(18);
-    doc.text(`Reporte de Aires Acondicionados - Tipo: ${tipo}`, 14, 22);
+    doc.text(`GDCCE Infraeestructura, Reporte de Aires Acondicionados - Tipo: ${tipo}`, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
 
@@ -91,8 +92,16 @@ const Reportes = () => {
         aire.evaporadora_marca || '-',
         aire.evaporadora_modelo || '-',
         aire.evaporadora_serial || '-',
+        aire.evaporadora_codigo_inventario || '-',
         aire.ubicacion || '-',
         aire.evaporadora_operativa ? 'Operativo' : 'No Operativo',
+        aire.condensadora_marca || '-',
+        aire.condensadora_modelo || '-',
+        aire.condensadora_serial || '-',
+        aire.condensadora_codigo_inventario || '-',
+        aire.condensadora_ubicacion || '-',
+        aire.condensadora_operativa ? 'Operativo' : 'No Operativo'  
+
       ];
       tableRows.push(aireData);
     });
