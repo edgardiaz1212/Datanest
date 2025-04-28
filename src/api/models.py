@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 import base64
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import validates
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -480,3 +480,69 @@ class OtroEquipo(db.Model):
             # No serializar mantenimientos por defecto
             # 'mantenimientos': [m.serialize() for m in self.mantenimientos]
         }
+class Proveedor(db.Model):
+    __tablename__ = 'proveedores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False, unique=True) # Nombre único para proveedor
+    email_proveedor = db.Column(db.String(120), nullable=True) # Email general del proveedor
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relación uno-a-muchos con ContactoProveedor
+    contactos = db.relationship('ContactoProveedor', back_populates='proveedor', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<Proveedor(id={self.id}, nombre='{self.nombre}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'email_proveedor': self.email_proveedor,
+            'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
+            # Opcional: Contar contactos directamente aquí si es útil
+            # 'num_contactos': len(self.contactos)
+        }
+
+    # Validación simple para asegurar que el nombre no esté vacío
+    @validates('nombre')
+    def validate_nombre(self, key, nombre):
+        if not nombre or not nombre.strip():
+            raise ValueError("El nombre del proveedor no puede estar vacío.")
+        return nombre.strip()
+
+class ContactoProveedor(db.Model):
+    __tablename__ = 'contactos_proveedor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
+    nombre_contacto = db.Column(db.String(150), nullable=False)
+    telefono_contacto = db.Column(db.String(50), nullable=True)
+    email_contacto = db.Column(db.String(120), nullable=True)
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relación muchos-a-uno con Proveedor
+    proveedor = db.relationship('Proveedor', back_populates='contactos')
+
+    def __repr__(self):
+        return f"<ContactoProveedor(id={self.id}, nombre='{self.nombre_contacto}', proveedor_id={self.proveedor_id})>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'proveedor_id': self.proveedor_id,
+            'nombre_contacto': self.nombre_contacto,
+            'telefono_contacto': self.telefono_contacto,
+            'email_contacto': self.email_contacto,
+            'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
+            # Opcional: Incluir nombre del proveedor para conveniencia
+            'nombre_proveedor': self.proveedor.nombre if self.proveedor else None,
+
+        }
+
+    # Validación simple
+    @validates('nombre_contacto')
+    def validate_nombre_contacto(self, key, nombre_contacto):
+        if not nombre_contacto or not nombre_contacto.strip():
+            raise ValueError("El nombre del contacto no puede estar vacío.")
+        return nombre_contacto.strip()

@@ -27,6 +27,7 @@ import CompleteData from "./pages/CompleteData.jsx";
 import EditData from "./pages/EditData.jsx";
 import Home from "./pages/Home.jsx"; // Página pública Home
 import Reportes from "./pages/Reportes.jsx"; // Página de reportes
+import Proveedores from "./pages/Proveedores.jsx"; // Página de proveedores
 
 // Tus otros imports (CSS)
 import "../styles/index.css";
@@ -69,6 +70,7 @@ const App = () => {
                     <Route path="/usuarios" element={<Usuarios />} />
                      <Route path="/perfil" element={<Perfil />} />
                      <Route path="/reportes" element={<Reportes />} />
+                     <Route path="/proveedores" element={<Proveedores />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />

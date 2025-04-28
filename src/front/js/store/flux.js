@@ -68,6 +68,15 @@ const getState = ({ getStore, getActions, setStore }) => {
       dashboardResumen: null, // <--- Añadido para el dashboard
       dashboardLoading: false,
       dashboardError: null,
+      // --- Proveedores State ---
+      proveedores: [],
+      proveedoresLoading: false,
+      proveedoresError: null,
+
+      // --- Contactos State ---
+      contactos: [], // Almacenará los contactos del proveedor seleccionado
+      contactosLoading: false,
+      contactosError: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -1498,6 +1507,221 @@ const getState = ({ getStore, getActions, setStore }) => {
             return null; // O devuelve null para indicar fallo
         }
     },
+
+    //-- Proveedores Actions ---
+    fetchProveedores: async () => {
+      setStore({ proveedoresLoading: true, proveedoresError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores`, {
+          method: "GET",
+          headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(errorData.msg || `Error ${response.status}`);
+        }
+        const data = await response.json();
+        setStore({ proveedores: data || [], proveedoresLoading: false });
+        return true;
+      } catch (error) {
+        console.error("Error fetching proveedores:", error);
+        setStore({ proveedoresError: error.message || "Error cargando proveedores.", proveedoresLoading: false, proveedores: [] });
+        return false;
+      }
+    },
+
+    addProveedor: async (proveedorData) => {
+      setStore({ proveedoresLoading: true, proveedoresError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores`, {
+          method: "POST",
+          headers: getAuthHeaders(), // Incluye Content-Type por defecto
+          body: JSON.stringify(proveedorData),
+        });
+        const responseData = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(responseData.msg || `Error ${response.status}`);
+        }
+        await getActions().fetchProveedores(); // Recarga la lista
+        return true;
+      } catch (error) {
+        console.error("Error adding proveedor:", error);
+        setStore({ proveedoresError: error.message || "Error al agregar proveedor.", proveedoresLoading: false });
+        return false;
+      }
+    },
+
+    updateProveedor: async (proveedorId, proveedorData) => {
+      setStore({ proveedoresLoading: true, proveedoresError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}`, {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(proveedorData),
+        });
+        const responseData = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(responseData.msg || `Error ${response.status}`);
+        }
+        await getActions().fetchProveedores(); // Recarga la lista
+        return true;
+      } catch (error) {
+        console.error("Error updating proveedor:", error);
+        setStore({ proveedoresError: error.message || "Error al actualizar proveedor.", proveedoresLoading: false });
+        return false;
+      }
+    },
+
+    deleteProveedor: async (proveedorId) => {
+      const store = getStore();
+      const originalList = [...store.proveedores];
+      const updatedList = originalList.filter(p => p.id !== proveedorId);
+      setStore({ proveedores: updatedList, proveedoresError: null }); // Optimistic update
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(false) // Sin Content-Type
+        });
+        if (!response.ok) {
+          setStore({ proveedores: originalList }); // Revert on error
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(errorData.msg || `Error ${response.status}`);
+        }
+        console.log(`Proveedor ${proveedorId} deleted.`);
+        // No es necesario refetch si la actualización optimista es suficiente
+        return true;
+      } catch (error) {
+        console.error("Error deleting proveedor:", error);
+        setStore({ proveedores: originalList, proveedoresError: error.message || "Error al eliminar proveedor." });
+        return false;
+      }
+    },
+
+    clearProveedoresError: () => {
+      setStore({ proveedoresError: null });
+    },
+
+    // --- Contactos Actions ---
+    fetchContactosPorProveedor: async (proveedorId) => {
+      // Limpia contactos si no hay proveedor seleccionado
+      if (!proveedorId) {
+        setStore({ contactos: [], contactosLoading: false, contactosError: null });
+        return;
+      }
+      setStore({ contactosLoading: true, contactosError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}/contactos`, {
+          method: "GET",
+          headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) getActions().logoutTrackerUser();
+          // Si el proveedor no existe (404), limpia los contactos
+          if (response.status === 404) {
+               setStore({ contactos: [], contactosLoading: false, contactosError: null });
+               return true; // No es un error fatal, solo no hay datos
+          }
+          throw new Error(errorData.msg || `Error ${response.status}`);
+        }
+        const data = await response.json();
+        setStore({ contactos: data || [], contactosLoading: false });
+        return true;
+      } catch (error) {
+        console.error(`Error fetching contactos for proveedor ${proveedorId}:`, error);
+        setStore({ contactosError: error.message || "Error cargando contactos.", contactosLoading: false, contactos: [] });
+        return false;
+      }
+    },
+
+    addContacto: async (proveedorId, contactoData) => {
+      setStore({ contactosLoading: true, contactosError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}/contactos`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(contactoData),
+        });
+        const responseData = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(responseData.msg || `Error ${response.status}`);
+        }
+        await getActions().fetchContactosPorProveedor(proveedorId); // Recarga contactos del proveedor actual
+        return true;
+      } catch (error) {
+        console.error("Error adding contacto:", error);
+        setStore({ contactosError: error.message || "Error al agregar contacto.", contactosLoading: false });
+        return false;
+      }
+    },
+
+    updateContacto: async (contactoId, contactoData, currentProveedorId) => {
+      setStore({ contactosLoading: true, contactosError: null });
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/contactos_proveedor/${contactoId}`, {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(contactoData),
+        });
+        const responseData = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(responseData.msg || `Error ${response.status}`);
+        }
+        // Recarga los contactos del proveedor que se estaba viendo
+        if (currentProveedorId) {
+          await getActions().fetchContactosPorProveedor(currentProveedorId);
+        }
+        return true;
+      } catch (error) {
+        console.error("Error updating contacto:", error);
+        setStore({ contactosError: error.message || "Error al actualizar contacto.", contactosLoading: false });
+        return false;
+      }
+    },
+
+    deleteContacto: async (contactoId, currentProveedorId) => {
+      const store = getStore();
+      const originalList = [...store.contactos];
+      const updatedList = originalList.filter(c => c.id !== contactoId);
+      setStore({ contactos: updatedList, contactosError: null }); // Optimistic update
+
+      try {
+        const response = await fetch(`${process.env.BACKEND_URL}/contactos_proveedor/${contactoId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(false)
+        });
+        if (!response.ok) {
+          setStore({ contactos: originalList }); // Revert
+          const errorData = await response.json().catch(() => ({}));
+          if (response.status === 401) getActions().logoutTrackerUser();
+          throw new Error(errorData.msg || `Error ${response.status}`);
+        }
+        console.log(`Contacto ${contactoId} deleted.`);
+        // No es necesario refetch si la actualización optimista es suficiente
+        // Si prefieres refetch:
+        // if (currentProveedorId) {
+        //   await getActions().fetchContactosPorProveedor(currentProveedorId);
+        // }
+        return true;
+      } catch (error) {
+        console.error("Error deleting contacto:", error);
+        setStore({ contactos: originalList, contactosError: error.message || "Error al eliminar contacto." });
+        return false;
+      }
+    },
+
+    clearContactosError: () => {
+      setStore({ contactosError: null });
+    },
+
+
   },
      
     

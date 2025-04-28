@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado, Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, ContactoProveedor 
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -2501,3 +2501,282 @@ def obtener_ultimas_lecturas_route():
         return jsonify({"msg": "Error al obtener las últimas lecturas."}), 500
 
     return jsonify(ultimas_lecturas), 200
+
+##Proveedores
+
+@api.route('/proveedores', methods=['POST'])
+@jwt_required()
+def crear_proveedor_route():
+    """Crea un nuevo proveedor."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    data = request.get_json()
+    if not data or not data.get('nombre'):
+        return jsonify({"msg": "El campo 'nombre' es requerido."}), 400
+
+    try:
+        nuevo_proveedor = Proveedor(
+            nombre=data['nombre'],
+            email_proveedor=data.get('email_proveedor')
+        )
+        db.session.add(nuevo_proveedor)
+        db.session.commit()
+        return jsonify(nuevo_proveedor.serialize()), 201
+    except ValueError as ve: # Captura validaciones del modelo
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except IntegrityError: # Captura violación de unicidad (nombre)
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un proveedor con el nombre '{data['nombre']}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB creando proveedor: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al crear proveedor."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado creando proveedor: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/proveedores', methods=['GET'])
+@jwt_required()
+def obtener_proveedores_route():
+    """Obtiene la lista de todos los proveedores."""
+    try:
+        proveedores = db.session.query(Proveedor).order_by(Proveedor.nombre).all()
+        return jsonify([p.serialize() for p in proveedores]), 200
+    except Exception as e:
+        print(f"Error obteniendo proveedores: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener proveedores."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>', methods=['GET'])
+@jwt_required()
+def obtener_proveedor_por_id_route(proveedor_id):
+    """Obtiene un proveedor específico por ID."""
+    try:
+        proveedor = db.session.get(Proveedor, proveedor_id)
+        if not proveedor:
+            return jsonify({"msg": "Proveedor no encontrado."}), 404
+        return jsonify(proveedor.serialize()), 200
+    except Exception as e:
+        print(f"Error obteniendo proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener proveedor."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_proveedor_route(proveedor_id):
+    """Actualiza un proveedor existente."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos."}), 400
+
+    updated = False
+    try:
+        if 'nombre' in data and data['nombre'] != proveedor.nombre:
+            proveedor.nombre = data['nombre'] # La validación se dispara aquí
+            updated = True
+        # Permitir actualizar a None o vacío si se envía explícitamente
+        if 'email_proveedor' in data and data['email_proveedor'] != proveedor.email_proveedor:
+             proveedor.email_proveedor = data['email_proveedor'] if data['email_proveedor'] else None
+             updated = True
+
+        if updated:
+            db.session.commit()
+            return jsonify(proveedor.serialize()), 200
+        else:
+            return jsonify(proveedor.serialize()), 200 # O 304 Not Modified
+
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe otro proveedor con el nombre '{data.get('nombre')}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB actualizando proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado actualizando proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_proveedor_route(proveedor_id):
+    """Elimina un proveedor y sus contactos asociados."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin']: # Solo Admin puede borrar proveedores
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    try:
+        db.session.delete(proveedor) # Cascade debería eliminar contactos
+        db.session.commit()
+        return '', 204
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB eliminando proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado eliminando proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado."}), 500
+
+# --- Rutas para Contactos de Proveedor ---
+
+@api.route('/proveedores/<int:proveedor_id>/contactos', methods=['POST'])
+@jwt_required()
+def crear_contacto_route(proveedor_id):
+    """Crea un nuevo contacto para un proveedor específico."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    data = request.get_json()
+    if not data or not data.get('nombre_contacto'):
+        return jsonify({"msg": "El campo 'nombre_contacto' es requerido."}), 400
+
+    try:
+        nuevo_contacto = ContactoProveedor(
+            proveedor_id=proveedor_id,
+            nombre_contacto=data['nombre_contacto'],
+            telefono_contacto=data.get('telefono_contacto'),
+            email_contacto=data.get('email_contacto')
+        )
+        db.session.add(nuevo_contacto)
+        db.session.commit()
+        return jsonify(nuevo_contacto.serialize()), 201
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB creando contacto para proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado creando contacto: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>/contactos', methods=['GET'])
+@jwt_required()
+def obtener_contactos_por_proveedor_route(proveedor_id):
+    """Obtiene los contactos de un proveedor específico."""
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    try:
+        # Accede a los contactos a través de la relación
+        contactos = proveedor.contactos
+        return jsonify([c.serialize() for c in contactos]), 200
+    except Exception as e:
+        print(f"Error obteniendo contactos para proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener contactos."}), 500
+
+@api.route('/contactos_proveedor/<int:contacto_id>', methods=['GET'])
+@jwt_required()
+def obtener_contacto_por_id_route(contacto_id):
+    """Obtiene un contacto específico por su ID."""
+    try:
+        contacto = db.session.get(ContactoProveedor, contacto_id)
+        if not contacto:
+            return jsonify({"msg": "Contacto no encontrado."}), 404
+        return jsonify(contacto.serialize()), 200
+    except Exception as e:
+        print(f"Error obteniendo contacto {contacto_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener contacto."}), 500
+
+@api.route('/contactos_proveedor/<int:contacto_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_contacto_route(contacto_id):
+    """Actualiza un contacto existente."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    contacto = db.session.get(ContactoProveedor, contacto_id)
+    if not contacto:
+        return jsonify({"msg": "Contacto no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos."}), 400
+
+    updated = False
+    try:
+        if 'nombre_contacto' in data and data['nombre_contacto'] != contacto.nombre_contacto:
+            contacto.nombre_contacto = data['nombre_contacto'] # Validación se dispara
+            updated = True
+        if 'telefono_contacto' in data and data['telefono_contacto'] != contacto.telefono_contacto:
+            contacto.telefono_contacto = data['telefono_contacto'] if data['telefono_contacto'] else None
+            updated = True
+        if 'email_contacto' in data and data['email_contacto'] != contacto.email_contacto:
+            contacto.email_contacto = data['email_contacto'] if data['email_contacto'] else None
+            updated = True
+
+        if updated:
+            db.session.commit()
+            return jsonify(contacto.serialize()), 200
+        else:
+            return jsonify(contacto.serialize()), 200 # O 304
+
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB actualizando contacto {contacto_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado actualizando contacto {contacto_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado."}), 500
+
+@api.route('/contactos_proveedor/<int:contacto_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_contacto_route(contacto_id):
+    """Elimina un contacto específico."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    contacto = db.session.get(ContactoProveedor, contacto_id)
+    if not contacto:
+        return jsonify({"msg": "Contacto no encontrado."}), 404
+
+    try:
+        db.session.delete(contacto)
+        db.session.commit()
+        return '', 204
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB eliminando contacto {contacto_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado eliminando contacto {contacto_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado."}), 500
