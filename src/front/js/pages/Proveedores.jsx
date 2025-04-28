@@ -221,34 +221,38 @@ const Proveedores = () => {
                 </div>
               )}
               {!proveedoresLoading && !proveedoresError && filteredProveedores.length > 0 && (
-                <ListGroup variant="flush" className="overflow-auto flex-grow-1">
-                  {filteredProveedores.map(p => (
-                    <ListGroup.Item
-                      key={p.id}
-                      action
-                      active={selectedProveedor?.id === p.id}
-                      onClick={() => setSelectedProveedor(p)}
-                      className="d-flex justify-content-between align-items-center"
-                    >
-                      <div>
-                        <strong>{p.nombre}</strong>
-                        {p.email_proveedor && <div className="small text-muted"><FiMail size={12} className="me-1" />{p.email_proveedor}</div>}
-                      </div>
-                      <div>
-                        {canManageProveedores && (
-                          <Button variant="outline-secondary" size="sm" className="me-1 py-0 px-1" onClick={(e) => { e.stopPropagation(); openEditProveedor(p); }}>
-                            <FiEdit size={12} />
-                          </Button>
-                        )}
-                        {canDeleteProveedores && (
-                          <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id, p.nombre); }}>
-                            <FiTrash2 size={12} />
-                          </Button>
-                        )}
-                      </div>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
+                               <ListGroup variant="flush" className="overflow-auto flex-grow-1">
+                               {filteredProveedores.map(p => (
+                                 <ListGroup.Item
+                                   key={p.id}
+                                   // action // <--- Elimina o comenta esta línea
+                                   active={selectedProveedor?.id === p.id}
+                                   onClick={() => setSelectedProveedor(p)}
+                                   // Añade un cursor pointer para indicar que es clickeable si quitaste 'action'
+                                   style={{ cursor: 'pointer' }}
+                                   className="d-flex justify-content-between align-items-center"
+                                 >
+                                   <div>
+                                     <strong>{p.nombre}</strong>
+                                     {p.email_proveedor && <div className="small text-muted"><FiMail size={12} className="me-1" />{p.email_proveedor}</div>}
+                                   </div>
+                                   <div>
+                                     {/* Los botones internos ahora son válidos */}
+                                     {canManageProveedores && (
+                                       <Button variant="outline-secondary" size="sm" className="me-1 py-0 px-1" onClick={(e) => { e.stopPropagation(); openEditProveedor(p); }}>
+                                         <FiEdit size={12} />
+                                       </Button>
+                                     )}
+                                     {canDeleteProveedores && (
+                                       <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id, p.nombre); }}>
+                                         <FiTrash2 size={12} />
+                                       </Button>
+                                     )}
+                                   </div>
+                                 </ListGroup.Item>
+                               ))}
+                             </ListGroup>
+             
               )}
             </Card.Body>
           </Card>
