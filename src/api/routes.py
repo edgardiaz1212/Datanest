@@ -18,8 +18,7 @@ import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
 from sqlalchemy import Enum as SQLAlchemyEnum
-from fpdf import FPDF
-from fpdf.enums import Align # Para alinear texto
+
 
 
 api = Blueprint('api', __name__)
@@ -2995,4 +2994,3 @@ def eliminar_actividad_route(actividad_id):
         print(f"Error inesperado eliminando actividad {actividad_id}: {e}", file=sys.stderr)
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
-# ---Generacion PDF

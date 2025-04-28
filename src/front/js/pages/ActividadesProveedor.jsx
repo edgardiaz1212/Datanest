@@ -42,18 +42,121 @@ const ActividadesProveedor = () => { // Cambiado a función nombrada para export
         }
     }, [selectedProveedorFilter, selectedStatusFilter]);
 
-    const handleInputChange = (e) => { /* ... */ };
-    const handleDateChange = (e) => { /* ... */ };
-    const handleShowAddModal = () => { /* ... */ };
-    const handleShowEditModal = (actividad) => { /* ... */ };
-    const handleCloseModal = () => { /* ... */ };
-    const handleSubmit = async (e) => { /* ... */ };
-    const handleDelete = async (id) => { /* ... */ };
-    const handleProveedorFilterChange = (e) => { /* ... */ };
-    const handleStatusFilterChange = (e) => { /* ... */ };
-    // --- Fin useEffects y otros handlers ---
+ // --- Dentro de ActividadesProveedor ---
 
+const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+};
 
+const handleDateChange = (e) => {
+    const { name, value } = e.target;
+    // Formato para datetime-local: YYYY-MM-DDTHH:mm
+    // No necesitas añadir ':00' aquí si el input es datetime-local
+    setFormData({ ...formData, [name]: value });
+};
+
+const handleShowAddModal = () => {
+    setIsEditing(false);
+    setCurrentActividad(null);
+    setFormData({
+        proveedor_id: selectedProveedorFilter || '', // Pre-selecciona si está filtrado
+        descripcion: '',
+        fecha_ocurrencia: '',
+        // Default fecha_reporte a ahora, formateado para datetime-local
+        fecha_reporte: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        numero_reporte: '',
+        estatus: ESTATUS_OPTIONS[0],
+    });
+    actions.clearActividadesError(); // Limpia errores previos al abrir
+    setShowModal(true);
+};
+
+const handleShowEditModal = (actividad) => {
+    setIsEditing(true);
+    setCurrentActividad(actividad);
+    setFormData({
+        proveedor_id: actividad.proveedor_id, // No editable
+        descripcion: actividad.descripcion || '',
+        // Formatear fechas existentes para datetime-local
+        fecha_ocurrencia: actividad.fecha_ocurrencia ? format(new Date(actividad.fecha_ocurrencia), "yyyy-MM-dd'T'HH:mm") : '',
+        fecha_reporte: actividad.fecha_reporte ? format(new Date(actividad.fecha_reporte), "yyyy-MM-dd'T'HH:mm") : '',
+        numero_reporte: actividad.numero_reporte || '',
+        estatus: actividad.estatus || ESTATUS_OPTIONS[0],
+    });
+     actions.clearActividadesError(); // Limpia errores previos al abrir
+    setShowModal(true);
+};
+
+const handleCloseModal = () => {
+    setShowModal(false);
+    setCurrentActividad(null);
+    setIsEditing(false);
+    // Opcional: resetear formData al cerrar si prefieres
+    // setFormData({ proveedor_id: '', ... });
+};
+
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    actions.clearActividadesError();
+
+    // Validación básica
+    if (!formData.descripcion || !formData.fecha_ocurrencia) {
+        actions.setActividadesError("Descripción y Fecha de Ocurrencia son requeridas."); // Necesitas esta acción en flux.js
+        return;
+    }
+    if (!isEditing && !formData.proveedor_id) {
+         actions.setActividadesError("Debe seleccionar un proveedor.");
+         return;
+    }
+
+    // Preparar datos (convertir fechas de datetime-local a ISO para el backend)
+    const dataToSend = {
+        ...formData,
+        // Asegúrate que las fechas vacías se envíen como null o string vacío según espere tu backend
+        fecha_ocurrencia: formData.fecha_ocurrencia ? new Date(formData.fecha_ocurrencia).toISOString() : null,
+        fecha_reporte: formData.fecha_reporte ? new Date(formData.fecha_reporte).toISOString() : null,
+    };
+
+    let success = false;
+    if (isEditing && currentActividad) {
+        success = await actions.updateActividadProveedor(currentActividad.id, dataToSend, selectedProveedorFilter || null);
+    } else {
+        // Asegúrate que proveedor_id se esté enviando correctamente
+        success = await actions.addActividadProveedor(formData.proveedor_id, dataToSend);
+    }
+
+    if (success) {
+        handleCloseModal();
+        // La recarga de datos es manejada por el useEffect que escucha los filtros
+    }
+    // El error se muestra a través de store.actividadesError
+};
+
+const handleDelete = async (id) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta actividad?")) {
+        actions.clearActividadesError();
+        const success = await actions.deleteActividadProveedor(id, selectedProveedorFilter || null);
+        if (!success) {
+            // El error se muestra a través de store.actividadesError
+        }
+         // La recarga de datos es manejada por el useEffect
+    }
+};
+
+const handleProveedorFilterChange = (e) => {
+    setSelectedProveedorFilter(e.target.value);
+    // Opcional: Limpiar filtro de estatus si seleccionas proveedor
+    setSelectedStatusFilter('');
+};
+
+ const handleStatusFilterChange = (e) => {
+    setSelectedStatusFilter(e.target.value);
+    // Limpiar filtro de proveedor si seleccionas estatus (si la lógica es excluyente)
+    if (e.target.value) { // Si se selecciona un estatus
+        setSelectedProveedorFilter('');
+    }
+};
     // --- *** NUEVA FUNCIÓN handleGeneratePDF *** ---
     const handleGeneratePDF = () => {
         // 1. Verificar que un proveedor esté seleccionado
