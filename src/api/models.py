@@ -342,7 +342,21 @@ class Mantenimiento(db.Model):
         return None
 
     def serialize(self):
-        tiene_imagen = bool(self.imagen_datos) # True if imagen_datos is not None/empty, False otherwise
+        tiene_imagen = bool(self.imagen_datos)
+
+        # Determinar qué equipo está asociado y obtener sus detalles
+        equipo_nombre = None
+        equipo_ubicacion = None
+        equipo_tipo = None # Opcional: incluir el tipo de equipo
+
+        if self.aire:
+            equipo_nombre = self.aire.nombre
+            equipo_ubicacion = self.aire.ubicacion
+            equipo_tipo = self.aire.tipo # O self.aire.tipo si quieres el tipo de aire
+        elif self.otro_equipo:
+            equipo_nombre = self.otro_equipo.nombre
+            equipo_ubicacion = self.otro_equipo.ubicacion
+            equipo_tipo = self.otro_equipo.tipo # O self.otro_equipo.tipo si quieres el tipo de otro equipo
 
         return {
             'id': self.id,
@@ -355,7 +369,10 @@ class Mantenimiento(db.Model):
             'imagen_nombre': self.imagen_nombre,
             'imagen_tipo': self.imagen_tipo,
             'tiene_imagen': tiene_imagen,
-
+            # --- Nuevos campos incluidos ---
+            'equipo_nombre': equipo_nombre,
+            'equipo_ubicacion': equipo_ubicacion,
+            'equipo_tipo': equipo_tipo,
         }
 
 class UmbralConfiguracion(db.Model):
