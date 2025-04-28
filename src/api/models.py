@@ -5,7 +5,8 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Tex
 from sqlalchemy.orm import validates
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from sqlalchemy import Enum as SQLAlchemyEnum # Para el campo estatus
+import enum
 
 db = SQLAlchemy()
 
@@ -490,6 +491,7 @@ class Proveedor(db.Model):
 
     # Relación uno-a-muchos con ContactoProveedor
     contactos = db.relationship('ContactoProveedor', back_populates='proveedor', lazy=True, cascade='all, delete-orphan')
+    actividades = db.relationship('ActividadProveedor', back_populates='proveedor', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f"<Proveedor(id={self.id}, nombre='{self.nombre}')>"
@@ -546,3 +548,68 @@ class ContactoProveedor(db.Model):
         if not nombre_contacto or not nombre_contacto.strip():
             raise ValueError("El nombre del contacto no puede estar vacío.")
         return nombre_contacto.strip()
+    
+# Enum para los estados de la actividad
+class EstatusActividad(enum.Enum):
+    PENDIENTE = 'Pendiente'
+    EN_PROGRESO = 'En Progreso'
+    COMPLETADO = 'Completado'
+    CANCELADO = 'Cancelado'
+
+class ActividadProveedor(db.Model):
+    __tablename__ = 'actividades_proveedor'
+
+    id = db.Column(db.Integer, primary_key=True)
+    proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
+    descripcion = db.Column(db.Text, nullable=False)
+    fecha_ocurrencia = db.Column(db.DateTime, nullable=False)
+    fecha_reporte = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    numero_reporte = db.Column(db.String(100), nullable=True) # Opcional
+    estatus = db.Column(SQLAlchemyEnum(EstatusActividad), nullable=False, default=EstatusActividad.PENDIENTE)
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relación muchos-a-uno con Proveedor
+    proveedor = db.relationship('Proveedor') # No necesitamos back_populates si no accedemos desde Proveedor
+
+    def __repr__(self):
+        return f"<ActividadProveedor(id={self.id}, proveedor_id={self.proveedor_id}, estatus='{self.estatus.value}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'proveedor_id': self.proveedor_id,
+            'nombre_proveedor': self.proveedor.nombre if self.proveedor else None, # Incluir nombre para conveniencia
+            'descripcion': self.descripcion,
+            'fecha_ocurrencia': self.fecha_ocurrencia.isoformat() if self.fecha_ocurrencia else None,
+            'fecha_reporte': self.fecha_reporte.isoformat() if self.fecha_reporte else None,
+            'numero_reporte': self.numero_reporte,
+            'estatus': self.estatus.value if self.estatus else None, # Devuelve el valor del Enum
+            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None,
+            'ultima_modificacion': self.ultima_modificacion.isoformat() if self.ultima_modificacion else None,
+        }
+
+    # Validación simple
+    @validates('descripcion')
+    def validate_descripcion(self, key, descripcion):
+        if not descripcion or not descripcion.strip():
+            raise ValueError("La descripción de la actividad no puede estar vacía.")
+        return descripcion.strip()
+
+    @validates('fecha_ocurrencia', 'fecha_reporte')
+    def validate_fechas(self, key, fecha):
+        if not fecha:
+            raise ValueError(f"La {key.replace('_', ' ')} no puede estar vacía.")
+        # Podrías añadir más validaciones de fecha aquí si es necesario
+        return fecha
+
+    @validates('estatus')
+    def validate_estatus(self, key, estatus):
+        if isinstance(estatus, str):
+            try:
+                return EstatusActividad(estatus) # Convierte string a Enum si es necesario
+            except ValueError:
+                raise ValueError(f"Valor de estatus inválido: {estatus}")
+        if not isinstance(estatus, EstatusActividad):
+             raise ValueError("Estatus debe ser un valor válido (Pendiente, En Progreso, Completado, Cancelado)")
+        return estatus

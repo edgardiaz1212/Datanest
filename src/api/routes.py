@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor 
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,7 +16,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
-
+from sqlalchemy import Enum as SQLAlchemyEnum
 
 
 api = Blueprint('api', __name__)
@@ -2780,3 +2780,214 @@ def eliminar_contacto_route(contacto_id):
         db.session.rollback()
         print(f"Error inesperado eliminando contacto {contacto_id}: {e}", file=sys.stderr)
         return jsonify({"msg": "Error inesperado."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>/actividades', methods=['POST'])
+@jwt_required()
+def crear_actividad_proveedor_route(proveedor_id):
+    """Crea una nueva actividad para un proveedor específico."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para crear actividades"}), 403
+
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON."}), 400
+
+    required_fields = ['descripcion', 'fecha_ocurrencia']
+    if not all(field in data for field in required_fields):
+        missing = [field for field in required_fields if field not in data]
+        return jsonify({"msg": f"Faltan campos requeridos: {', '.join(missing)}"}), 400
+
+    try:
+        # Convertir fechas de string a datetime
+        fecha_ocurrencia_dt = datetime.fromisoformat(data['fecha_ocurrencia'])
+        # Fecha reporte puede venir o se usa default
+        fecha_reporte_dt = datetime.fromisoformat(data['fecha_reporte']) if 'fecha_reporte' in data and data['fecha_reporte'] else datetime.utcnow()
+
+        # Validar y obtener estatus (default es Pendiente)
+        estatus_val = data.get('estatus', EstatusActividad.PENDIENTE.value)
+        try:
+            estatus_enum = EstatusActividad(estatus_val)
+        except ValueError:
+            return jsonify({"msg": f"Valor de estatus inválido: {estatus_val}. Usar Pendiente, En Progreso, Completado o Cancelado."}), 400
+
+        nueva_actividad = ActividadProveedor(
+            proveedor_id=proveedor_id,
+            descripcion=data['descripcion'],
+            fecha_ocurrencia=fecha_ocurrencia_dt,
+            fecha_reporte=fecha_reporte_dt,
+            numero_reporte=data.get('numero_reporte'),
+            estatus=estatus_enum
+        )
+        db.session.add(nueva_actividad)
+        db.session.commit()
+        return jsonify(nueva_actividad.serialize()), 201
+
+    except (ValueError, TypeError) as ve: # Captura errores de conversión de fecha/enum o validación del modelo
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB creando actividad para proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al crear la actividad."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado creando actividad: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/proveedores/<int:proveedor_id>/actividades', methods=['GET'])
+@jwt_required()
+def obtener_actividades_por_proveedor_route(proveedor_id):
+    """Obtiene las actividades de un proveedor específico."""
+    proveedor = db.session.get(Proveedor, proveedor_id)
+    if not proveedor:
+        return jsonify({"msg": "Proveedor no encontrado."}), 404
+
+    try:
+        # Ordenar por fecha de ocurrencia descendente por defecto
+        actividades = db.session.query(ActividadProveedor)\
+            .filter_by(proveedor_id=proveedor_id)\
+            .order_by(ActividadProveedor.fecha_ocurrencia.desc())\
+            .all()
+        return jsonify([a.serialize() for a in actividades]), 200
+    except Exception as e:
+        print(f"Error obteniendo actividades para proveedor {proveedor_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener actividades."}), 500
+
+@api.route('/actividades_proveedor', methods=['GET'])
+@jwt_required()
+def obtener_todas_actividades_route():
+    """Obtiene todas las actividades, opcionalmente filtradas por estatus."""
+    try:
+        query = db.session.query(ActividadProveedor)
+        estatus_filter = request.args.get('estatus')
+        if estatus_filter:
+            try:
+                estatus_enum = EstatusActividad(estatus_filter)
+                query = query.filter(ActividadProveedor.estatus == estatus_enum)
+            except ValueError:
+                return jsonify({"msg": f"Valor de estatus inválido para filtrar: {estatus_filter}"}), 400
+
+        # Ordenar por fecha de reporte descendente
+        actividades = query.order_by(ActividadProveedor.fecha_reporte.desc()).all()
+        return jsonify([a.serialize() for a in actividades]), 200
+    except Exception as e:
+        print(f"Error obteniendo todas las actividades: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener todas las actividades."}), 500
+
+
+@api.route('/actividades_proveedor/<int:actividad_id>', methods=['GET'])
+@jwt_required()
+def obtener_actividad_por_id_route(actividad_id):
+    """Obtiene una actividad específica por su ID."""
+    try:
+        actividad = db.session.get(ActividadProveedor, actividad_id)
+        if not actividad:
+            return jsonify({"msg": "Actividad no encontrada."}), 404
+        return jsonify(actividad.serialize()), 200
+    except Exception as e:
+        print(f"Error obteniendo actividad {actividad_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener la actividad."}), 500
+
+@api.route('/actividades_proveedor/<int:actividad_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_actividad_route(actividad_id):
+    """Actualiza una actividad existente (descripción, fechas, reporte, estatus)."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar actividades"}), 403
+
+    actividad = db.session.get(ActividadProveedor, actividad_id)
+    if not actividad:
+        return jsonify({"msg": "Actividad no encontrada."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON."}), 400
+
+    updated = False
+    try:
+        if 'descripcion' in data and data['descripcion'] != actividad.descripcion:
+            actividad.descripcion = data['descripcion'] # Validación se dispara
+            updated = True
+        if 'fecha_ocurrencia' in data and data['fecha_ocurrencia']:
+            try:
+                new_fecha_ocurrencia = datetime.fromisoformat(data['fecha_ocurrencia'])
+                if new_fecha_ocurrencia != actividad.fecha_ocurrencia:
+                    actividad.fecha_ocurrencia = new_fecha_ocurrencia
+                    updated = True
+            except (ValueError, TypeError):
+                 return jsonify({"msg": "Formato de fecha_ocurrencia inválido."}), 400
+        if 'fecha_reporte' in data and data['fecha_reporte']:
+             try:
+                 new_fecha_reporte = datetime.fromisoformat(data['fecha_reporte'])
+                 if new_fecha_reporte != actividad.fecha_reporte:
+                     actividad.fecha_reporte = new_fecha_reporte
+                     updated = True
+             except (ValueError, TypeError):
+                  return jsonify({"msg": "Formato de fecha_reporte inválido."}), 400
+        # Permitir actualizar numero_reporte a None o vacío
+        if 'numero_reporte' in data and data['numero_reporte'] != actividad.numero_reporte:
+             actividad.numero_reporte = data['numero_reporte'] if data['numero_reporte'] else None
+             updated = True
+        if 'estatus' in data:
+            try:
+                new_estatus_enum = EstatusActividad(data['estatus'])
+                if new_estatus_enum != actividad.estatus:
+                    actividad.estatus = new_estatus_enum
+                    updated = True
+            except ValueError:
+                 return jsonify({"msg": f"Valor de estatus inválido: {data['estatus']}"}), 400
+
+        if updated:
+            actividad.ultima_modificacion = datetime.utcnow() # Actualizar timestamp
+            db.session.commit()
+            return jsonify(actividad.serialize()), 200
+        else:
+            return jsonify(actividad.serialize()), 200 # O 304 Not Modified
+
+    except ValueError as ve: # Captura validaciones del modelo
+        db.session.rollback()
+        return jsonify({"msg": str(ve)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB actualizando actividad {actividad_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al actualizar la actividad."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado actualizando actividad {actividad_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/actividades_proveedor/<int:actividad_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_actividad_route(actividad_id):
+    """Elimina una actividad específica."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']: # O solo admin si prefieres
+        return jsonify({"msg": "Acceso no autorizado para eliminar actividades"}), 403
+
+    actividad = db.session.get(ActividadProveedor, actividad_id)
+    if not actividad:
+        return jsonify({"msg": "Actividad no encontrada."}), 404
+
+    try:
+        db.session.delete(actividad)
+        db.session.commit()
+        return '', 204
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"Error DB eliminando actividad {actividad_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al eliminar la actividad."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado eliminando actividad {actividad_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500

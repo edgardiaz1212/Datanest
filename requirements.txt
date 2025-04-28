@@ -10,7 +10,7 @@ psycopg2-binary
 python-dotenv
 sqlalchemy
 flask_admin
-
+fpdf2
 
 flask-swagger
 flask-jwt-extended

@@ -77,6 +77,10 @@ const getState = ({ getStore, getActions, setStore }) => {
       contactos: [], // Almacenará los contactos del proveedor seleccionado
       contactosLoading: false,
       contactosError: null,
+      // --- Actividades Proveedor State ---
+      actividadesProveedor: [], // Almacenará las actividades del proveedor seleccionado o todas
+      actividadesLoading: false,
+      actividadesError: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -1720,7 +1724,151 @@ const getState = ({ getStore, getActions, setStore }) => {
     clearContactosError: () => {
       setStore({ contactosError: null });
     },
+// --- Actividades Proveedor Actions ---
+fetchActividadesPorProveedor: async (proveedorId) => {
+  // Limpia actividades si no hay proveedor seleccionado
+  if (!proveedorId) {
+    setStore({ actividadesProveedor: [], actividadesLoading: false, actividadesError: null });
+    return;
+  }
+  setStore({ actividadesLoading: true, actividadesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}/actividades`, {
+      method: "GET",
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 401) getActions().logoutTrackerUser();
+      if (response.status === 404) { // Proveedor no encontrado
+           setStore({ actividadesProveedor: [], actividadesLoading: false, actividadesError: null });
+           return true; // No es error fatal
+      }
+      throw new Error(errorData.msg || `Error ${response.status}`);
+    }
+    const data = await response.json();
+    setStore({ actividadesProveedor: data || [], actividadesLoading: false });
+    return true;
+  } catch (error) {
+    console.error(`Error fetching actividades for proveedor ${proveedorId}:`, error);
+    setStore({ actividadesError: error.message || "Error cargando actividades.", actividadesLoading: false, actividadesProveedor: [] });
+    return false;
+  }
+},
 
+fetchAllActividades: async (estatus = null) => {
+  setStore({ actividadesLoading: true, actividadesError: null });
+  let url = `${process.env.BACKEND_URL}/actividades_proveedor`;
+  if (estatus) {
+    url += `?estatus=${encodeURIComponent(estatus)}`;
+  }
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(errorData.msg || `Error ${response.status}`);
+    }
+    const data = await response.json();
+    setStore({ actividadesProveedor: data || [], actividadesLoading: false }); // Reutiliza el mismo estado
+    return true;
+  } catch (error) {
+    console.error(`Error fetching all actividades (status: ${estatus}):`, error);
+    setStore({ actividadesError: error.message || "Error cargando todas las actividades.", actividadesLoading: false, actividadesProveedor: [] });
+    return false;
+  }
+},
+
+addActividadProveedor: async (proveedorId, actividadData) => {
+  setStore({ actividadesLoading: true, actividadesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/proveedores/${proveedorId}/actividades`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(actividadData), // Asegúrate que las fechas estén en formato ISO
+    });
+    const responseData = await response.json();
+    if (!response.ok) {
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(responseData.msg || `Error ${response.status}`);
+    }
+    // Recarga las actividades del proveedor actual
+    await getActions().fetchActividadesPorProveedor(proveedorId);
+    return true;
+  } catch (error) {
+    console.error("Error adding actividad:", error);
+    setStore({ actividadesError: error.message || "Error al agregar actividad.", actividadesLoading: false });
+    return false;
+  }
+},
+
+updateActividadProveedor: async (actividadId, actividadData, currentProveedorId) => {
+  setStore({ actividadesLoading: true, actividadesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/actividades_proveedor/${actividadId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(actividadData), // Asegúrate que las fechas estén en formato ISO
+    });
+    const responseData = await response.json();
+    if (!response.ok) {
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(responseData.msg || `Error ${response.status}`);
+    }
+    // Recarga las actividades del proveedor que se estaba viendo (si aplica)
+    if (currentProveedorId) {
+      await getActions().fetchActividadesPorProveedor(currentProveedorId);
+    } else {
+      // Si no hay proveedor seleccionado, quizás recargar todas
+      await getActions().fetchAllActividades();
+    }
+    return true;
+  } catch (error) {
+    console.error("Error updating actividad:", error);
+    setStore({ actividadesError: error.message || "Error al actualizar actividad.", actividadesLoading: false });
+    return false;
+  }
+},
+
+deleteActividadProveedor: async (actividadId, currentProveedorId) => {
+  const store = getStore();
+  const originalList = [...store.actividadesProveedor];
+  const updatedList = originalList.filter(a => a.id !== actividadId);
+  setStore({ actividadesProveedor: updatedList, actividadesError: null }); // Optimistic update
+
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/actividades_proveedor/${actividadId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(false)
+    });
+    if (!response.ok) {
+      setStore({ actividadesProveedor: originalList }); // Revert
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(errorData.msg || `Error ${response.status}`);
+    }
+    console.log(`Actividad ${actividadId} deleted.`);
+    // No es necesario refetch si la actualización optimista es suficiente
+    // Si prefieres refetch:
+    // if (currentProveedorId) {
+    //   await getActions().fetchActividadesPorProveedor(currentProveedorId);
+    // } else {
+    //   await getActions().fetchAllActividades();
+    // }
+    return true;
+  } catch (error) {
+    console.error("Error deleting actividad:", error);
+    setStore({ actividadesProveedor: originalList, actividadesError: error.message || "Error al eliminar actividad." });
+    return false;
+  }
+},
+
+clearActividadesError: () => {
+  setStore({ actividadesError: null });
+},
 
   },
      

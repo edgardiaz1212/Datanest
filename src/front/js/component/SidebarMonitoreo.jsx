@@ -23,6 +23,7 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     { path: '/mantenimientos', icon: FiTool, label: 'Mantenimientos' },
     { path: '/reportes', icon: HiOutlineDocumentReport, label: 'Reportes' },
     {path: '/proveedores', icon: FiBriefcase, label: 'Proveedores' },
+    {path: '/actividades-proveedor', icon: FiBriefcase, label: 'Actividades Proveedor' },
 
     
   ];
