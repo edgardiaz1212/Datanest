@@ -5,10 +5,10 @@ import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { Nav, Button } from 'react-bootstrap';
 import {
-  FiHome, FiWind, FiList, FiBarChart2, FiZap, FiTool, FiAlertCircle, FiUsers, FiMenu
+  FiHome, FiWind, FiList, FiBarChart2, FiZap, FiTool, FiAlertCircle, FiUsers, FiMenu, FiBriefcase, 
 } from 'react-icons/fi';
 import { Context } from '../store/appContext'; // To check user role
-
+import { HiOutlineDocumentReport } from 'react-icons/hi'
 const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
   const navigate = useNavigate();
   const { store } = useContext(Context);
@@ -21,8 +21,8 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     { path: '/estadisticas', icon: FiBarChart2, label: 'Estadísticas' },
     { path: '/otros-equipos', icon: FiZap, label: 'Otros Equipos' },
     { path: '/mantenimientos', icon: FiTool, label: 'Mantenimientos' },
-    { path: '/reportes', icon: FiTool, label: 'Reportes' },
-    {path: '/proveedores', icon: FiTool, label: 'Proveedores' },
+    { path: '/reportes', icon: HiOutlineDocumentReport, label: 'Reportes' },
+    {path: '/proveedores', icon: FiBriefcase, label: 'Proveedores' },
 
     
   ];

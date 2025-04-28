@@ -175,7 +175,7 @@ const Proveedores = () => {
   // --- Renderizado ---
   return (
     <Container fluid className="mt-4">
-      <h1><FiBriefcase className="me-2" />Gestión de Proveedores</h1>
+      <h1>Gestión de Proveedores</h1>
 
       {/* --- Sección de Proveedores --- */}
       <Row className="mb-4">

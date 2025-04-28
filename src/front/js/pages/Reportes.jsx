@@ -1,5 +1,6 @@
 import React, { useEffect, useContext, useState } from 'react';
 import { Card, Spinner, Alert, Button } from 'react-bootstrap';
+import { HiOutlineDocumentReport } from 'react-icons/hi'
 import { Context } from '../store/appContext';
 import ReportesAiresTable from '../component/Reportes/ReportesAiresTable.jsx';
 import ReportesOtrosEquiposTable from '../component/Reportes/ReportesOtrosEquiposTable.jsx';
@@ -197,8 +198,8 @@ const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
 
   return (
     <div className="container mt-4">
-      <h1>Reportes</h1>
-
+       <h1 > Reportes</h1>
+ 
       {/* Aires Section */}
       <Card className="mb-4">
         <Card.Header>
