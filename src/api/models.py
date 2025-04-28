@@ -234,16 +234,16 @@ class AireAcondicionado(db.Model):
     evaporadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la evaporadora")
     evaporadora_marca = db.Column(db.String(100), nullable=True)
     evaporadora_modelo = db.Column(db.String(100), nullable=True)
-    evaporadora_serial = db.Column(db.String(100), nullable=True, unique=True)
-    evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True, unique=True)
+    evaporadora_serial = db.Column(db.String(100), nullable=True)
+    evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
 
     # --- Detalles Condensadora ---
     condensadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la condensadora")
     condensadora_marca = db.Column(db.String(100), nullable=True)
     condensadora_modelo = db.Column(db.String(100), nullable=True)
-    condensadora_serial = db.Column(db.String(100), nullable=True, unique=True)
-    condensadora_codigo_inventario = db.Column(db.String(100), nullable=True, unique=True)
+    condensadora_serial = db.Column(db.String(100), nullable=True)
+    condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
 
     # Relaciones

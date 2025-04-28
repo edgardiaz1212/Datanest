@@ -69,7 +69,7 @@ const Reportes = () => {
       return;
     }
 
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
     const tableColumn = [
       "Nombre (TAG)", "Tipo","Capacidad (Ton)", "Marca (Evap.)", "Modelo (Evap.)",
       "Serial (Evap.)", "Inventario (Evap.)",  "Ubicación(Evap.)", "Estado (Evap.)", 
@@ -127,8 +127,73 @@ const Reportes = () => {
     }
   };
   // --- Fin de la función ---
+// ... (dentro del componente Reportes, después de handleDownloadAiresPDF) ...
 
-  // ... (resto del componente JSX sin cambios) ...
+// --- Función para generar PDF de Otros Equipos por Tipo ---
+const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
+  if (!equipos || equipos.length === 0) {
+    console.warn('No hay datos de otros equipos para generar el PDF para el tipo:', tipo);
+    return;
+  }
+
+  const doc = new jsPDF({ orientation: 'landscape' });
+  // --- Ajusta las columnas según tu modelo OtroEquipo ---
+  const tableColumn = [
+    "Nombre",
+    "Tipo",
+    "Ubicación",
+    "Marca",
+    "Modelo",
+    "Serial",
+    "Cód. Inventario",
+    "Estado"
+  ];
+  const tableRows = [];
+
+  // Título del documento
+  doc.setFontSize(18);
+  doc.text(`Reporte de Otros Equipos - Tipo: ${tipo}`, 14, 22);
+  doc.setFontSize(11);
+  doc.setTextColor(100);
+
+  // Prepara las filas para la tabla usando las propiedades de models.py (OtroEquipo)
+  equipos.forEach(equipo => {
+    // --- Mapea las propiedades correctas del objeto 'equipo' ---
+    const equipoData = [
+      equipo.nombre || '-',             // Corresponde a OtroEquipo.nombre
+      equipo.tipo || '-',               // Corresponde a OtroEquipo.tipo
+      equipo.ubicacion || '-',          // Corresponde a OtroEquipo.ubicacion
+      equipo.marca || '-',              // Corresponde a OtroEquipo.marca
+      equipo.modelo || '-',             // Corresponde a OtroEquipo.modelo
+      equipo.serial || '-',             // Corresponde a OtroEquipo.serial
+      equipo.codigo_inventario || '-',  // Corresponde a OtroEquipo.codigo_inventario
+      equipo.estado_operativo ? 'Operativo' : 'No Operativo', // Corresponde a OtroEquipo.estado_operativo
+    ];
+    tableRows.push(equipoData);
+  });
+
+  // Llama a autoTable como una función, pasando 'doc' como primer argumento
+  try {
+    autoTable(doc, { // Usando la importación explícita
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [41, 128, 185] }, // Puedes usar otro color para diferenciar
+      margin: { top: 30 }
+    });
+
+    // Nombre del archivo PDF
+    const fileName = `reporte_otros_equipos_${tipo.replace(/\s+/g, '_')}.pdf`;
+    doc.save(fileName);
+
+  } catch (error) {
+    console.error("Error al generar la tabla PDF para otros equipos:", error);
+    // Informar al usuario sobre el error si es necesario
+  }
+};
+// --- Fin de la función ---
 
   return (
     <div className="container mt-4">
@@ -179,36 +244,49 @@ const Reportes = () => {
 
       {/* Otros Equipos Section */}
       <Card>
-        <Card.Header>
-          <h2>Otros Equipos por Tipo</h2>
-        </Card.Header>
-        <Card.Body>
-          {otrosEquiposLoading && (
-             <div className="text-center p-3">
-               <Spinner animation="border" variant="primary" />
-               <p>Cargando otros equipos...</p>
+    <Card.Header>
+      <h2>Otros Equipos por Tipo</h2>
+    </Card.Header>
+    <Card.Body>
+      {otrosEquiposLoading && (
+         <div className="text-center p-3">
+           <Spinner animation="border" variant="primary" />
+           <p>Cargando otros equipos...</p>
+         </div>
+       )}
+       {otrosEquiposError && (
+         <Alert variant="danger">
+           Error al cargar otros equipos: {otrosEquiposError}
+         </Alert>
+       )}
+       {!otrosEquiposLoading && !otrosEquiposError && (
+         Object.keys(groupedOtrosEquipos).length === 0 ? (
+           <p>No hay otros equipos registrados.</p>
+         ) : (
+           Object.entries(groupedOtrosEquipos).map(([tipo, equipos]) => (
+             <div key={tipo} className="mb-4">
+               {/* --- Contenedor para título y botón --- */}
+               <div className="d-flex justify-content-between align-items-center mb-2">
+                 <h3>Tipo: {tipo}</h3>
+                 {/* --- Botón de Descarga PDF para Otros Equipos --- */}
+                 <Button
+                   variant="outline-primary" // Puedes usar otro color (ej. primary)
+                   size="sm"
+                   onClick={() => handleDownloadOtrosEquiposPDF(tipo, equipos)}
+                   disabled={!equipos || equipos.length === 0} // Deshabilita si no hay datos
+                 >
+                   <i className="fas fa-file-pdf me-2"></i> {/* Ícono opcional */}
+                   Descargar PDF
+                 </Button>
+                 {/* --- Fin del Botón --- */}
+               </div>
+               <ReportesOtrosEquiposTable equiposList={equipos} />
              </div>
-           )}
-           {otrosEquiposError && (
-             <Alert variant="danger">
-               Error al cargar otros equipos: {otrosEquiposError}
-             </Alert>
-           )}
-           {!otrosEquiposLoading && !otrosEquiposError && (
-             Object.keys(groupedOtrosEquipos).length === 0 ? (
-               <p>No hay otros equipos registrados.</p>
-             ) : (
-               Object.entries(groupedOtrosEquipos).map(([tipo, equipos]) => (
-                 <div key={tipo} className="mb-4">
-                   <h3>Tipo: {tipo}</h3>
-                   {/* Podrías agregar un botón similar aquí para descargar PDF de otros equipos */}
-                   <ReportesOtrosEquiposTable equiposList={equipos} />
-                 </div>
-               ))
-             )
-           )}
-        </Card.Body>
-      </Card>
+           ))
+         )
+       )}
+    </Card.Body>
+  </Card>
     </div>
   );
 };
