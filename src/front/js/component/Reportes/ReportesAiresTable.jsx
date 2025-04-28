@@ -17,12 +17,16 @@ const ReportesAiresTable = ({ airesList = [] }) => {
   const columns = [
     { header: 'Nombre (TAG)', accessor: 'nombre' },
     { header: 'Tipo', accessor: 'tipo' },
-    { header: 'Marca (Evap.)', accessor: 'evaporadora_marca' },
-    { header: 'Modelo (Evap.)', accessor: 'evaporadora_modelo' },
-    { header: 'Serial (Evap.)', accessor: 'evaporadora_serial' },
-    { header: 'Capacidad (Ton)', accessor: 'toneladas' },
     { header: 'Ubicación', accessor: 'ubicacion' },
-    { header: 'Estado (Evap.)', accessor: 'evaporadora_operativa' },
+    { header: 'Capacidad (Ton)', accessor: 'toneladas' },
+    { header: 'Serial (Evap.)', accessor: 'evaporadora_serial' },
+    { header: 'Inventario (Evap.)', accessor: 'evaporadora_codigo_inventario' },
+    
+    { header: 'Estado (Evap.)', accessor: 'condensadora_operativa' },
+    { header: 'Serial (Cond.)', accessor: 'condensadora_serial' },
+    { header: 'Inventario (Cond.)', accessor: 'condensadora_inventario' },
+    { header: 'Estado (Cond.)', accessor: 'condensadora_operativa' },
+
     // ... más columnas ...
   ];
 
