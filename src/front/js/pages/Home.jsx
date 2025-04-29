@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom'; // Asegúrate de que Link esté importado
 import '../../styles/home.css';
-import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart, Handshake } from 'lucide-react';
+import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart, Handshake, Ticket, Archive, FileText, LayoutGrid} from 'lucide-react';
 import heroBgImage from '../../img/racks1.jpeg';
 
 function Home() {
@@ -129,6 +129,120 @@ function Home() {
           </div>
         </div>
       </section>
+      
+
+{/* --- Nueva Sección: Enlaces a Otros Servicios --- */}
+<section className="py-5 bg-white"> {/* O usa bg-light si prefieres alternar */}
+  <div className="container">
+    <h2 className="text-center fw-bold mb-4">Herramientas y Recursos Adicionales</h2>
+    <p className="text-center text-secondary mb-5">
+      Aquí encontrarás enlaces directos a otras plataformas y recursos importantes utilizados en la gestión del centro de datos.
+    </p>
+
+    <div className="row g-4 justify-content-center"> {/* justify-content-center para centrar si son menos de 3 */}
+
+      {/* Tarjeta para OTRS */}
+      <div className="col-md-4">
+        <div className="card h-100 shadow-sm">
+          <div className="card-body text-center d-flex flex-column"> {/* Centrado y flex para alinear botón */}
+            <div className="text-primary mb-3">
+              <Ticket size={40} /> {/* Icono para OTRS */}
+            </div>
+            <h3 className="card-title h5 fw-bold">OTRS (Sistema de Tickets)</h3>
+            <p className="card-text text-secondary small mb-4">
+              Plataforma para la gestión de solicitudes, incidencias y seguimiento de casos relacionados con los servicios.
+            </p>
+            {/* IMPORTANTE: Reemplaza '#' con la URL real de OTRS */}
+            <a
+              href="#URL_REAL_OTRS"
+              className="btn btn-outline-primary mt-auto" // mt-auto empuja el botón abajo
+              target="_blank" // Abre en nueva pestaña
+              rel="noopener noreferrer" // Buenas prácticas de seguridad
+            >
+              Acceder a OTRS
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Tarjeta para Sistema de Inventarios */}
+      <div className="col-md-4">
+        <div className="card h-100 shadow-sm">
+          <div className="card-body text-center d-flex flex-column">
+            <div className="text-primary mb-3">
+              <Archive size={40} /> {/* Icono para Inventario */}
+            </div>
+            <h3 className="card-title h5 fw-bold">Sistema de Inventarios</h3>
+            <p className="card-text text-secondary small mb-4">
+              Consulta y gestiona el inventario detallado de equipos, componentes y activos dentro del centro de datos.
+            </p>
+            {/* IMPORTANTE: Reemplaza '#' con la URL real del Inventario */}
+            <a
+              href="#URL_REAL_INVENTARIO"
+              className="btn btn-outline-primary mt-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ir al Inventario
+            </a>
+          </div>
+        </div>
+      </div>
+
+       {/* --- Tarjeta para OpenDCIM --- */}
+       <div className="col-md-4">
+        <div className="card h-100 shadow-sm">
+          <div className="card-body text-center d-flex flex-column">
+            <div className="text-primary mb-3">
+              <LayoutGrid size={40} /> {/* Icono para OpenDCIM */}
+            </div>
+            <h3 className="card-title h5 fw-bold">OpenDCIM (Gestión DCIM)</h3>
+            <p className="card-text text-secondary small mb-4">
+              Plataforma para la gestión de infraestructura del centro de datos (DCIM), incluyendo racks, activos y conexiones.
+            </p>
+            {/* IMPORTANTE: Reemplaza '#' con la URL real de OpenDCIM */}
+            <a
+              href="#URL_REAL_OPENDCIM" // ¡Actualiza esta URL!
+              className="btn btn-outline-primary mt-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Acceder a OpenDCIM
+            </a>
+          </div>
+        </div>
+      </div>
+      {/* --- Fin Tarjeta para OpenDCIM --- */}
+
+      {/* Tarjeta para Directorio de Procedimientos y Planillas */}
+      <div className="col-md-4">
+        <div className="card h-100 shadow-sm">
+          <div className="card-body text-center d-flex flex-column">
+            <div className="text-primary mb-3">
+              <FileText size={40} /> {/* Icono para Documentos */}
+            </div>
+            <h3 className="card-title h5 fw-bold">Procedimientos y Planillas</h3>
+            <p className="card-text text-secondary small mb-4">
+              Accede al repositorio centralizado de documentación, guías operativas, normativas y formularios estándar.
+            </p>
+            {/* IMPORTANTE: Reemplaza '#' con la URL real del Directorio */}
+            <a
+              href="#URL_REAL_DOCUMENTOS"
+              className="btn btn-outline-primary mt-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ver Documentos
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div> {/* Fin .row */}
+  </div> {/* Fin .container */}
+</section>
+
+
       {/* Why Us Section */}
       {/*<section className="py-5 bg-white">   
         <div className="container">
