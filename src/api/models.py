@@ -421,8 +421,8 @@ class UmbralConfiguracion(db.Model):
             'ultima_modificacion': self.ultima_modificacion.isoformat() if self.ultima_modificacion else None,
         }
 
-class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
-    __tablename__ = 'tracker_usuarios' # Nombre de tabla cambiado
+class TrackerUsuario(db.Model):
+    __tablename__ = 'tracker_usuarios' 
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -434,7 +434,10 @@ class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
     activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
     fecha_registro = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     ultima_conexion = db.Column(db.DateTime(timezone=True), nullable=True)
+    documentos_cargados = db.relationship('DocumentoExterno', back_populates='usuario_carga', lazy=True)
 
+    def __repr__(self):
+        return f'<TrackerUsuario {self.id}: {self.username}>'
 
     def set_password(self, password_plaintext):
         """Genera y guarda el hash de la contraseña."""
@@ -635,3 +638,36 @@ class ActividadProveedor(db.Model):
         if not isinstance(estatus, EstatusActividad):
              raise ValueError("Estatus debe ser un valor válido (Pendiente, En Progreso, Completado, Cancelado)")
         return estatus
+    
+class DocumentoExterno(db.Model):
+    __tablename__ = 'documento_externo'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    nombre_archivo_original = db.Column(db.String(255), nullable=False)
+    datos_archivo = db.Column(LargeBinary, nullable=False) # <--- Columna para guardar el contenido
+    # -------------------------------------------------------
+    tipo_mime = db.Column(db.String(100), nullable=False)
+    fecha_carga = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relación con el usuario que subió el archivo
+    usuario_carga_id = db.Column(db.Integer, db.ForeignKey('tracker_usuarios.id'), nullable=True)
+    # --- Actualizar back_populates ---
+    usuario_carga = db.relationship('TrackerUsuario', back_populates='documentos_cargados')
+    # ---------------------------------
+
+    def __repr__(self):
+        return f'<DocumentoExterno {self.id}: {self.nombre}>'
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "nombre": self.nombre,
+            "descripcion": self.descripcion,
+            "nombre_archivo_original": self.nombre_archivo_original,
+            "tipo_mime": self.tipo_mime,
+            "fecha_carga": self.fecha_carga.isoformat() if self.fecha_carga else None,
+            "usuario_carga": self.usuario_carga.username if self.usuario_carga else "Desconocido"
+            # La URL de descarga se sigue construyendo en la ruta GET
+        }

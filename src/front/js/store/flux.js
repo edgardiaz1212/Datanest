@@ -84,6 +84,15 @@ const getState = ({ getStore, getActions, setStore }) => {
       actividadesProveedor: [], // Almacenará las actividades del proveedor seleccionado o todas
       actividadesLoading: false,
       actividadesError: null,
+      // --- Documentos Externos State ---
+      documentos: [],
+      documentosLoading: false,
+      documentosError: null,
+      uploadingDocumento: false, // Estado específico para la carga
+      uploadDocumentoError: null,
+      uploadDocumentoSuccess: null,
+      deletingDocumentoId: null, // Para saber qué doc se está borrando (opcional)
+      deleteDocumentoError: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -1925,6 +1934,123 @@ deleteActividadProveedor: async (actividadId, currentProveedorId) => {
 clearActividadesError: () => {
   setStore({ actividadesError: null });
 },
+// --- Documentos Externos Actions ---
+fetchDocumentos: async () => {
+  setStore({ documentosLoading: true, documentosError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/documentos`, {
+      method: "GET",
+      headers: getAuthHeaders() // Necesita token
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(errorData.msg || `Error ${response.status}`);
+    }
+    const data = await response.json();
+    setStore({ documentos: data || [], documentosLoading: false });
+    return true;
+  } catch (error) {
+    console.error("Error fetching documentos:", error);
+    setStore({ documentosError: error.message || "Error cargando documentos.", documentosLoading: false, documentos: [] });
+    return false;
+  }
+},
+
+uploadDocumento: async (formData) => {
+  // formData debe ser un objeto FormData que incluya 'file', 'nombre', 'descripcion'
+  setStore({
+    uploadingDocumento: true,
+    uploadDocumentoError: null,
+    uploadDocumentoSuccess: null
+  });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/documentos`, {
+      method: "POST",
+      headers: getAuthHeaders(false), // NO 'Content-Type': 'application/json' para FormData
+      body: formData,
+    });
+    const responseData = await response.json(); // Leer respuesta JSON incluso en error
+    if (!response.ok) {
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(responseData.msg || `Error ${response.status}`);
+    }
+    setStore({
+      uploadingDocumento: false,
+      uploadDocumentoSuccess: `Documento "${responseData.nombre || 'nuevo'}" cargado con éxito.`
+    });
+    // Recargar la lista después de subir
+    await getActions().fetchDocumentos();
+    return true;
+  } catch (error) {
+    console.error("Error uploading documento:", error);
+    setStore({
+      uploadingDocumento: false,
+      uploadDocumentoError: error.message || "Error al subir el documento."
+    });
+    return false;
+  }
+},
+
+deleteDocumento: async (documentoId) => {
+  const store = getStore();
+  // Opcional: Actualización optimista (quitar de la lista antes de la llamada)
+  const originalDocumentos = [...store.documentos];
+  const updatedDocumentos = originalDocumentos.filter(doc => doc.id !== documentoId);
+  setStore({
+      documentos: updatedDocumentos,
+      deletingDocumentoId: documentoId, // Marcar cuál se está borrando
+      deleteDocumentoError: null
+  });
+
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/documentos/${documentoId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(false) // Sin Content-Type
+    });
+
+    if (!response.ok) {
+       // Si falla, revertir la actualización optimista
+       setStore({ documentos: originalDocumentos });
+       // Intentar obtener mensaje de error del backend
+       let errorMsg = `Error ${response.status}`;
+       try {
+           const errorData = await response.json();
+           errorMsg = errorData.msg || errorMsg;
+       } catch (e) { /* Ignorar si no hay cuerpo JSON */ }
+
+       if (response.status === 401) getActions().logoutTrackerUser();
+       throw new Error(errorMsg);
+    }
+
+    // Si tiene éxito (204 No Content), la actualización optimista ya está hecha
+    console.log(`Documento ${documentoId} eliminado con éxito.`);
+    setStore({ deletingDocumentoId: null }); // Limpiar marca de borrado
+    return true;
+
+  } catch (error) {
+    console.error("Error deleting documento:", error);
+     // Asegurarse de revertir si no se hizo antes
+     if (store.documentos !== originalDocumentos) {
+         setStore({ documentos: originalDocumentos });
+     }
+    setStore({
+      deleteDocumentoError: error.message || "Error al eliminar el documento.",
+      deletingDocumentoId: null // Limpiar marca de borrado
+    });
+    return false;
+  }
+},
+
+clearDocumentosError: () => {
+  setStore({ documentosError: null });
+},
+clearUploadDocumentoStatus: () => {
+   setStore({ uploadDocumentoError: null, uploadDocumentoSuccess: null });
+},
+clearDeleteDocumentoError: () => {
+   setStore({ deleteDocumentoError: null });
+}
 
   },
      

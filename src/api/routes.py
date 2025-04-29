@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app 
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -18,6 +18,7 @@ import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
 from sqlalchemy import Enum as SQLAlchemyEnum
+import uuid
 
 
 
@@ -3035,3 +3036,171 @@ def eliminar_actividad_route(actividad_id):
         print(f"Error inesperado eliminando actividad {actividad_id}: {e}", file=sys.stderr)
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
+##Documentos
+
+def allowed_file(filename):
+    """Verifica si la extensión del archivo es permitida."""
+    # --- Mantenemos la validación de extensión por seguridad ---
+    allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'})
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+    # ---------------------------------------------------------
+
+# --- Rutas para Documentos Externos  ---
+
+@api.route('/documentos', methods=['POST'])
+@jwt_required()
+def subir_documento_route():
+    """Sube un nuevo documento externo (guardado en DB)."""
+    current_user_id_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_id_str)
+    except ValueError:
+        return jsonify({"msg": "Identidad de usuario inválida"}), 400
+
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para subir documentos"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"msg": "No se encontró el archivo en la solicitud ('file')"}), 400
+
+    file = request.files['file']
+    nombre_descriptivo = request.form.get('nombre')
+    descripcion = request.form.get('descripcion')
+
+    if not nombre_descriptivo:
+        return jsonify({"msg": "El campo 'nombre' es requerido en el formulario."}), 400
+
+    if file.filename == '':
+        return jsonify({"msg": "No se seleccionó ningún archivo."}), 400
+
+    if file and allowed_file(file.filename):
+        original_filename = secure_filename(file.filename)
+        # --- Leer contenido del archivo ---
+        try:
+            file_content = file.read()
+            if not file_content:
+                 return jsonify({"msg": "El archivo parece estar vacío."}), 400
+        except Exception as read_error:
+            print(f"Error leyendo el archivo: {read_error}", file=sys.stderr)
+            return jsonify({"msg": "Error al leer el contenido del archivo."}), 500
+        # ----------------------------------
+
+        try:
+            nuevo_documento = DocumentoExterno(
+                nombre=nombre_descriptivo,
+                descripcion=descripcion,
+                nombre_archivo_original=original_filename,
+                # --- Guardar contenido en DB ---
+                datos_archivo=file_content,
+                # -------------------------------
+                tipo_mime=file.mimetype,
+                usuario_carga_id=current_user_id
+            )
+            db.session.add(nuevo_documento)
+            db.session.commit()
+
+            return jsonify(nuevo_documento.serialize()), 201
+
+        except SQLAlchemyError as db_error:
+            db.session.rollback()
+            print(f"Error DB al guardar documento: {db_error}", file=sys.stderr)
+            return jsonify({"msg": "Error de base de datos al guardar el documento."}), 500
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error subiendo archivo a DB: {e}", file=sys.stderr)
+            traceback.print_exc()
+            return jsonify({"msg": "Error al guardar el archivo en la base de datos."}), 500
+    else:
+        return jsonify({"msg": "Tipo de archivo no permitido."}), 400
+
+
+@api.route('/documentos', methods=['GET'])
+@jwt_required()
+def listar_documentos_route():
+    """Obtiene la lista de todos los documentos externos."""
+    try:
+        documentos = db.session.query(DocumentoExterno)\
+            .order_by(DocumentoExterno.fecha_carga.desc())\
+            .all()
+
+        results = []
+        for doc in documentos:
+            doc_data = doc.serialize()
+            # La URL de descarga sigue apuntando a la ruta de descarga
+            doc_data['url_descarga'] = url_for('api.descargar_documento_route',
+                                               documento_id=doc.id,
+                                               _external=True)
+            results.append(doc_data)
+
+        return jsonify(results), 200
+    except Exception as e:
+        print(f"Error listando documentos: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error al obtener la lista de documentos."}), 500
+
+
+@api.route('/documentos/<int:documento_id>/download', methods=['GET'])
+@jwt_required()
+def descargar_documento_route(documento_id):
+    """Descarga el archivo de un documento específico (desde DB)."""
+    try:
+        documento = db.session.get(DocumentoExterno, documento_id)
+        if not documento:
+            return jsonify({"msg": "Documento no encontrado."}), 404
+
+        # --- Verificar si hay datos ---
+        if not documento.datos_archivo:
+             print(f"Advertencia: Documento ID {documento_id} no tiene datos_archivo en DB.", file=sys.stderr)
+             return jsonify({"msg": "El archivo no tiene contenido almacenado."}), 404
+        # -----------------------------
+
+        # --- Usar send_file con BytesIO ---
+        return send_file(
+            io.BytesIO(documento.datos_archivo),
+            mimetype=documento.tipo_mime or 'application/octet-stream', # Default MIME type
+            as_attachment=True, # Forzar descarga
+            download_name=documento.nombre_archivo_original # Nombre que verá el usuario
+        )
+        # ----------------------------------
+
+    except Exception as e:
+        print(f"Error descargando documento {documento_id} desde DB: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error al descargar el archivo."}), 500
+
+
+@api.route('/documentos/<int:documento_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_documento_route(documento_id):
+    """Elimina un documento (solo registro en DB)."""
+    current_user_id_str = get_jwt_identity()
+    try:
+        current_user_id = int(current_user_id_str)
+    except ValueError:
+        return jsonify({"msg": "Identidad de usuario inválida"}), 400
+
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para eliminar documentos"}), 403
+
+    documento = db.session.get(DocumentoExterno, documento_id)
+    if not documento:
+        return jsonify({"msg": "Documento no encontrado."}), 404
+
+    try:
+        db.session.delete(documento)
+        db.session.commit()
+
+        return '', 204 # No Content
+
+    except SQLAlchemyError as db_error:
+        db.session.rollback()
+        print(f"Error DB al eliminar documento {documento_id}: {db_error}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al eliminar el documento."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado eliminando documento {documento_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado al eliminar el documento."}), 500
