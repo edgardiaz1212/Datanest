@@ -61,7 +61,7 @@ const Layout = () => {
             '/dashboard', '/aires', '/lecturas', '/estadisticas',
             '/otros-equipos', '/mantenimientos', '/umbrales', '/usuarios', 
             '/perfil', '/reportes', '/proveedores','/actividades-proveedor',
-            '/servicios-externos',
+            '/servicios-externos','/documentos'
             // Añade otras rutas de monitoreo aquí
         ];
 
