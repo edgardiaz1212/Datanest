@@ -14,3 +14,10 @@
 .footer .fa-code {
   color: #EA5395;
 }
+
+.dashboard-card-link:hover {
+  transform: translateY(-3px); /* Levanta ligeramente la tarjeta */
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important; /* Sombra más pronunciada */
+  cursor: pointer; /* Cambia el cursor a una mano */
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Transición suave */
+}

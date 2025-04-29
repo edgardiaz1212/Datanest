@@ -139,7 +139,7 @@ function Home() {
       Aquí encontrarás enlaces directos a otras plataformas y recursos importantes utilizados en la gestión del centro de datos.
     </p>
 
-    <div className="row g-4 justify-content-center"> {/* justify-content-center para centrar si son menos de 3 */}
+    <div className="row g-4 "> {/* justify-content-center para centrar si son menos de 3 */}
 
       {/* Tarjeta para OTRS */}
       <div className="col-md-4">
@@ -152,12 +152,12 @@ function Home() {
             <p className="card-text text-secondary small mb-4">
               Plataforma para la gestión de solicitudes, incidencias y seguimiento de casos relacionados con los servicios.
             </p>
-            {/* IMPORTANTE: Reemplaza '#' con la URL real de OTRS */}
+           
             <a
               href="#URL_REAL_OTRS"
               className="btn btn-outline-primary mt-auto" // mt-auto empuja el botón abajo
               target="_blank" // Abre en nueva pestaña
-              rel="noopener noreferrer" // Buenas prácticas de seguridad
+              rel="noopener noreferrer" 
             >
               Acceder a OTRS
             </a>

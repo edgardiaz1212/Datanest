@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col, Card, Alert, Spinner, Table } from 'react-bootstrap'; // Added Table
+import { Row, Col, Card, Alert, Spinner, Table } from 'react-bootstrap';
 import { Context } from '../store/appContext';
 import { FiWind, FiThermometer, FiDroplet, FiTool, FiAlertTriangle } from 'react-icons/fi';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom'; // <--- ¡Asegúrate de que esté importado!
+
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -62,53 +64,58 @@ const Dashboard = () => {
 
       {/* Summary Cards */}
       <Row className="mb-4">
-        {/* Total Aires Card */}
+        {/* Total Aires Card - Enlazado */}
         <Col md={6} lg={3} className="mb-3">
-          <Card className="dashboard-card h-100 shadow-sm">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  {/* Lee directamente de dashboardResumen */}
-                  <h3 className="mb-0">{dashboardResumen.totalAires ?? 0}</h3>
-                  <small className="text-muted">Aires Acondicionados</small>
+          <Link to="/aires" className="text-decoration-none text-dark"> {/* Enlace a /aires */}
+            <Card className="dashboard-card h-100 shadow-sm dashboard-card-link"> {/* Añadida clase opcional para hover */}
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 className="mb-0">{dashboardResumen.totalAires ?? 0}</h3>
+                    <small className="text-muted">Aires Acondicionados</small>
+                  </div>
+                  <FiWind size={40} className="text-primary opacity-75" />
                 </div>
-                <FiWind size={40} className="text-primary opacity-75" />
-              </div>
-            </Card.Body>
-          </Card>
+              </Card.Body>
+            </Card>
+          </Link>
         </Col>
 
-        {/* Total Lecturas Card */}
+        {/* Total Lecturas Card - Enlazado */}
          <Col md={6} lg={3} className="mb-3">
-          <Card className="dashboard-card h-100 shadow-sm">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h3 className="mb-0">{dashboardResumen.totalLecturas ?? 0}</h3>
-                  <small className="text-muted">Lecturas Registradas</small>
-                </div>
-                <FiThermometer size={40} className="text-success opacity-75" />
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+           <Link to="/lecturas" className="text-decoration-none text-dark"> {/* Enlace a /lecturas */}
+             <Card className="dashboard-card h-100 shadow-sm dashboard-card-link">
+               <Card.Body>
+                 <div className="d-flex justify-content-between align-items-center">
+                   <div>
+                     <h3 className="mb-0">{dashboardResumen.totalLecturas ?? 0}</h3>
+                     <small className="text-muted">Lecturas Registradas</small>
+                   </div>
+                   <FiThermometer size={40} className="text-success opacity-75" />
+                 </div>
+               </Card.Body>
+             </Card>
+           </Link>
+         </Col>
 
-        {/* Total Mantenimientos Card */}
+        {/* Total Mantenimientos Card - Enlazado */}
         <Col md={6} lg={3} className="mb-3">
-          <Card className="dashboard-card h-100 shadow-sm">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h3 className="mb-0">{dashboardResumen.totalMantenimientos ?? 0}</h3>
-                  <small className="text-muted">Mantenimientos</small>
+          <Link to="/mantenimientos" className="text-decoration-none text-dark"> {/* Enlace a /mantenimientos */}
+            <Card className="dashboard-card h-100 shadow-sm dashboard-card-link">
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 className="mb-0">{dashboardResumen.totalMantenimientos ?? 0}</h3>
+                    <small className="text-muted">Mantenimientos</small>
+                  </div>
+                  <FiTool size={40} className="text-info opacity-75" />
                 </div>
-                <FiTool size={40} className="text-info opacity-75" />
-              </div>
-            </Card.Body>
-          </Card>
+              </Card.Body>
+            </Card>
+          </Link>
         </Col>
 
-        {/* Active Alerts Card */}
+        {/* Active Alerts Card (Sin enlace por ahora, según lo solicitado) */}
         <Col md={6} lg={3} className="mb-3">
           <Card className="dashboard-card h-100 shadow-sm">
             <Card.Body>
