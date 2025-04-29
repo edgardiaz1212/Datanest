@@ -5,10 +5,13 @@ import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { Nav, Button } from 'react-bootstrap';
 import {
-  FiHome, FiWind, FiList, FiBarChart2, FiZap, FiTool, FiAlertCircle, FiUsers, FiMenu, FiBriefcase, 
+  FiHome, FiWind, FiList, FiBarChart2, FiZap, FiTool, FiAlertCircle, FiUsers, FiMenu, FiBriefcase, FiExternalLink
 } from 'react-icons/fi';
 import { Context } from '../store/appContext'; // To check user role
 import { HiOutlineDocumentReport } from 'react-icons/hi'
+import { GrDocumentStore } from "react-icons/gr"
+import { LuBriefcaseConveyorBelt } from "react-icons/lu";
+
 const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
   const navigate = useNavigate();
   const { store } = useContext(Context);
@@ -23,7 +26,9 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     { path: '/mantenimientos', icon: FiTool, label: 'Mantenimientos' },
     { path: '/reportes', icon: HiOutlineDocumentReport, label: 'Reportes' },
     {path: '/proveedores', icon: FiBriefcase, label: 'Proveedores' },
-    {path: '/actividades-proveedor', icon: FiBriefcase, label: 'Actividades Proveedor' },
+    {path: '/actividades-proveedor', icon: LuBriefcaseConveyorBelt, label: 'Actividades Proveedor' },
+    {path: '/servicios-externos', icon: FiExternalLink, label: 'Servicios Externos' },
+    {path: '/documentos', icon: GrDocumentStore, label: 'Procedimientos y Planillas' },
 
     
   ];

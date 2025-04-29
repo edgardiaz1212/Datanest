@@ -29,10 +29,12 @@ import Home from "./pages/Home.jsx"; // Página pública Home
 import Reportes from "./pages/Reportes.jsx"; // Página de reportes
 import Proveedores from "./pages/Proveedores.jsx"; // Página de proveedores
 import ActividadesProveedor  from "./pages/ActividadesProveedor.jsx";
-
+import ExternalServices from "./pages/ExternalServices.jsx";
+import DocumentsPage from "./pages/DocumentsPage.jsx";
 // Tus otros imports (CSS)
 import "../styles/index.css";
 import "../styles/layout.css";
+
 
 // Componente principal de la aplicación
 const App = () => {
@@ -73,6 +75,8 @@ const App = () => {
                      <Route path="/reportes" element={<Reportes />} />
                      <Route path="/proveedores" element={<Proveedores />} />
                      <Route path="/actividades-proveedor" element={<ActividadesProveedor />} />
+                     <Route path="/servicios-externos" element={<ExternalServices />} />
+                     <Route path="/documentos" element={<DocumentsPage />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />
