@@ -3,7 +3,7 @@ import base64
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
 from sqlalchemy.orm import validates
-from datetime import datetime
+from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import Enum as SQLAlchemyEnum # Para el campo estatus
 import enum
@@ -286,7 +286,7 @@ class Lectura(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False) # Asegurar que no sea nulo
-    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now) # Default a ahora
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc)) # Default a ahora
     temperatura = db.Column(db.Float, nullable=False)
     humedad = db.Column(db.Float, nullable=False)
 
@@ -312,7 +312,7 @@ class Mantenimiento(db.Model):
     aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=True)
     otro_equipo_id = db.Column(db.Integer, db.ForeignKey('otros_equipos.id'), nullable=True)
 
-    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
     tipo_mantenimiento = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.Text)
     tecnico = db.Column(db.String(100))
@@ -393,8 +393,8 @@ class UmbralConfiguracion(db.Model):
     notificar_activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
 
     # Timestamps
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # Relación (opcional, solo si no es global)
     aire = db.relationship("AireAcondicionado", back_populates="umbrales")
@@ -429,7 +429,7 @@ class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
     password = db.Column(db.String(255), nullable=False) 
     rol = db.Column(db.String(20), nullable=False, default='operador')
     activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
     ultima_conexion = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password_plaintext):
@@ -471,8 +471,8 @@ class OtroEquipo(db.Model):
     fecha_instalacion = db.Column(db.Date, nullable=True)
     estado_operativo = db.Column(db.Boolean, nullable=False, default=True)
     notas = db.Column(db.Text, nullable=True, comment="Información adicional relevante")
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now)
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # Relación
     mantenimientos = db.relationship("Mantenimiento", back_populates="otro_equipo", cascade="all, delete-orphan")
@@ -504,7 +504,7 @@ class Proveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True) # Nombre único para proveedor
     email_proveedor = db.Column(db.String(120), nullable=True) # Email general del proveedor
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
 
     # Relación uno-a-muchos con ContactoProveedor
     contactos = db.relationship('ContactoProveedor', back_populates='proveedor', lazy=True, cascade='all, delete-orphan')
@@ -536,9 +536,10 @@ class ContactoProveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
     nombre_contacto = db.Column(db.String(150), nullable=False)
+    cargo =db.Column(db.String(100), nullable=True)
     telefono_contacto = db.Column(db.String(50), nullable=True)
     email_contacto = db.Column(db.String(120), nullable=True)
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
 
     # Relación muchos-a-uno con Proveedor
     proveedor = db.relationship('Proveedor', back_populates='contactos')
@@ -580,11 +581,11 @@ class ActividadProveedor(db.Model):
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
     fecha_ocurrencia = db.Column(db.DateTime, nullable=False)
-    fecha_reporte = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    fecha_reporte = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
     numero_reporte = db.Column(db.String(100), nullable=True) # Opcional
     estatus = db.Column(SQLAlchemyEnum(EstatusActividad), nullable=False, default=EstatusActividad.PENDIENTE)
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # Relación muchos-a-uno con Proveedor
     proveedor = db.relationship('Proveedor') # No necesitamos back_populates si no accedemos desde Proveedor

@@ -8,7 +8,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_ , func , distinct, desc
-from datetime import datetime
+from datetime import datetime, timezone
 import traceback
 import sys
 import os 
@@ -437,7 +437,7 @@ def register_tracker_user():
         username=username,
         rol=rol,
         activo=True, # Activo por defecto
-        fecha_registro=datetime.utcnow() # Usar UTC es buena práctica
+        fecha_registro=datetime.now(timezone.utc) # Usar UTC es buena práctica
     )
     new_tracker_user.set_password(password) # Hashear y guardar contraseña
 
@@ -473,7 +473,7 @@ def login_tracker_user():
     if user and user.activo and user.check_password(password):
         try:
             # Actualizar última conexión
-            user.ultima_conexion = datetime.utcnow()
+            user.ultima_conexion = datetime.now(timezone.utc)
             db.session.commit()
 
             access_token = create_access_token(identity=str(user.id)) 
@@ -1494,7 +1494,7 @@ def actualizar_otro_equipo_route(equipo_id):
                     updated = True
 
         if updated:
-            equipo.ultima_modificacion = datetime.utcnow() # Actualizar timestamp
+            equipo.ultima_modificacion = datetime.now(timezone.utc) # Actualizar timestamp
             db.session.commit()
             return jsonify(equipo.serialize()), 200
         else:
