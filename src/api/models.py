@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import Enum as SQLAlchemyEnum # Para el campo estatus
 import enum
+from sqlalchemy.sql import func
 
 db = SQLAlchemy()
 
@@ -17,7 +18,7 @@ class UserForm(db.Model):
     email = db.Column(db.String(120),  nullable=False)
     coordination = db.Column(db.String(120), nullable=False)
     clientName = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     
     # Relación con Racks (un cliente puede tener muchos racks)
     racks = db.relationship('Rack', backref='user_form', lazy=True)
@@ -29,14 +30,14 @@ class UserForm(db.Model):
         return f'<User {self.email}>'
 
     def serialize(self):
-        created_at_formatted = self.created_at.strftime('%d/%m/%Y')
         return {
             "id": self.id,
             "email": self.email,
             "coordination": self.coordination,
             "username": self.username,
             "clientName": self.clientName,
-            "created_at": created_at_formatted,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+
         }
 class Description(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -144,8 +145,9 @@ class Rack(db.Model):
             'fases': self.fases,
             'output_connector': self.output_connector,
             'neutro': self.neutro,
-            'description': self.description.serialize(),
-            'user': self.user.serialize()
+            'description': self.description.serialize() if self.description else None, 
+            # Corregido: usar user_form
+            'user': self.user_form.serialize() if self.user_form else None
         }
 class Equipment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -217,8 +219,9 @@ class Equipment(db.Model):
             'operation_temp':self.operation_temp,
             'thermal_disipation':self.thermal_disipation,
             'power_config':self.power_config,
-            'description':self.description.serialize(),
-            'user':self.user.serialize()
+            'description':self.description.serialize() if self.description else None, # Añadir chequeo por si acaso
+            # Corregido: usar user_form
+            'user':self.user_form.serialize() if self.user_form else None
              }
 # --- Nuevos Modelos (Temperature Tracker) ---
 class AireAcondicionado(db.Model):
@@ -286,7 +289,7 @@ class Lectura(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False) # Asegurar que no sea nulo
-    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc)) # Default a ahora
+    fecha = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     temperatura = db.Column(db.Float, nullable=False)
     humedad = db.Column(db.Float, nullable=False)
 
@@ -297,12 +300,13 @@ class Lectura(db.Model):
         return f"<Lectura(id={self.id}, aire_id={self.aire_id}, fecha='{self.fecha}')>"
 
     def serialize(self):
+        fecha_formatted = self.fecha.isoformat() if self.fecha else None
         return {
             'id': self.id,
             'aire_id': self.aire_id,
-            'fecha': self.fecha.isoformat() if self.fecha else None,
             'temperatura': self.temperatura,
-            'humedad': self.humedad
+            'humedad': self.humedad,
+            'fecha': fecha_formatted, # Clave corregida
         }
 
 class Mantenimiento(db.Model):
@@ -311,8 +315,7 @@ class Mantenimiento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=True)
     otro_equipo_id = db.Column(db.Integer, db.ForeignKey('otros_equipos.id'), nullable=True)
-
-    fecha = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    fecha = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     tipo_mantenimiento = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.Text)
     tecnico = db.Column(db.String(100))
@@ -393,8 +396,8 @@ class UmbralConfiguracion(db.Model):
     notificar_activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
 
     # Timestamps
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    fecha_creacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultima_modificacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     # Relación (opcional, solo si no es global)
     aire = db.relationship("AireAcondicionado", back_populates="umbrales")
@@ -429,8 +432,9 @@ class TrackerUsuario(db.Model): # Renombrado para evitar conflicto con User
     password = db.Column(db.String(255), nullable=False) 
     rol = db.Column(db.String(20), nullable=False, default='operador')
     activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    ultima_conexion = db.Column(db.DateTime, nullable=True)
+    fecha_registro = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultima_conexion = db.Column(db.DateTime(timezone=True), nullable=True)
+
 
     def set_password(self, password_plaintext):
         """Genera y guarda el hash de la contraseña."""
@@ -471,8 +475,8 @@ class OtroEquipo(db.Model):
     fecha_instalacion = db.Column(db.Date, nullable=True)
     estado_operativo = db.Column(db.Boolean, nullable=False, default=True)
     notas = db.Column(db.Text, nullable=True, comment="Información adicional relevante")
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    fecha_creacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultima_modificacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     # Relación
     mantenimientos = db.relationship("Mantenimiento", back_populates="otro_equipo", cascade="all, delete-orphan")
@@ -504,7 +508,7 @@ class Proveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False, unique=True) # Nombre único para proveedor
     email_proveedor = db.Column(db.String(120), nullable=True) # Email general del proveedor
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    fecha_registro = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
 
     # Relación uno-a-muchos con ContactoProveedor
     contactos = db.relationship('ContactoProveedor', back_populates='proveedor', lazy=True, cascade='all, delete-orphan')
@@ -539,7 +543,7 @@ class ContactoProveedor(db.Model):
     cargo =db.Column(db.String(100), nullable=True)
     telefono_contacto = db.Column(db.String(50), nullable=True)
     email_contacto = db.Column(db.String(120), nullable=True)
-    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
+    fecha_registro = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
 
     # Relación muchos-a-uno con Proveedor
     proveedor = db.relationship('Proveedor', back_populates='contactos')
@@ -580,12 +584,12 @@ class ActividadProveedor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
-    fecha_ocurrencia = db.Column(db.DateTime, nullable=False)
+    fecha_ocurrencia = db.Column(db.DateTime(timezone=True), nullable=False)
     fecha_reporte = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
     numero_reporte = db.Column(db.String(100), nullable=True) # Opcional
     estatus = db.Column(SQLAlchemyEnum(EstatusActividad), nullable=False, default=EstatusActividad.PENDIENTE)
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    ultima_modificacion = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    fecha_creacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    ultima_modificacion = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     # Relación muchos-a-uno con Proveedor
     proveedor = db.relationship('Proveedor') # No necesitamos back_populates si no accedemos desde Proveedor

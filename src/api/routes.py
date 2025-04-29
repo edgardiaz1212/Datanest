@@ -2849,8 +2849,8 @@ def crear_actividad_proveedor_route(proveedor_id):
     try:
         # Convertir fechas de string a datetime
         fecha_ocurrencia_dt = datetime.fromisoformat(data['fecha_ocurrencia'])
-        # Fecha reporte puede venir o se usa default
-        fecha_reporte_dt = datetime.fromisoformat(data['fecha_reporte']) if 'fecha_reporte' in data and data['fecha_reporte'] else datetime.utcnow()
+        fecha_reporte_dt = datetime.fromisoformat(data['fecha_reporte']) if 'fecha_reporte' in data and data['fecha_reporte'] else datetime.now(timezone.utc)
+
 
         # Validar y obtener estatus (default es Pendiente)
         estatus_val = data.get('estatus', EstatusActividad.PENDIENTE.value)
