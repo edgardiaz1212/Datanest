@@ -106,7 +106,7 @@ const Register = () => { // Quitamos React.FC
             <Card.Body>
               <Card.Title className="text-center mb-4">
                 <h2>Crear Cuenta</h2>
-                <small className="text-muted">Sistema de Monitoreo AC</small>
+                <small className="text-muted">Sistema de Monitoreo Infra</small>
               </Card.Title>
 
               {/* Muestra errores globales desde el store */}

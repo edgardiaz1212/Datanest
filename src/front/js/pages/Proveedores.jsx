@@ -4,7 +4,7 @@ import {
   Dropdown, InputGroup, ListGroup, Badge
 } from 'react-bootstrap';
 import {
-  FiUsers, FiPlus, FiEdit, FiTrash2, FiMail, FiPhone, FiUser, FiSearch, FiX, FiBriefcase
+  FiUsers, FiPlus, FiEdit, FiTrash2, FiMail, FiPhone, FiUser, FiSearch, FiX, FiBriefcase, FiAward // Añadido FiAward para Cargo
 } from 'react-icons/fi';
 import { Context } from '../store/appContext';
 
@@ -25,7 +25,7 @@ const Proveedores = () => {
   const canDeleteProveedores = currentUser?.rol === 'admin';
 
   // Estado local
-  const [selectedProveedor, setSelectedProveedor] = useState(null); // Almacena el objeto proveedor completo
+  const [selectedProveedor, setSelectedProveedor] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddProveedorModal, setShowAddProveedorModal] = useState(false);
@@ -34,14 +34,15 @@ const Proveedores = () => {
   const [showEditContactoModal, setShowEditContactoModal] = useState(false);
 
   const [proveedorFormData, setProveedorFormData] = useState({ id: null, nombre: '', email_proveedor: '' });
-  const [contactoFormData, setContactoFormData] = useState({ id: null, nombre_contacto: '', telefono_contacto: '', email_contacto: '' });
+  // --- MODIFICADO: Añadir 'cargo' al estado inicial ---
+  const [contactoFormData, setContactoFormData] = useState({ id: null, nombre_contacto: '', cargo: '', telefono_contacto: '', email_contacto: '' });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Efecto para cargar proveedores al montar
   useEffect(() => {
     fetchProveedores();
-    return () => { // Limpieza al desmontar
+    return () => {
       clearProveedoresError();
       clearContactosError();
     };
@@ -52,10 +53,9 @@ const Proveedores = () => {
     if (selectedProveedor?.id) {
       fetchContactosPorProveedor(selectedProveedor.id);
     } else {
-      // Limpiar contactos si no hay proveedor seleccionado
-      actions.fetchContactosPorProveedor(null); // Llama a la acción con null
+      actions.fetchContactosPorProveedor(null);
     }
-  }, [selectedProveedor, fetchContactosPorProveedor]); // Depende del objeto proveedor
+  }, [selectedProveedor, fetchContactosPorProveedor]);
 
   // Filtrar proveedores basado en el término de búsqueda
   const filteredProveedores = proveedores.filter(p =>
@@ -90,15 +90,18 @@ const Proveedores = () => {
 
   const openAddContacto = () => {
     if (!selectedProveedor) return;
-    setContactoFormData({ id: null, nombre_contacto: '', telefono_contacto: '', email_contacto: '' });
+    // --- MODIFICADO: Resetear 'cargo' ---
+    setContactoFormData({ id: null, nombre_contacto: '', cargo: '', telefono_contacto: '', email_contacto: '' });
     setShowAddContactoModal(true);
     clearContactosError();
   };
 
   const openEditContacto = (contacto) => {
+    // --- MODIFICADO: Cargar 'cargo' existente ---
     setContactoFormData({
       id: contacto.id,
       nombre_contacto: contacto.nombre_contacto,
+      cargo: contacto.cargo || '', // Añadido cargo
       telefono_contacto: contacto.telefono_contacto || '',
       email_contacto: contacto.email_contacto || ''
     });
@@ -130,7 +133,6 @@ const Proveedores = () => {
     const success = await updateProveedor(proveedorFormData.id, proveedorFormData);
     setIsSubmitting(false);
     if (success) {
-      // Si el proveedor editado es el seleccionado, actualiza el objeto seleccionado
       if (selectedProveedor?.id === proveedorFormData.id) {
         setSelectedProveedor(prev => ({ ...prev, ...proveedorFormData }));
       }
@@ -143,7 +145,7 @@ const Proveedores = () => {
     if (window.confirm(`¿Está seguro de eliminar el proveedor ${proveedorName} y todos sus contactos? Esta acción no se puede deshacer.`)) {
       const success = await deleteProveedor(proveedorId);
       if (success && selectedProveedor?.id === proveedorId) {
-        setSelectedProveedor(null); // Deseleccionar si se eliminó el proveedor actual
+        setSelectedProveedor(null);
       }
     }
   };
@@ -152,6 +154,7 @@ const Proveedores = () => {
     e.preventDefault();
     if (!selectedProveedor?.id) return;
     setIsSubmitting(true);
+    // El estado 'contactoFormData' ya incluye 'cargo'
     const success = await addContacto(selectedProveedor.id, contactoFormData);
     setIsSubmitting(false);
     if (success) closeModals();
@@ -160,6 +163,7 @@ const Proveedores = () => {
   const handleEditContactoSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    // El estado 'contactoFormData' ya incluye 'cargo'
     const success = await updateContacto(contactoFormData.id, contactoFormData, selectedProveedor?.id);
     setIsSubmitting(false);
     if (success) closeModals();
@@ -221,38 +225,34 @@ const Proveedores = () => {
                 </div>
               )}
               {!proveedoresLoading && !proveedoresError && filteredProveedores.length > 0 && (
-                               <ListGroup variant="flush" className="overflow-auto flex-grow-1">
-                               {filteredProveedores.map(p => (
-                                 <ListGroup.Item
-                                   key={p.id}
-                                   // action // <--- Elimina o comenta esta línea
-                                   active={selectedProveedor?.id === p.id}
-                                   onClick={() => setSelectedProveedor(p)}
-                                   // Añade un cursor pointer para indicar que es clickeable si quitaste 'action'
-                                   style={{ cursor: 'pointer' }}
-                                   className="d-flex justify-content-between align-items-center"
-                                 >
-                                   <div>
-                                     <strong>{p.nombre}</strong>
-                                     {p.email_proveedor && <div className="small text-muted"><FiMail size={12} className="me-1" />{p.email_proveedor}</div>}
-                                   </div>
-                                   <div>
-                                     {/* Los botones internos ahora son válidos */}
-                                     {canManageProveedores && (
-                                       <Button variant="outline-secondary" size="sm" className="me-1 py-0 px-1" onClick={(e) => { e.stopPropagation(); openEditProveedor(p); }}>
-                                         <FiEdit size={12} />
-                                       </Button>
-                                     )}
-                                     {canDeleteProveedores && (
-                                       <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id, p.nombre); }}>
-                                         <FiTrash2 size={12} />
-                                       </Button>
-                                     )}
-                                   </div>
-                                 </ListGroup.Item>
-                               ))}
-                             </ListGroup>
-             
+                 <ListGroup variant="flush" className="overflow-auto flex-grow-1">
+                 {filteredProveedores.map(p => (
+                   <ListGroup.Item
+                     key={p.id}
+                     active={selectedProveedor?.id === p.id}
+                     onClick={() => setSelectedProveedor(p)}
+                     style={{ cursor: 'pointer' }}
+                     className="d-flex justify-content-between align-items-center"
+                   >
+                     <div>
+                       <strong>{p.nombre}</strong>
+                       {p.email_proveedor && <div className="small text-muted"><FiMail size={12} className="me-1" />{p.email_proveedor}</div>}
+                     </div>
+                     <div>
+                       {canManageProveedores && (
+                         <Button variant="outline-secondary" size="sm" className="me-1 py-0 px-1" onClick={(e) => { e.stopPropagation(); openEditProveedor(p); }}>
+                           <FiEdit size={12} />
+                         </Button>
+                       )}
+                       {canDeleteProveedores && (
+                         <Button variant="outline-danger" size="sm" className="py-0 px-1" onClick={(e) => { e.stopPropagation(); handleDeleteProveedorClick(p.id, p.nombre); }}>
+                           <FiTrash2 size={12} />
+                         </Button>
+                       )}
+                     </div>
+                   </ListGroup.Item>
+                 ))}
+               </ListGroup>
               )}
             </Card.Body>
           </Card>
@@ -274,14 +274,12 @@ const Proveedores = () => {
                 </div>
               ) : (
                 <>
-                  {/* Botón Añadir Contacto */}
                   {canManageProveedores && (
                     <Button variant="success" size="sm" className="mb-3" onClick={openAddContacto}>
                       <FiPlus /> Añadir Contacto
                     </Button>
                   )}
 
-                  {/* Tabla de Contactos */}
                   {contactosLoading && (
                     <div className="text-center p-5">
                       <Spinner animation="border" variant="secondary" />
@@ -303,6 +301,8 @@ const Proveedores = () => {
                         <thead>
                           <tr>
                             <th>Nombre Contacto</th>
+                            {/* --- MODIFICADO: Añadir columna Cargo --- */}
+                            <th>Cargo</th>
                             <th>Teléfono</th>
                             <th>Email</th>
                             <th className="text-end">Acciones</th>
@@ -312,6 +312,8 @@ const Proveedores = () => {
                           {contactos.map(c => (
                             <tr key={c.id}>
                               <td><FiUser className="me-1" />{c.nombre_contacto}</td>
+                              {/* --- MODIFICADO: Mostrar Cargo --- */}
+                              <td>{c.cargo ? <><FiAward className="me-1" />{c.cargo}</> : '-'}</td>
                               <td>{c.telefono_contacto ? <><FiPhone className="me-1" />{c.telefono_contacto}</> : '-'}</td>
                               <td>{c.email_contacto ? <><FiMail className="me-1" />{c.email_contacto}</> : '-'}</td>
                               <td className="text-end">
@@ -436,6 +438,17 @@ const Proveedores = () => {
                 placeholder="Ej: Juan Pérez"
               />
             </Form.Group>
+            {/* --- MODIFICADO: Añadir campo Cargo --- */}
+            <Form.Group className="mb-3">
+              <Form.Label>Cargo (Opcional)</Form.Label>
+              <Form.Control
+                type="text"
+                name="cargo"
+                value={contactoFormData.cargo}
+                onChange={handleContactoChange}
+                placeholder="Ej: Gerente de Cuentas"
+              />
+            </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Teléfono (Opcional)</Form.Label>
               <Form.Control
@@ -482,6 +495,16 @@ const Proveedores = () => {
                 value={contactoFormData.nombre_contacto}
                 onChange={handleContactoChange}
                 required
+              />
+            </Form.Group>
+            {/* --- MODIFICADO: Añadir campo Cargo --- */}
+            <Form.Group className="mb-3">
+              <Form.Label>Cargo (Opcional)</Form.Label>
+              <Form.Control
+                type="text"
+                name="cargo"
+                value={contactoFormData.cargo}
+                onChange={handleContactoChange}
               />
             </Form.Group>
             <Form.Group className="mb-3">

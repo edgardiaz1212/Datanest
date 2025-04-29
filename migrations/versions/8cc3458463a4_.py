@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 29ffc380e1d0
+Revision ID: 8cc3458463a4
 Revises: 
-Create Date: 2025-04-28 10:28:01.478171
+Create Date: 2025-04-29 09:27:02.134456
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '29ffc380e1d0'
+revision = '8cc3458463a4'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -37,11 +37,7 @@ def upgrade():
     sa.Column('condensadora_serial', sa.String(length=100), nullable=True),
     sa.Column('condensadora_codigo_inventario', sa.String(length=100), nullable=True),
     sa.Column('condensadora_ubicacion_instalacion', sa.String(length=200), nullable=True, comment='Ubicación específica de la condensadora'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('condensadora_codigo_inventario'),
-    sa.UniqueConstraint('condensadora_serial'),
-    sa.UniqueConstraint('evaporadora_codigo_inventario'),
-    sa.UniqueConstraint('evaporadora_serial')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('description',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -67,11 +63,19 @@ def upgrade():
     sa.Column('fecha_instalacion', sa.Date(), nullable=True),
     sa.Column('estado_operativo', sa.Boolean(), nullable=False),
     sa.Column('notas', sa.Text(), nullable=True, comment='Información adicional relevante'),
-    sa.Column('fecha_creacion', sa.DateTime(), nullable=False),
-    sa.Column('ultima_modificacion', sa.DateTime(), nullable=False),
+    sa.Column('fecha_creacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('ultima_modificacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('codigo_inventario'),
     sa.UniqueConstraint('serial')
+    )
+    op.create_table('proveedores',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nombre', sa.String(length=200), nullable=False),
+    sa.Column('email_proveedor', sa.String(length=120), nullable=True),
+    sa.Column('fecha_registro', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('nombre')
     )
     op.create_table('tracker_usuarios',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -82,8 +86,8 @@ def upgrade():
     sa.Column('password', sa.String(length=255), nullable=False),
     sa.Column('rol', sa.String(length=20), nullable=False),
     sa.Column('activo', sa.Boolean(), nullable=False),
-    sa.Column('fecha_registro', sa.DateTime(), nullable=False),
-    sa.Column('ultima_conexion', sa.DateTime(), nullable=True),
+    sa.Column('fecha_registro', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('ultima_conexion', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
@@ -94,13 +98,37 @@ def upgrade():
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('coordination', sa.String(length=120), nullable=False),
     sa.Column('clientName', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('actividades_proveedor',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('proveedor_id', sa.Integer(), nullable=False),
+    sa.Column('descripcion', sa.Text(), nullable=False),
+    sa.Column('fecha_ocurrencia', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('fecha_reporte', sa.DateTime(), nullable=False),
+    sa.Column('numero_reporte', sa.String(length=100), nullable=True),
+    sa.Column('estatus', sa.Enum('PENDIENTE', 'EN_PROGRESO', 'COMPLETADO', 'CANCELADO', name='estatusactividad'), nullable=False),
+    sa.Column('fecha_creacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('ultima_modificacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['proveedor_id'], ['proveedores.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('contactos_proveedor',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('proveedor_id', sa.Integer(), nullable=False),
+    sa.Column('nombre_contacto', sa.String(length=150), nullable=False),
+    sa.Column('cargo', sa.String(length=100), nullable=True),
+    sa.Column('telefono_contacto', sa.String(length=50), nullable=True),
+    sa.Column('email_contacto', sa.String(length=120), nullable=True),
+    sa.Column('fecha_registro', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['proveedor_id'], ['proveedores.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('lecturas',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aire_id', sa.Integer(), nullable=False),
-    sa.Column('fecha', sa.DateTime(), nullable=False),
+    sa.Column('fecha', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('temperatura', sa.Float(), nullable=False),
     sa.Column('humedad', sa.Float(), nullable=False),
     sa.ForeignKeyConstraint(['aire_id'], ['aires_acondicionados.id'], ),
@@ -110,7 +138,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aire_id', sa.Integer(), nullable=True),
     sa.Column('otro_equipo_id', sa.Integer(), nullable=True),
-    sa.Column('fecha', sa.DateTime(), nullable=False),
+    sa.Column('fecha', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('tipo_mantenimiento', sa.String(length=100), nullable=False),
     sa.Column('descripcion', sa.Text(), nullable=True),
     sa.Column('tecnico', sa.String(length=100), nullable=True),
@@ -164,8 +192,8 @@ def upgrade():
     sa.Column('hum_min', sa.Float(), nullable=False),
     sa.Column('hum_max', sa.Float(), nullable=False),
     sa.Column('notificar_activo', sa.Boolean(), nullable=False),
-    sa.Column('fecha_creacion', sa.DateTime(), nullable=False),
-    sa.Column('ultima_modificacion', sa.DateTime(), nullable=False),
+    sa.Column('fecha_creacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('ultima_modificacion', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['aire_id'], ['aires_acondicionados.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -215,8 +243,11 @@ def downgrade():
     op.drop_table('rack')
     op.drop_table('mantenimientos')
     op.drop_table('lecturas')
+    op.drop_table('contactos_proveedor')
+    op.drop_table('actividades_proveedor')
     op.drop_table('user_form')
     op.drop_table('tracker_usuarios')
+    op.drop_table('proveedores')
     op.drop_table('otros_equipos')
     op.drop_table('description')
     op.drop_table('aires_acondicionados')

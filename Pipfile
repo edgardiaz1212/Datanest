@@ -18,7 +18,8 @@ cloudinary = "*"
 flask-admin = "*"
 typing-extensions = "*"
 flask = "*"
-fpdf2 = "*"lask-jwt-extended = "*"
+fpdf2 = "*"
+flask-jwt-extended = "*"
 
 [requires]
 python_version = "3.12"

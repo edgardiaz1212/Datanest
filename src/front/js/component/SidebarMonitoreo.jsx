@@ -45,7 +45,7 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
   return (
     <div className={`sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="sidebar-header d-flex justify-content-between align-items-center p-3">
-        {!sidebarCollapsed && <h5 className="m-0 text-light">Monitoreo AC</h5>}
+        {!sidebarCollapsed && <h5 className="m-0 text-light">Monitoreo Infra</h5>}
         <Button variant="link" className="text-light p-0 toggle-button" onClick={toggleSidebar}>
           <FiMenu size={24} />
         </Button>

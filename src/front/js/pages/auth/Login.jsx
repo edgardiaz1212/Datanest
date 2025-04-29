@@ -38,7 +38,7 @@ const Login = () => {
             <div className="card-body">
               <div className="card-title text-center mb-4">
                 <h2>Iniciar Sesión</h2>
-                <small className="text-muted">Sistema de Monitoreo AC</small>
+                <small className="text-muted">Sistema de Monitoreo Infra</small>
               </div>
 
               {error && (
