@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom'; // Asegúrate de que Link esté importado
 import '../../styles/home.css';
-import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart, Handshake, Ticket, Archive, FileText, LayoutGrid} from 'lucide-react';
+import { Server, Database, Thermometer, Cable, Settings, Activity, Users, BarChart, Handshake, Ticket, Archive, FileText, LayoutGrid, ShieldCheck} from 'lucide-react';
 import heroBgImage from '../../img/racks1.jpeg';
 
 function Home() {
@@ -237,9 +237,31 @@ function Home() {
           </div>
         </div>
       </div>
-
-    </div> {/* Fin .row */}
-  </div> {/* Fin .container */}
+{/* --- Tarjeta para Sistema de Gestión de Acceso --- */}
+<div className="col-md-4">
+        <div className="card h-100 shadow-sm">
+          <div className="card-body text-center d-flex flex-column">
+            <div className="text-primary mb-3">
+              <ShieldCheck size={40} /> {/* Icono para Gestión de Acceso */}
+            </div>
+            <h3 className="card-title h5 fw-bold">Gestión de Acceso (Seguridad)</h3>
+            <p className="card-text text-secondary small mb-4">
+              Plataforma para la administración y control de acceso físico del personal de seguridad a las instalaciones.
+            </p>
+            {/* IMPORTANTE: Reemplaza '#' con la URL real del Sistema de Acceso */}
+            <a
+              href="#URL_REAL_ACCESO_SEGURIDAD" // ¡Actualiza esta URL!
+              className="btn btn-outline-primary mt-auto"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Acceder al Sistema
+            </a>
+          </div>
+        </div>
+      </div>
+    </div> 
+  </div> 
 </section>
 
 
