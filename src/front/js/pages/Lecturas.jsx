@@ -249,9 +249,9 @@ const Lecturas = () => {
             <Button variant="primary" onClick={handleAdd}>
               <FiPlus className="me-2" /> Agregar Lectura
             </Button>
-             <Button variant="success" onClick={() => setShowExcelModal(true)} className="ms-2">
+             {/* <Button variant="success" onClick={() => setShowExcelModal(true)} className="ms-2">
              Cargar desde Excel
-           </Button>
+           </Button> */}
            </> )}
         </div>
       </div>
