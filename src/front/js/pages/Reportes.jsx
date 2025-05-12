@@ -37,13 +37,27 @@ const Reportes = () => {
 
   useEffect(() => {
     if (airesList && Array.isArray(airesList)) {
-      const grouped = airesList.reduce((acc, aire) => {
+      const newGroupedAires = airesList.reduce((acc, aire) => {
         const tipo = aire.tipo || 'Sin Tipo';
-        if (!acc[tipo]) acc[tipo] = [];
-        acc[tipo].push(aire);
+        const ubicacion = aire.ubicacion || 'Sin Ubicación';
+
+        if (!acc[tipo]) {
+          acc[tipo] = { items: [], byUbicacion: {} };
+        }
+
+        // Si es de tipo 'Precision', agrupar también por ubicación
+        if (tipo.toLowerCase() === 'precision') { // Usar toLowerCase para ser flexible con la capitalización
+          if (!acc[tipo].byUbicacion[ubicacion]) {
+            acc[tipo].byUbicacion[ubicacion] = [];
+          }
+          acc[tipo].byUbicacion[ubicacion].push(aire);
+        } else {
+          // Para otros tipos, agregar directamente a la lista de items del tipo
+          acc[tipo].items.push(aire);
+        }
         return acc;
       }, {});
-      setGroupedAires(grouped);
+      setGroupedAires(newGroupedAires);
     } else {
       setGroupedAires({});
     }
@@ -64,15 +78,16 @@ const Reportes = () => {
   }, [otrosEquiposList]);
 
   // --- Función para generar PDF de Aires por Tipo ---
-  const handleDownloadAiresPDF = (tipo, aires) => {
+  const handleDownloadAiresPDF = (tipo, aires, ubicacion = null) => {
     if (!aires || aires.length === 0) {
-      console.warn('No hay datos de aires para generar el PDF para el tipo:', tipo);
+      console.warn(`No hay datos de aires para generar el PDF para el tipo: ${tipo}` + (ubicacion ? ` y ubicación: ${ubicacion}` : ''));
       return;
     }
 
     const doc = new jsPDF({ orientation: 'landscape' });
     const tableColumn = [
-      "Nombre (TAG)", "Tipo","Capacidad (Ton)", "Marca (Evap.)", "Modelo (Evap.)",
+      "Nombre (TAG)", "Ubicación", "Tipo","Capacidad (Ton)", // Añadida Ubicación General
+      "Marca (Evap.)", "Modelo (Evap.)",
       "Serial (Evap.)", "Inventario (Evap.)",  "Ubicación(Evap.)", "Estado (Evap.)", 
       "Marca (Cond.)", "Modelo (Cond.)",
       "Serial (Cond.)", "Inventario (Cond.)", "Ubicación(Cond.)", "Estado (Cond.)"
@@ -81,13 +96,18 @@ const Reportes = () => {
     const tableRows = [];
 
     doc.setFontSize(18);
-    doc.text(`GDCCE Infraeestructura, Reporte de Aires Acondicionados - Tipo: ${tipo}`, 14, 22);
+    let pdfTitle = `GDCCE Infraestructura, Reporte de Aires Acondicionados - Tipo: ${tipo}`;
+    if (ubicacion) {
+      pdfTitle += ` - Ubicación: ${ubicacion}`;
+    }
+    doc.text(pdfTitle, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
 
     aires.forEach(aire => {
       const aireData = [
         aire.nombre || '-',
+        aire.ubicacion || '-', // Ubicación general del aire
         aire.tipo || '-',
         aire.toneladas !== null ? aire.toneladas : '-',
         aire.evaporadora_marca || '-',
@@ -95,7 +115,7 @@ const Reportes = () => {
         aire.evaporadora_serial || '-',
         aire.evaporadora_codigo_inventario || '-',
         aire.ubicacion || '-',
-        aire.evaporadora_operativa ? 'Operativo' : 'No Operativo',
+        aire.evaporadora_operativa ? 'Operativo' : 'No Operativo', // Aquí debería ser evaporadora_ubicacion_instalacion si es diferente
         aire.condensadora_marca || '-',
         aire.condensadora_modelo || '-',
         aire.condensadora_serial || '-',
@@ -119,7 +139,9 @@ const Reportes = () => {
         margin: { top: 30 }
       });
 
-      const fileName = `reporte_aires_${tipo.replace(/\s+/g, '_')}.pdf`;
+      let fileName = `reporte_aires_${tipo.replace(/\s+/g, '_')}`;
+      if (ubicacion) fileName += `_${ubicacion.replace(/\s+/g, '_')}`;
+      fileName += '.pdf';
       doc.save(fileName);
 
     } catch (error) {
@@ -221,23 +243,51 @@ const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
             Object.keys(groupedAires).length === 0 ? (
               <p>No hay aires acondicionados registrados.</p>
             ) : (
-              Object.entries(groupedAires).map(([tipo, aires]) => (
-                <div key={tipo} className="mb-4">
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <h3>Tipo: {tipo}</h3>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleDownloadAiresPDF(tipo, aires)} // Línea 177
-                      disabled={!aires || aires.length === 0}
-                    >
-                      <i className="fas fa-file-pdf me-2"></i>
-                      Descargar PDF
-                    </Button>
-                  </div>
-                  <ReportesAiresTable airesList={aires} />
-                </div>
-              ))
+              Object.entries(groupedAires).map(([tipo, dataTipo]) => {
+                // Si el tipo es 'Precision' y tiene subgrupos por ubicación
+                if (tipo.toLowerCase() === 'precision' && Object.keys(dataTipo.byUbicacion).length > 0) {
+                  return (
+                    <div key={tipo} className="mb-4">
+                      <h2 className="mb-3" style={{ borderBottom: '2px solid #eee', paddingBottom: '0.5rem' }}>Tipo: {tipo}</h2>
+                      {Object.entries(dataTipo.byUbicacion).map(([ubicacion, airesEnUbicacion]) => (
+                        <div key={`${tipo}-${ubicacion}`} className="mb-3 ps-3"> {/* Indentación para subgrupos */}
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h4>Ubicación: {ubicacion} ({airesEnUbicacion.length} equipos)</h4>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDownloadAiresPDF(tipo, airesEnUbicacion, ubicacion)}
+                              disabled={!airesEnUbicacion || airesEnUbicacion.length === 0}
+                            >
+                              <i className="fas fa-file-pdf me-2"></i>
+                              Descargar PDF (Ubicación)
+                            </Button>
+                          </div>
+                          <ReportesAiresTable airesList={airesEnUbicacion} />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                } else if (dataTipo.items.length > 0) { // Para otros tipos o 'Precision' sin desglose por ubicación
+                  return (
+                    <div key={tipo} className="mb-4">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <h2>Tipo: {tipo} ({dataTipo.items.length} equipos)</h2>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDownloadAiresPDF(tipo, dataTipo.items)}
+                          disabled={!dataTipo.items || dataTipo.items.length === 0}
+                        >
+                          <i className="fas fa-file-pdf me-2"></i>
+                          Descargar PDF (Tipo)
+                        </Button>
+                      </div>
+                      <ReportesAiresTable airesList={dataTipo.items} />
+                    </div>
+                  );
+                } return null; // Si no hay items ni desglose por ubicación para este tipo
+              })
             )
           )}
         </Card.Body>
