@@ -1031,11 +1031,26 @@ def obtener_lecturas_por_aire_route(aire_id):
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
 
     try:
-        # Consultar lecturas ordenadas por fecha
-        lecturas = Lectura.query.filter_by(aire_id=aire_id).order_by(Lectura.fecha.desc()).all()
-        lecturas_serializadas = [lectura.serialize() for lectura in lecturas]
-        return jsonify(lecturas_serializadas), 200
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int) # Default 20 items per page
+        if per_page > 100: # Limitar per_page para evitar sobrecarga
+            per_page = 100
 
+        paginated_lecturas = Lectura.query.filter_by(aire_id=aire_id)\
+            .order_by(Lectura.fecha.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        lecturas_serializadas = [lectura.serialize() for lectura in paginated_lecturas.items]
+
+        return jsonify({
+            "items": lecturas_serializadas,
+            "total_items": paginated_lecturas.total,
+            "total_pages": paginated_lecturas.pages,
+            "current_page": paginated_lecturas.page,
+            "per_page": paginated_lecturas.per_page,
+            "has_next": paginated_lecturas.has_next,
+            "has_prev": paginated_lecturas.has_prev
+        }), 200
     except Exception as e:
         print(f"!!! ERROR inesperado en obtener_lecturas_por_aire_route para aire {aire_id}: {e}", file=sys.stderr)
         traceback.print_exc()

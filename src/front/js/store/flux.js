@@ -54,6 +54,14 @@ const getState = ({ getStore, getActions, setStore }) => {
       lecturasUbicacion: [],
       lecturasUbicacionLoading: false,
       lecturasUbicacionError: null,
+      lecturasPaginationInfo: {
+        total_items: 0,
+        total_pages: 0,
+        current_page: 1,
+        per_page: 20, // Debe coincidir con el default del backend o el que se use
+        has_next: false,
+        has_prev: false,
+      },
       // --- Estadisticas ---
       estadisticasGenerales: null,
       estadisticasAire: null,
@@ -1451,22 +1459,27 @@ const getState = ({ getStore, getActions, setStore }) => {
       },
 
       // --- Lecturas Actions ---
-      fetchLecturas: async (filters = {}) => {
+      fetchLecturas: async (filters = {}, page = 1, perPage = 20) => {
         // Ruta protegida, necesita token
         setStore({ lecturasLoading: true, lecturasError: null });
         try {
           const fetchedAiresList = await getActions().fetchAires();
-
           await getActions().fetchUmbrales();
-// Usar la lista de aires obtenida, o recurrir al store si la primera falló (aunque el store también debería estar actualizado)
-const currentAiresForMap = fetchedAiresList || getStore().aires;
+          const currentAiresForMap = fetchedAiresList || getStore().aires;
 
-if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
-  console.warn("fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError.");
-}
+          if (!fetchedAiresList && !getStore().airesError) { 
+            console.warn("fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError.");
+          }
+
           let url;
+          const queryParams = new URLSearchParams();
+          
           if (filters.aire_id) {
             url = `${process.env.BACKEND_URL}/aires/${filters.aire_id}/lecturas`;
+            // Añadir parámetros de paginación para la ruta de un aire específico
+            queryParams.append('page', page);
+            queryParams.append('per_page', perPage);
+            url = `${url}?${queryParams.toString()}`;
           } else {
             // Decide how to handle no filter - fetch all? Fetch first? Error?
             // Fetching last N readings globally might be better:
@@ -1475,7 +1488,10 @@ if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
             // If using /lecturas/ultimas, the response structure might differ
           }
 
-          const response = await fetch(url, {
+          // Si no hay aire_id, usamos la ruta global que actualmente no está paginada en el backend
+          // de la misma manera. Para este ejemplo, la paginación completa se enfoca en la vista de un aire específico.
+          const finalUrl = filters.aire_id ? url : `${process.env.BACKEND_URL}/lecturas/ultimas?limite=${perPage}`;
+          const response = await fetch(finalUrl, {
             method: "GET",
             headers: getAuthHeaders(), // <--- Usa cabeceras con token
           });
@@ -1488,70 +1504,68 @@ if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
           }
           const data = await response.json();
 
-          // Process data (add aire_nombre, ubicacion) - might need adjustment if using /lecturas/ultimas
-          // Asegurarse que currentAiresForMap sea un array antes de usar reduce
           const airesMap = (Array.isArray(currentAiresForMap) ? currentAiresForMap : []).reduce((acc, aire) => {
             if (aire && typeof aire.id !== 'undefined') { // Comprobación defensiva
                 acc[aire.id] = aire;
             }
             return acc;
           }, {});
-          const processedLecturas = (data || [])
-            .map((lectura) => {
-              // If using /lecturas/ultimas, aire_nombre/ubicacion might already be included
+
+          if (filters.aire_id && data.items) { // Respuesta paginada para un aire específico
+            const processedLecturas = (data.items || []).map((lectura) => {
               const aire = airesMap[lectura.aire_id];
               return {
                 ...lectura,
-                aire_nombre:
-                  lectura.nombre_aire || aire?.nombre || "Desconocido",
-                ubicacion:
-                  lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
+                aire_nombre: lectura.nombre_aire || aire?.nombre || "Desconocido",
+                ubicacion: lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
               };
-            })
-            .sort(
-              (a, b) =>
-                new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-            );
+            });
+            // El backend ya ordena por fecha desc.
+            setStore({
+              lecturas: processedLecturas,
+              lecturasPaginationInfo: {
+                total_items: data.total_items,
+                total_pages: data.total_pages,
+                current_page: data.current_page,
+                per_page: data.per_page,
+                has_next: data.has_next,
+                has_prev: data.has_prev,
+              },
+              lecturasLoading: false
+            });
+          } else if (!filters.aire_id && Array.isArray(data)) { // Respuesta no paginada (lista) para lecturas globales
+            const processedLecturas = (data || []).map((lectura) => {
+                const aire = airesMap[lectura.aire_id];
+                return {
+                    ...lectura,
+                    aire_nombre: lectura.nombre_aire || aire?.nombre || "Desconocido",
+                    ubicacion: lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
+                };
+            }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-          setStore({ lecturas: processedLecturas, lecturasLoading: false });
+            setStore({
+                lecturas: processedLecturas,
+                lecturasPaginationInfo: { // Info de paginación simulada para la vista global limitada
+                    total_items: processedLecturas.length,
+                    total_pages: 1,
+                    current_page: 1,
+                    per_page: perPage,
+                    has_next: false,
+                    has_prev: false,
+                },
+                lecturasLoading: false
+            });
+          } else {
+            console.error("Unexpected data structure from fetchLecturas:", data);
+            throw new Error("Formato de datos de lecturas inesperado.");
+          }
         } catch (error) {
           console.error("Error in fetchLecturas:", error);
           setStore({
             lecturasError: error.message || "Error cargando las lecturas.",
             lecturasLoading: false,
-          });
-        }
-      },
-
-      addLectura: async (aireId, lecturaData) => {
-        // Ruta protegida, necesita token
-        setStore({ lecturasLoading: true, lecturasError: null });
-        try {
-          const url = `${process.env.BACKEND_URL}/aires/${aireId}/lecturas`;
-          const response = await fetch(url, {
-            method: "POST",
-            headers: getAuthHeaders(), // <--- Usa cabeceras con token
-            body: JSON.stringify({
-              fecha_hora: lecturaData.fecha_hora,
-              temperatura: lecturaData.temperatura,
-              humedad: lecturaData.humedad,
-            }),
-          });
-          const responseData = await response.json();
-          if (!response.ok) {
-            if (response.status === 401) getActions().logoutTrackerUser();
-            throw new Error(
-              responseData.msg || `Error adding lectura: ${response.status}`
-            );
-          }
-          // Refetch or add optimistically
-          //await getActions().fetchLecturas({ aire_id: aireId });
-          return true;
-        } catch (error) {
-          console.error("Error in addLectura:", error);
-          setStore({
-            lecturasError: error.message || "Error al guardar la lectura.",
-            lecturasLoading: false,
+            lecturas: [],
+            lecturasPaginationInfo: { total_items: 0, total_pages: 0, current_page: 1, per_page: perPage, has_next: false, has_prev: false },
           });
           return false;
         }

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import { Card, Button, Alert, Spinner } from 'react-bootstrap';
-import { FiPlus } from 'react-icons/fi';
+import { Card, Button, Alert, Spinner, Pagination, Form, Row, Col } from 'react-bootstrap'; // Added Pagination, Form, Row, Col
+import { FiPlus, FiFilter } from 'react-icons/fi'; // Added FiFilter
 import { Context } from '../store/appContext';
 import LecturasFilter from '../component/Lecturas/LecturasFilter.jsx';
 import LecturasTable from '../component/Lecturas/LecturasTable.jsx';
 import LecturasAddModal from '../component/Lecturas/LecturasAddModal.jsx';
 import LecturasExcelUploadModal from '../component/Lecturas/LecturasExcelUploadModal.jsx'; // <--- NUEVO IMPORT
 
+
+const PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
 const Lecturas = () => {
   const { store, actions } = useContext(Context);
@@ -17,6 +19,7 @@ const Lecturas = () => {
     umbrales,
     lecturasLoading: loading,
     lecturasError: error,
+    lecturasPaginationInfo, // <--- NUEVO ESTADO DEL STORE
   } = store;
   const {
     fetchLecturas,
@@ -30,9 +33,10 @@ const Lecturas = () => {
   // Local state
   const [filtroAire, setFiltroAire] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1); // <--- NUEVO ESTADO
+  const [itemsPerPage, setItemsPerPage] = useState(20); // <--- NUEVO ESTADO
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false); // <--- NUEVO ESTADO
-
   const [formData, setFormData] = useState({
     aire_id: '',
     fecha: '',
@@ -47,17 +51,26 @@ const Lecturas = () => {
   const canAdd = !!user;
 
   useEffect(() => {
-    const filters = {};
-    if (filtroAire) {
-      filters.aire_id = filtroAire;
+    // Cargar aires si no están en el store (para el filtro)
+    if (aires.length === 0) {
+        actions.fetchAires();
     }
-    fetchLecturas(filters);
+    // Cargar umbrales si no están en el store (para la tabla)
+    if (umbrales.length === 0) {
+        actions.fetchUmbrales();
+    }
+  }, [actions, aires.length, umbrales.length]);
+
+  useEffect(() => {
+    const filters = filtroAire ? { aire_id: parseInt(filtroAire) } : {};
+    // Solo llama a fetchLecturas si hay un aire seleccionado o si la lógica es para mostrar lecturas globales
+    actions.fetchLecturas(filters, currentPage, itemsPerPage);
 
     // Cleanup function
     return () => {
       if (clearLecturasError) clearLecturasError();
     };
-  }, [filtroAire, fetchLecturas, clearLecturasError]); // Depend on filter and actions
+  }, [filtroAire, currentPage, itemsPerPage, fetchLecturas, clearLecturasError]); // Depend on filter and actions
 
   // --- Handlers ---
 
@@ -65,7 +78,7 @@ const Lecturas = () => {
   const handleFiltrarPorAire = useCallback((aireId) => {
     setFiltroAire(aireId);
     // useEffect will trigger fetchLecturas with the new filter
-  }, []);
+  }, []); // No necesita currentPage aquí, el useEffect se encarga
 
   // Handle form input changes
   const handleChange = useCallback((e) => {
@@ -192,7 +205,7 @@ const Lecturas = () => {
         if (filtroAire) { // filtroAire is the local state of Lecturas.jsx
           currentTableFilters.aire_id = filtroAire;
         }
-        actions.fetchLecturas(currentTableFilters);
+        actions.fetchLecturas(currentTableFilters, currentPage, itemsPerPage); // <--- AÑADIR currentPage e itemsPerPage
       }
     } catch (err) {
       console.error('Error submitting lectura:', err);
@@ -234,6 +247,35 @@ const Lecturas = () => {
     }
   }, []);
 
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= lecturasPaginationInfo.total_pages) {
+        setCurrentPage(pageNumber);
+    }
+  };
+
+  const handleItemsPerPageChange = (e) => {
+      setItemsPerPage(parseInt(e.target.value));
+      setCurrentPage(1); // Reset a la primera página
+  };
+
+  // Lógica para mostrar números de página (simplificada)
+  const pageNumbers = [];
+  if (lecturasPaginationInfo.total_pages > 0) {
+      const totalPages = lecturasPaginationInfo.total_pages;
+      const currentPageNum = lecturasPaginationInfo.current_page;
+      let startPage = Math.max(1, currentPageNum - 2);
+      let endPage = Math.min(totalPages, currentPageNum + 2);
+
+      if (currentPageNum <= 3) {
+          endPage = Math.min(5, totalPages);
+      }
+      if (currentPageNum > totalPages - 3) {
+          startPage = Math.max(1, totalPages - 4);
+      }
+      for (let i = startPage; i <= endPage; i++) {
+          pageNumbers.push(i);
+      }
+  }
   // --- Render Logic ---
   return (
     <div className="container mt-4">
@@ -245,13 +287,21 @@ const Lecturas = () => {
             filtroAire={filtroAire}
             onFilterChange={handleFiltrarPorAire}
           />
+          <Form.Group as={Col} md="auto" controlId="itemsPerPageSelect" className="mb-0">
+            <div className="d-flex align-items-center">
+                <Form.Label className="me-2 mb-0">Por Pág:</Form.Label>
+                <Form.Select size="sm" value={itemsPerPage} onChange={handleItemsPerPageChange} style={{ width: 'auto' }}>
+                    {PER_PAGE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </Form.Select>
+            </div>
+          </Form.Group>
           {canAdd && (<>
             <Button variant="primary" onClick={handleAdd}>
               <FiPlus className="me-2" /> Agregar Lectura
             </Button>
-             {/* <Button variant="success" onClick={() => setShowExcelModal(true)} className="ms-2">
-             Cargar desde Excel
-           </Button> */}
+            <Button variant="success" onClick={() => setShowExcelModal(true)} className="ms-2">
+                Cargar desde Excel
+            </Button>
            </> )}
         </div>
       </div>
@@ -280,6 +330,44 @@ const Lecturas = () => {
             />
           )}
         </Card.Body>
+        {lecturasPaginationInfo && lecturasPaginationInfo.total_items > 0 && lecturasPaginationInfo.total_pages > 1 && (
+            <Card.Footer className="d-flex justify-content-between align-items-center">
+                <span className="text-muted">
+                    Página {lecturasPaginationInfo.current_page} de {lecturasPaginationInfo.total_pages} (Total: {lecturasPaginationInfo.total_items} lecturas)
+                </span>
+                <Pagination className="mb-0">
+                    <Pagination.First 
+                        onClick={() => handlePageChange(1)} 
+                        disabled={lecturasPaginationInfo.current_page === 1} 
+                    />
+                    <Pagination.Prev 
+                        onClick={() => handlePageChange(lecturasPaginationInfo.current_page - 1)} 
+                        disabled={!lecturasPaginationInfo.has_prev} 
+                    />
+                    
+                    {pageNumbers[0] > 1 && <Pagination.Ellipsis disabled />}
+                    {pageNumbers.map(num => (
+                        <Pagination.Item 
+                            key={num} 
+                            active={num === lecturasPaginationInfo.current_page} 
+                            onClick={() => handlePageChange(num)}
+                        >
+                            {num}
+                        </Pagination.Item>
+                    ))}
+                    {pageNumbers[pageNumbers.length - 1] < lecturasPaginationInfo.total_pages && <Pagination.Ellipsis disabled />}
+
+                    <Pagination.Next 
+                        onClick={() => handlePageChange(lecturasPaginationInfo.current_page + 1)} 
+                        disabled={!lecturasPaginationInfo.has_next} 
+                    />
+                    <Pagination.Last 
+                        onClick={() => handlePageChange(lecturasPaginationInfo.total_pages)} 
+                        disabled={lecturasPaginationInfo.current_page === lecturasPaginationInfo.total_pages} 
+                    />
+                </Pagination>
+            </Card.Footer>
+        )}
       </Card>
 
       <LecturasAddModal
@@ -294,7 +382,7 @@ const Lecturas = () => {
       <LecturasExcelUploadModal
         show={showExcelModal}
         onHide={() => setShowExcelModal(false)}
-        onUploadComplete={() => actions.fetchLecturas(filtroAire ? { aire_id: filtroAire } : {})}
+        onUploadComplete={() => actions.fetchLecturas(filtroAire ? { aire_id: parseInt(filtroAire) } : {}, currentPage, itemsPerPage)}
       />
     </div>
   );
