@@ -953,31 +953,50 @@ def agregar_lectura_route(aire_id):
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
 
-    # Validar campos requeridos para lectura
-    if 'fecha' not in data or 'temperatura' not in data or 'humedad' not in data:
-        return jsonify({"msg": "Faltan campos requeridos: fecha, temperatura, humedad"}), 400
+    # Validar campos básicos
+    if 'fecha_hora' not in data or data.get('temperatura') is None: # Temperatura puede ser 0, así que None check
+        return jsonify({"msg": "Faltan campos requeridos: fecha_hora, temperatura"}), 400
+
+    es_tipo_confort = aire.tipo == 'Confort'
+    humedad_data = data.get('humedad') # Puede ser None, string vacío, o un número
+
+    # Humedad es requerida solo si el aire NO es de tipo Confort
+    if not es_tipo_confort and (humedad_data is None or str(humedad_data).strip() == ''):
+        return jsonify({"msg": "El campo 'humedad' es requerido para aires que no son de tipo 'Confort'."}), 400
 
     try:
-        # Convertir fecha de string a datetime
+        # Convertir fecha_hora de string a datetime
         fecha_dt = None
         try:
-            # Asume formato ISO 8601 (ej: 2023-10-27T10:30:00) o YYYY-MM-DD HH:MM:SS
-            fecha_dt = datetime.fromisoformat(data['fecha'])
-            # o fecha_dt = datetime.strptime(data['fecha'], '%Y-%m-%d %H:%M:%S')
+            # El frontend envía 'YYYY-MM-DDTHH:MM:SS'
+            fecha_dt = datetime.fromisoformat(data['fecha_hora'])
         except (ValueError, TypeError):
-            return jsonify({"msg": "Formato de fecha inválido. Usar formato ISO 8601 (YYYY-MM-DDTHH:MM:SS) o YYYY-MM-DD HH:MM:SS."}), 400
+            return jsonify({"msg": "Formato de fecha_hora inválido. Usar formato ISO 8601 (YYYY-MM-DDTHH:MM:SS)."}), 400
 
-        # Convertir temperatura y humedad a float
+        # Convertir temperatura a float
         try:
             temperatura_float = float(data['temperatura'])
-            humedad_float = float(data['humedad'])
         except (ValueError, TypeError):
-             return jsonify({"msg": "Temperatura y humedad deben ser valores numéricos."}), 400
+             return jsonify({"msg": "Temperatura debe ser un valor numérico."}), 400
+
+        humedad_float = None
+        if not es_tipo_confort:
+            # Si no es confort, la humedad debe ser un número válido (ya validamos que no sea None/vacío arriba)
+            try:
+                humedad_float = float(humedad_data)
+            except (ValueError, TypeError):
+                return jsonify({"msg": "Humedad debe ser un valor numérico para este tipo de aire."}), 400
+        elif humedad_data is not None and str(humedad_data).strip() != '':
+            # Si es confort y se proporciona humedad, intentar convertirla. Si falla, se guarda como None.
+            try:
+                humedad_float = float(humedad_data)
+            except (ValueError, TypeError):
+                humedad_float = None # Opcional: podrías loggear una advertencia aquí
 
         # Crear nueva lectura
         nueva_lectura = Lectura(
             aire_id=aire_id,
-            fecha=fecha_dt,
+            fecha=fecha_dt, # El modelo espera 'fecha', pero es un DateTime
             temperatura=temperatura_float,
             humedad=humedad_float
         )

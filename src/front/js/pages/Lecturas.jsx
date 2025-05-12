@@ -7,13 +7,13 @@ import LecturasTable from '../component/Lecturas/LecturasTable.jsx';
 import LecturasAddModal from '../component/Lecturas/LecturasAddModal.jsx';
 
 
-const Lecturas = () => { 
+const Lecturas = () => {
   const { store, actions } = useContext(Context);
   const {
     trackerUser: user,
     lecturas,
-    aires, 
-    umbrales, 
+    aires,
+    umbrales,
     lecturasLoading: loading,
     lecturasError: error,
   } = store;
@@ -22,12 +22,14 @@ const Lecturas = () => {
     addLectura,
     deleteLectura,
     clearLecturasError,
+    // Asumimos que setLecturasError es una acción disponible si se usa en handleSubmit
+    // setLecturasError 
   } = actions;
 
   // Local state
-  const [filtroAire, setFiltroAire] = useState(null); 
+  const [filtroAire, setFiltroAire] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     aire_id: '',
     fecha: '',
@@ -57,99 +59,150 @@ const Lecturas = () => {
   // --- Handlers ---
 
   // Filter by aire
-  const handleFiltrarPorAire = useCallback((aireId) => { 
+  const handleFiltrarPorAire = useCallback((aireId) => {
     setFiltroAire(aireId);
     // useEffect will trigger fetchLecturas with the new filter
   }, []);
 
   // Handle form input changes
-  const handleChange = useCallback((e) => { 
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  }, []);
+    setFormData(prev => {
+      const newState = { ...prev, [name]: value };
+      if (name === 'aire_id') {
+        // Asegurarse de que 'aires' es un array y tiene elementos
+        const selectedAireObj = Array.isArray(aires) && aires.length > 0
+          ? aires.find(a => a.id.toString() === value)
+          : null;
+
+        if (selectedAireObj && selectedAireObj.tipo === 'Confort') {
+          newState.humedad = ''; // Limpiar humedad si el aire seleccionado es de tipo Confort
+        }
+      }
+      return newState;
+    });
+  }, [aires]); // <- Añadir 'aires' como dependencia
 
   // Open Add Modal
   const handleAdd = useCallback(() => {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toTimeString().slice(0, 5); // HH:MM
 
+    // Determinar el estado inicial de humedad basado en el primer aire (si existe)
+    let initialHumedad = '';
+    const defaultAire = Array.isArray(aires) && aires.length > 0 ? aires[0] : null;
+    // Si el aire por defecto es de tipo 'Confort', la humedad debe estar vacía.
+    // El modal se encargará de ocultar el campo si es necesario.
+    // Si no hay aires, o el primero no es 'Confort', la humedad puede empezar vacía
+    // y el usuario la llenará si es necesario.
+    if (defaultAire && defaultAire.tipo === 'Confort') {
+        initialHumedad = '';
+    }
+
+
     setFormData({
-      aire_id: aires.length > 0 ? aires[0].id.toString() : '', // Default to first AC
+      aire_id: defaultAire ? defaultAire.id.toString() : '', // Default to first AC
       fecha: today,
       hora: now,
       temperatura: '',
-      humedad: ''
+      humedad: initialHumedad
     });
     if (clearLecturasError) clearLecturasError(); // Clear previous errors
     setShowModal(true);
   }, [aires, clearLecturasError]); // Dependency on aires
 
   // Delete Reading (calls Flux action)
-  const handleDelete = useCallback(async (id) => { // Remove type number
+  const handleDelete = useCallback(async (id) => {
     if (window.confirm('¿Está seguro de eliminar esta lectura?')) {
       if (clearLecturasError) clearLecturasError();
       // Optionally set a local loading state for the specific row if needed
       const success = await deleteLectura(id);
-      if (!success) {
-        // Error is handled globally
-        alert("Error al eliminar"); 
+      if (!success && !store.lecturasError) { // Si deleteLectura no maneja el error globalmente
+        alert("Error al eliminar la lectura.");
       }
+      // Si deleteLectura ya establece store.lecturasError, el Alert global lo mostrará
     }
-  }, [deleteLectura, clearLecturasError]);
+  }, [deleteLectura, clearLecturasError, store.lecturasError]);
 
-  const handleSubmit = useCallback(async (e) => { 
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (clearLecturasError) clearLecturasError();
     setIsSubmitting(true);
 
     let success = false;
+    const selectedAireObj = Array.isArray(aires) && formData.aire_id
+      ? aires.find(a => a.id.toString() === formData.aire_id)
+      : null;
+    const esTipoConfort = selectedAireObj && selectedAireObj.tipo === 'Confort';
+
     try {
       // Basic Validations
-      if (!formData.aire_id || !formData.fecha || !formData.hora || formData.temperatura === '' || formData.humedad === '') {
-        throw new Error("Todos los campos (Aire, Fecha, Hora, Temp, Hum) son requeridos.");
+      if (!formData.aire_id || !formData.fecha || !formData.hora || formData.temperatura === '') {
+        throw new Error("Todos los campos (Aire, Fecha, Hora, Temp) son requeridos.");
       }
-      const temperaturaNum = parseFloat(formData.temperatura);
-      const humedadNum = parseFloat(formData.humedad);
-      if (isNaN(temperaturaNum) || isNaN(humedadNum)) {
-        throw new Error("Temperatura y Humedad deben ser números válidos.");
+      // Humedad es requerida solo si el aire NO es de tipo Confort
+      if (!esTipoConfort && (formData.humedad === '' || formData.humedad === null || formData.humedad === undefined)) {
+        throw new Error("Humedad es requerida para este tipo de aire.");
       }
+
+      // Parsear y validar temperatura explícitamente
+      const temperaturaStr = formData.temperatura; // La validación de que no es '' ya se hizo arriba.
+      const temperaturaNum = parseFloat(temperaturaStr);
+
+      if (isNaN(temperaturaNum)) { // Esta es la validación crucial
+        throw new Error("Temperatura debe ser un número válido. Por favor, ingrese solo dígitos y un punto decimal si es necesario.");
+      }
+      // Parsear humedad solo si no es tipo Confort y hay un valor
+      const humedadNum = !esTipoConfort && (formData.humedad !== '' && formData.humedad !== null && formData.humedad !== undefined)
+        ? parseFloat(formData.humedad)
+        : null;
+
+      
+      // Validar humedadNum solo si se esperaba y se intentó parsear
+      if (!esTipoConfort && (formData.humedad !== '' && formData.humedad !== null && formData.humedad !== undefined) && isNaN(humedadNum)) {
+        throw new Error("Humedad debe ser un número válido.");
+      }
+
       const aireIdNum = parseInt(formData.aire_id, 10);
       if (isNaN(aireIdNum)) {
-           throw new Error("Selección de Aire inválida.");
+        throw new Error("Selección de Aire inválida.");
       }
 
-      // Combine date and time for backend (adjust format if backend expects differently)
-      // Ensure time has seconds if backend expects HH:MM:SS
       const timeWithSeconds = formData.hora.includes(':') ? `${formData.hora}:00` : '00:00:00';
-      const fechaHoraString = `${formData.fecha}T${timeWithSeconds}`; 
+      const fechaHoraString = `${formData.fecha}T${timeWithSeconds}`;
 
       const payload = {
-        // aire_id is part of the URL for the action
-        fecha_hora: fechaHoraString, // Combined date and time string
+        fecha_hora: fechaHoraString,
         temperatura: temperaturaNum,
-        humedad: humedadNum
+        humedad: esTipoConfort ? null : humedadNum // Enviar null si es Confort, sino el valor parseado
       };
-
+      console.log("Payload a enviar:", JSON.stringify(payload));
+      
+      
       // Call Flux action
       success = await addLectura(aireIdNum, payload);
 
       if (success) {
         setShowModal(false); // Close modal on success
+        // Opcional: resetear formData aquí si no se hace en handleAdd o al cerrar el modal
+        // setFormData({ aire_id: '', fecha: '', hora: '', temperatura: '', humedad: '' });
       }
     } catch (err) {
       console.error('Error submitting lectura:', err);
-      // Set error in Flux store
-      actions.setLecturasError(err.message || 'Error al guardar la lectura.'); // Need to create this action
-      setError(err.message || 'Error al guardar la lectura.');
+      // Set error in Flux store (asegúrate que actions.setLecturasError exista y funcione)
+      if (actions.setLecturasError) {
+        actions.setLecturasError(err.message || 'Error al guardar la lectura.');
+      } else {
+        // Fallback si la acción no existe, aunque el Alert global ya usa store.error
+        // Podrías tener un estado de error local para el modal si es preferible
+        console.warn("actions.setLecturasError no está definida en el contexto.");
+      }
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, addLectura, clearLecturasError]); 
+  }, [formData, addLectura, clearLecturasError, actions, aires]);
 
-  // --- Formatting Helpers (remain the same, remove types) ---
+  // --- Formatting Helpers ---
   const formatearFecha = useCallback((fechaStr) => {
     if (!fechaStr) return 'N/A';
     try {
@@ -167,7 +220,6 @@ const Lecturas = () => {
     try {
       const fecha = new Date(fechaStr);
       if (isNaN(fecha.getTime())) return 'Hora inválida';
-      // Use 24-hour format explicitly
       return fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
     } catch (e) {
       console.error("Error formatting time:", fechaStr, e);
@@ -177,18 +229,15 @@ const Lecturas = () => {
 
   // --- Render Logic ---
   return (
-    <div className="container mt-4"> {/* Added container */}
-      {/* Header and Filters */}
+    <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <h1>Lecturas de Sensores</h1>
         <div className="d-flex align-items-center flex-wrap gap-2">
-          {/* Filter Component */}
           <LecturasFilter
-            aires={aires} // Pass aires from store
+            aires={aires}
             filtroAire={filtroAire}
             onFilterChange={handleFiltrarPorAire}
           />
-          {/* Add button only if user can add */}
           {canAdd && (
             <Button variant="primary" onClick={handleAdd}>
               <FiPlus className="me-2" /> Agregar Lectura
@@ -197,52 +246,47 @@ const Lecturas = () => {
         </div>
       </div>
 
-      {/* Global Error Alert */}
       {error && (
         <Alert variant="danger" dismissible onClose={clearLecturasError}>
           {error}
         </Alert>
       )}
 
-      {/* Card with Table */}
       <Card className="dashboard-card">
         <Card.Body>
-          {/* Table Component */}
-          <LecturasTable
-            lecturas={lecturas} // Pass lecturas from store
-            loading={loading} // Pass global loading state
-            canDelete={canDelete}
-            onDelete={handleDelete}
-            onAdd={handleAdd} // Pass add handler for empty state button
-            formatearFecha={formatearFecha}
-            formatearHora={formatearHora}
-            umbrales={umbrales} // Pass umbrales from store
-            filtroAire={filtroAire} // Pass current filter for empty state message
-            aires={aires} // Pass aires for empty state message
-          />
+          {loading && <div className="text-center"><Spinner animation="border" /> <p>Cargando lecturas...</p></div>}
+          {!loading && (
+            <LecturasTable
+              lecturas={lecturas}
+              canDelete={canDelete}
+              onDelete={handleDelete}
+              onAdd={handleAdd}
+              formatearFecha={formatearFecha}
+              formatearHora={formatearHora}
+              umbrales={umbrales}
+              filtroAire={filtroAire}
+              aires={aires}
+            />
+          )}
         </Card.Body>
       </Card>
 
-      {/* Add Modal Component */}
       <LecturasAddModal
         show={showModal}
-        onHide={() => !isSubmitting && setShowModal(false)} // Prevent close during submit
-        aires={aires} // Pass aires from store
+        onHide={() => !isSubmitting && setShowModal(false)}
+        aires={aires}
         formData={formData}
         onChange={handleChange}
         onSubmit={handleSubmit}
-        isSubmitting={isSubmitting} // Pass submitting state
-        // Pass error and clearError if the modal should display/clear them
-        // error={error}
-        // clearError={clearLecturasError}
+        isSubmitting={isSubmitting}
       />
     </div>
   );
 };
 
-// Add PropTypes
-Lecturas.propTypes = {
-  // No props needed for the main page component itself
-};
+// Add PropTypes (opcional pero recomendado)
+// Lecturas.propTypes = {
+// No props needed for the main page component itself
+// };
 
 export default Lecturas;

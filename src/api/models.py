@@ -291,7 +291,7 @@ class Lectura(db.Model):
     aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False) # Asegurar que no sea nulo
     fecha = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     temperatura = db.Column(db.Float, nullable=False)
-    humedad = db.Column(db.Float, nullable=False)
+    humedad = db.Column(db.Float, nullable=True)
 
     # Relación
     aire = db.relationship("AireAcondicionado", back_populates="lecturas")

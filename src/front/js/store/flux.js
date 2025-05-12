@@ -1518,7 +1518,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             method: "POST",
             headers: getAuthHeaders(), // <--- Usa cabeceras con token
             body: JSON.stringify({
-              fecha: lecturaData.fecha_hora,
+              fecha_hora: lecturaData.fecha_hora,
               temperatura: lecturaData.temperatura,
               humedad: lecturaData.humedad,
             }),
