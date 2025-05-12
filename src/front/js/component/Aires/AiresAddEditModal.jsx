@@ -100,14 +100,22 @@ const AiresAddEditModal = ({
                                         <Col md={3}>
                                              <Form.Group className="mb-3" controlId="formTipoAire">
                                                 <Form.Label>Tipo</Form.Label>
-                                                <Form.Control
+                                                <Form.Select
                                                     type="text"
                                                     name="tipo"
                                                     value={formData.tipo || ''} // Maneja null/undefined
                                                     onChange={onChange}
-                                                    placeholder="Ej: Precision, Confort"
+                                                    
                                                     disabled={isSubmitting}
-                                                />
+                                                    aria-label="Seleccione un tipo de aire acondicionado"
+                                                    >
+                                                        <option value="">Seleccione un tipo</option>
+                                                        <option value="Precision">Precisión</option>
+                                                        <option value="Confort">Confort</option>
+                                                        {/* Puedes agregar más opciones si es necesario
+                                                        <option value="Otro">Otro (especificar)</option>
+                                                        */}
+                                                    </Form.Select>
                                             </Form.Group>
                                         </Col>
                                         <Col md={3}>
