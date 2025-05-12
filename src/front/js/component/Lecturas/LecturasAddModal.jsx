@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 
@@ -12,14 +12,41 @@ const LecturasAddModal = ({
   // Set default value directly here using JavaScript default parameters
   isSubmitting = false
 }) => {
-  // Encuentra el aire seleccionado para determinar si se debe mostrar el campo de humedad
-  const selectedAire = Array.isArray(aires) && formData.aire_id
-    ? aires.find(a => a.id.toString() === formData.aire_id)
-    : null;
+  const [selectedTipoAire, setSelectedTipoAire] = useState('');
 
+  // Obtener los tipos únicos de la lista de aires
+  const tiposDeAireUnicos = useMemo(() => {
+    if (!Array.isArray(aires)) return [];
+    const tipos = aires.map(a => a.tipo || 'Sin Tipo').filter(Boolean);
+    return ['Todos', ...new Set(tipos)]; // Añadir "Todos" como opción
+  }, [aires]);
+
+  // Filtrar aires basados en el tipo seleccionado
+  const airesFiltradosPorTipo = useMemo(() => {
+    if (!Array.isArray(aires)) return [];
+    if (!selectedTipoAire || selectedTipoAire === 'Todos') {
+      return aires;
+    }
+    return aires.filter(a => (a.tipo || 'Sin Tipo') === selectedTipoAire);
+  }, [aires, selectedTipoAire]);
+
+  // Efecto para resetear el aire_id si el tipo cambia y el aire seleccionado ya no es válido
+  useEffect(() => {
+    if (formData.aire_id && selectedTipoAire && selectedTipoAire !== 'Todos') {
+      const aireActual = aires.find(a => a.id.toString() === formData.aire_id);
+      if (aireActual && (aireActual.tipo || 'Sin Tipo') !== selectedTipoAire) {
+        onChange({ target: { name: 'aire_id', value: '' } }); // Resetea la selección de aire
+      }
+    }
+  }, [selectedTipoAire, formData.aire_id, aires, onChange]);
+
+  // Encuentra el aire seleccionado para determinar si se debe mostrar el campo de humedad
+  const selectedAireObj = Array.isArray(airesFiltradosPorTipo) && formData.aire_id
+    ? airesFiltradosPorTipo.find(a => a.id.toString() === formData.aire_id)
+    : null;
   // Mostrar el campo de humedad si no hay un aire seleccionado (estado inicial)
   // o si el aire seleccionado no es de tipo 'Confort'.
-  const mostrarCampoHumedad = !selectedAire || (selectedAire && selectedAire.tipo !== 'Confort');
+  const mostrarCampoHumedad = !selectedAireObj || (selectedAireObj && selectedAireObj.tipo !== 'Confort');
 
 
   return (
@@ -31,30 +58,52 @@ const LecturasAddModal = ({
       </Modal.Header>
       <Form onSubmit={onSubmit}>
         <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Aire Acondicionado <span className="text-danger">*</span></Form.Label>
-            <Form.Select
-              name="aire_id"
-              value={formData.aire_id || ''} // Handle potential undefined/null
-              onChange={onChange}
-              required
-              disabled={isSubmitting || !aires || aires.length === 0} // Disable if submitting or no aires
-              aria-label="Seleccione un aire acondicionado"
-            >
-              <option value="">Seleccione un aire acondicionado</option>
-              {/* Add defensive check for aires array */}
-              {Array.isArray(aires) && aires.map(aire => (
-                // Add defensive check for aire object and id
-                aire && typeof aire.id !== 'undefined' ? ( // Check for id existence specifically
-                  <option key={aire.id} value={aire.id.toString()}> {/* Ensure value is string */}
-                    {aire.nombre || 'Nombre no disponible'} - {aire.ubicacion || 'Ubicación no disponible'}
-                  </option>
-                ) : null
-              ))}
-            </Form.Select>
-             {/* Optional: Message if no ACs */}
-             {(!aires || aires.length === 0) && <Form.Text muted>No hay aires disponibles para seleccionar.</Form.Text>}
-          </Form.Group>
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Tipo de Aire</Form.Label>
+                <Form.Select
+                  value={selectedTipoAire}
+                  onChange={(e) => setSelectedTipoAire(e.target.value)}
+                  disabled={isSubmitting || !tiposDeAireUnicos || tiposDeAireUnicos.length <= 1}
+                  aria-label="Seleccione un tipo de aire"
+                >
+                  {tiposDeAireUnicos.map(tipo => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Aire Acondicionado <span className="text-danger">*</span></Form.Label>
+                <Form.Select
+                  name="aire_id"
+                  value={formData.aire_id || ''}
+                  onChange={onChange}
+                  required
+                  disabled={isSubmitting || !airesFiltradosPorTipo || airesFiltradosPorTipo.length === 0}
+                  aria-label="Seleccione un aire acondicionado"
+                >
+                  <option value="">Seleccione un aire</option>
+                  {airesFiltradosPorTipo.map(aire => (
+                    aire && typeof aire.id !== 'undefined' ? (
+                      <option key={aire.id} value={aire.id.toString()}>
+                        {aire.nombre || 'N/A'} ({aire.ubicacion || 'N/A'})
+                      </option>
+                    ) : null
+                  ))}
+                </Form.Select>
+                {(!airesFiltradosPorTipo || airesFiltradosPorTipo.length === 0) && (
+                  <Form.Text muted>
+                    {selectedTipoAire && selectedTipoAire !== 'Todos'
+                      ? `No hay aires de tipo "${selectedTipoAire}".`
+                      : "No hay aires disponibles."}
+                  </Form.Text>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
 
           <Row>
             <Col md={6}>
@@ -105,16 +154,14 @@ const LecturasAddModal = ({
             {mostrarCampoHumedad && (
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  {/* El asterisco de requerido se muestra condicionalmente */}
-                  <Form.Label>Humedad (%) {selectedAire && selectedAire.tipo !== 'Confort' && <span className="text-danger">*</span>}</Form.Label>
+                  <Form.Label>Humedad (%) {selectedAireObj && selectedAireObj.tipo !== 'Confort' && <span className="text-danger">*</span>}</Form.Label>
                   <Form.Control
                     type="number"
                     step="0.1" // Allow decimals
                     name="humedad"
                     value={formData.humedad ?? ''}
                     onChange={onChange}
-                    // HTML5 validation, la validación principal está en handleSubmit en Lecturas.jsx
-                    required={selectedAire && selectedAire.tipo !== 'Confort'} 
+                    required={selectedAireObj && selectedAireObj.tipo !== 'Confort'}
                     placeholder="Ej: 55.0"
                     disabled={isSubmitting}
                   />

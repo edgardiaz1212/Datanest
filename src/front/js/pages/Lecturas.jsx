@@ -104,16 +104,12 @@ const Lecturas = () => {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toTimeString().slice(0, 5); // HH:MM
 
-    // Determinar el estado inicial de humedad basado en el primer aire (si existe)
-    let initialHumedad = '';
-    const defaultAire = Array.isArray(aires) && aires.length > 0 ? aires[0] : null;
-    // Si el aire por defecto es de tipo 'Confort', la humedad debe estar vacía.
-    // El modal se encargará de ocultar el campo si es necesario.
-    // Si no hay aires, o el primero no es 'Confort', la humedad puede empezar vacía
-    // y el usuario la llenará si es necesario.
-    if (defaultAire && defaultAire.tipo === 'Confort') {
-        initialHumedad = '';
-    }
+    // El modal ahora maneja la lógica de qué aire seleccionar inicialmente
+    // y cómo manejar la humedad basada en el tipo.
+    // Simplemente inicializamos los campos básicos.
+    // El `aire_id` se dejará vacío para que el modal lo maneje,
+    // o puedes seleccionar el primero si lo prefieres, pero el modal
+    // podría resetearlo si el tipo no coincide con el filtro inicial del modal.
 
 
     setFormData({
@@ -121,7 +117,7 @@ const Lecturas = () => {
       fecha: today,
       hora: now,
       temperatura: '',
-      humedad: initialHumedad
+      humedad: '' // El modal ajustará la visibilidad y requerimiento de humedad
     });
     if (clearLecturasError) clearLecturasError(); // Clear previous errors
     setShowModal(true);
