@@ -149,7 +149,7 @@ LecturasTable.propTypes = {
     aire_id: PropTypes.number.isRequired,
     fecha: PropTypes.string.isRequired,
     temperatura: PropTypes.number.isRequired,
-    humedad: PropTypes.number.isRequired,
+    humedad: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]), // Permitir número o null
     aire_nombre: PropTypes.string,
     ubicacion: PropTypes.string,
   })).isRequired,

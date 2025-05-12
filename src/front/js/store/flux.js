@@ -840,12 +840,13 @@ const getState = ({ getStore, getActions, setStore }) => {
           const data = await response.json();
           if (Array.isArray(data)) {
             setStore({ aires: data, airesLoading: false });
+            return data;
           } else {
             throw new Error(
               "Formato de respuesta inesperado del servidor al listar aires."
             );
           }
-          return true;
+          
         } catch (error) {
           console.error("Error in fetchAires:", error);
           setStore({
@@ -853,7 +854,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             airesLoading: false,
             aires: [],
           });
-          return false;
+          return null;
         }
       },
 
@@ -1450,9 +1451,15 @@ const getState = ({ getStore, getActions, setStore }) => {
         // Ruta protegida, necesita token
         setStore({ lecturasLoading: true, lecturasError: null });
         try {
-          await getActions().fetchAires();
-          await getActions().fetchUmbrales();
+          const fetchedAiresList = await getActions().fetchAires();
 
+          await getActions().fetchUmbrales();
+// Usar la lista de aires obtenida, o recurrir al store si la primera falló (aunque el store también debería estar actualizado)
+const currentAiresForMap = fetchedAiresList || getStore().aires;
+
+if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
+  console.warn("fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError.");
+}
           let url;
           if (filters.aire_id) {
             url = `${process.env.BACKEND_URL}/aires/${filters.aire_id}/lecturas`;
@@ -1478,8 +1485,11 @@ const getState = ({ getStore, getActions, setStore }) => {
           const data = await response.json();
 
           // Process data (add aire_nombre, ubicacion) - might need adjustment if using /lecturas/ultimas
-          const airesMap = getStore().aires.reduce((acc, aire) => {
-            acc[aire.id] = aire;
+          // Asegurarse que currentAiresForMap sea un array antes de usar reduce
+          const airesMap = (Array.isArray(currentAiresForMap) ? currentAiresForMap : []).reduce((acc, aire) => {
+            if (aire && typeof aire.id !== 'undefined') { // Comprobación defensiva
+                acc[aire.id] = aire;
+            }
             return acc;
           }, {});
           const processedLecturas = (data || [])
@@ -1531,7 +1541,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             );
           }
           // Refetch or add optimistically
-          await getActions().fetchLecturas({ aire_id: aireId });
+          //await getActions().fetchLecturas({ aire_id: aireId });
           return true;
         } catch (error) {
           console.error("Error in addLectura:", error);

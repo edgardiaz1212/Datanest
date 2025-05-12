@@ -184,8 +184,12 @@ const Lecturas = () => {
 
       if (success) {
         setShowModal(false); // Close modal on success
-        // Opcional: resetear formData aquí si no se hace en handleAdd o al cerrar el modal
-        // setFormData({ aire_id: '', fecha: '', hora: '', temperatura: '', humedad: '' });
+        // After successful add, refetch lecturas based on the current filter
+        const currentTableFilters = {};
+        if (filtroAire) { // filtroAire is the local state of Lecturas.jsx
+          currentTableFilters.aire_id = filtroAire;
+        }
+        actions.fetchLecturas(currentTableFilters);
       }
     } catch (err) {
       console.error('Error submitting lectura:', err);
@@ -258,6 +262,7 @@ const Lecturas = () => {
           {!loading && (
             <LecturasTable
               lecturas={lecturas}
+              loading = {loading}
               canDelete={canDelete}
               onDelete={handleDelete}
               onAdd={handleAdd}
