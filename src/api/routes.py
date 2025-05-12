@@ -2494,7 +2494,7 @@ def obtener_detalles_alertas_activas_helper():
     for lectura in ultimas_lecturas_records:
         aire_obj = aires_map.get(lectura.aire_id)
         if not aire_obj: 
-            continue
+             continue
         
         if not aire_obj.evaporadora_operativa or not aire_obj.condensadora_operativa:
             continue # Solo alertas ambientales para aires operativos
