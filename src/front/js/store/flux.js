@@ -94,6 +94,10 @@ const getState = ({ getStore, getActions, setStore }) => {
       uploadDocumentoSuccess: null,
       deletingDocumentoId: null, // Para saber qué doc se está borrando (opcional)
       deleteDocumentoError: null,
+      // --- Detailed Alerts State ---
+      detailedAlertsList: [],
+      detailedAlertsLoading: false,
+      detailedAlertsError: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -2580,6 +2584,36 @@ if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
       },
       clearDeleteDocumentoError: () => {
         setStore({ deleteDocumentoError: null });
+      },
+
+      // --- Detailed Alerts Actions ---
+      fetchDetailedAlerts: async () => {
+        setStore({ detailedAlertsLoading: true, detailedAlertsError: null });
+        try {
+            const response = await fetch(`${process.env.BACKEND_URL}/api/alertas_activas_detalladas`, {
+                method: "GET",
+                headers: getAuthHeaders(),
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                if (response.status === 401) getActions().logoutTrackerUser();
+                throw new Error(errorData.msg || `Error fetching detailed alerts: ${response.status}`);
+            }
+            const data = await response.json();
+            setStore({ detailedAlertsList: data || [], detailedAlertsLoading: false }); // Ensure data is an array
+            return data;
+        } catch (error) {
+            console.error("Error in fetchDetailedAlerts:", error);
+            setStore({
+                detailedAlertsError: error.message || "Error cargando la lista de alertas detalladas.",
+                detailedAlertsLoading: false,
+                detailedAlertsList: [],
+            });
+            return null;
+        }
+      },
+      clearDetailedAlertsError: () => {
+          setStore({ detailedAlertsError: null });
       },
     },
   };

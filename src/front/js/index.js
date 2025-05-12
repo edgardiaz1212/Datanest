@@ -31,6 +31,8 @@ import Proveedores from "./pages/Proveedores.jsx"; // Página de proveedores
 import ActividadesProveedor  from "./pages/ActividadesProveedor.jsx";
 import ExternalServices from "./pages/ExternalServices.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
+import AlertasActivas from "./pages/AlertasActivas.jsx";
+
 // Tus otros imports (CSS)
 import "../styles/index.css";
 import "../styles/layout.css";
@@ -77,6 +79,7 @@ const App = () => {
                      <Route path="/actividades-proveedor" element={<ActividadesProveedor />} />
                      <Route path="/servicios-externos" element={<ExternalServices />} />
                      <Route path="/documentos" element={<DocumentsPage />} />
+                     <Route path="alertas-activas" element={<AlertasActivas />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />

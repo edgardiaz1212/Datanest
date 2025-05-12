@@ -115,19 +115,21 @@ const Dashboard = () => {
           </Link>
         </Col>
 
-        {/* Active Alerts Card (Sin enlace por ahora, según lo solicitado) */}
+        {/* Active Alerts Card - Enlazado */}
         <Col md={6} lg={3} className="mb-3">
-          <Card className="dashboard-card h-100 shadow-sm">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h3 className="mb-0">{dashboardResumen.alertas_activas_count ?? 0}</h3>
-                  <small className="text-muted">Alertas Activas</small>
+          <Link to="/alertas-activas" className="text-decoration-none text-dark"> {/* Enlace a /alertas-activas */}
+            <Card className="dashboard-card h-100 shadow-sm dashboard-card-link">
+              <Card.Body>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h3 className="mb-0">{dashboardResumen.alertas_activas_count ?? 0}</h3>
+                    <small className="text-muted">Alertas Activas</small>
+                  </div>
+                  <FiAlertTriangle size={40} className="text-warning opacity-75" />
                 </div>
-                <FiAlertTriangle size={40} className="text-warning opacity-75" />
-              </div>
-            </Card.Body>
-          </Card>
+              </Card.Body>
+            </Card>
+          </Link>
         </Col>
       </Row>
 

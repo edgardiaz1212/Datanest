@@ -2423,6 +2423,102 @@ def eliminar_umbral_configuracion_route(umbral_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el umbral."}), 500
 
+def obtener_detalles_alertas_activas_helper():
+    alertas_detalladas = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # 1. Obtener todos los aires acondicionados con su información básica
+    aires = AireAcondicionado.query.all()
+    if not aires:
+        return []
+
+    aires_map = {aire.id: aire for aire in aires}
+
+    # 2. Verificar estado operativo para todos los aires
+    for aire_id, aire_obj in aires_map.items():
+        if not aire_obj.evaporadora_operativa:
+            alertas_detalladas.append({
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.",
+                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+            })
+        if not aire_obj.condensadora_operativa:
+            alertas_detalladas.append({
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
+                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+            })
+
+    # 3. Obtener la última lectura de cada aire
+    subquery_ultimas_fechas = db.session.query(
+        Lectura.aire_id,
+        func.max(Lectura.fecha).label('max_fecha')
+    ).group_by(Lectura.aire_id).subquery()
+
+    ultimas_lecturas_records = db.session.query(Lectura).join(
+        subquery_ultimas_fechas,
+        (Lectura.aire_id == subquery_ultimas_fechas.c.aire_id) & (Lectura.fecha == subquery_ultimas_fechas.c.max_fecha)
+    ).all()
+
+    # 4. Pre-cargar umbrales activos
+    global_umbrales = UmbralConfiguracion.query.filter(
+        UmbralConfiguracion.notificar_activo == True,
+        UmbralConfiguracion.es_global == True
+    ).all()
+    specific_umbrales_raw = UmbralConfiguracion.query.filter(
+        UmbralConfiguracion.notificar_activo == True,
+        UmbralConfiguracion.es_global == False,
+        UmbralConfiguracion.aire_id != None
+    ).all()
+    specific_umbrales_dict = {}
+    for u_spec in specific_umbrales_raw:
+        if u_spec.aire_id not in specific_umbrales_dict:
+            specific_umbrales_dict[u_spec.aire_id] = []
+        specific_umbrales_dict[u_spec.aire_id].append(u_spec)
+
+    # 5. Verificar cada última lectura contra los umbrales aplicables
+    for lectura in ultimas_lecturas_records:
+        aire_obj = aires_map.get(lectura.aire_id)
+        if not aire_obj: 
+            continue
+        
+        if not aire_obj.evaporadora_operativa or not aire_obj.condensadora_operativa:
+            continue # Solo alertas ambientales para aires operativos
+
+        umbrales_specific_para_aire = specific_umbrales_dict.get(lectura.aire_id, [])
+        umbrales_aplicables = global_umbrales + umbrales_specific_para_aire
+
+        if not umbrales_aplicables:
+            continue
+
+        for umbral in umbrales_aplicables:
+            try:
+                temp_lectura = float(lectura.temperatura)
+                hum_lectura = float(lectura.humedad) if lectura.humedad is not None else None
+                temp_min, temp_max = float(umbral.temp_min), float(umbral.temp_max)
+                hum_min, hum_max = float(umbral.hum_min), float(umbral.hum_max)
+
+                if temp_lectura < temp_min:
+                    alertas_detalladas.append({
+                        "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                        "alerta_tipo": "Temperatura Baja", "mensaje": f"Umbral: '{umbral.nombre}'.",
+                        "valor_actual": f"{temp_lectura:.1f}°C", "limite_violado": f"Min: {temp_min:.1f}°C", "fecha_lectura": lectura.fecha.isoformat()
+                    })
+                elif temp_lectura > temp_max:
+                    alertas_detalladas.append({
+                        "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                        "alerta_tipo": "Temperatura Alta", "mensaje": f"Umbral: '{umbral.nombre}'.",
+                        "valor_actual": f"{temp_lectura:.1f}°C", "limite_violado": f"Max: {temp_max:.1f}°C", "fecha_lectura": lectura.fecha.isoformat()
+                    })
+                if hum_lectura is not None:
+                    if hum_lectura < hum_min:
+                        alertas_detalladas.append({"aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,"alerta_tipo": "Humedad Baja","mensaje": f"Umbral: '{umbral.nombre}'.","valor_actual": f"{hum_lectura:.1f}%", "limite_violado": f"Min: {hum_min:.1f}%", "fecha_lectura": lectura.fecha.isoformat()})
+                    elif hum_lectura > hum_max:
+                        alertas_detalladas.append({"aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,"alerta_tipo": "Humedad Alta","mensaje": f"Umbral: '{umbral.nombre}'.","valor_actual": f"{hum_lectura:.1f}%", "limite_violado": f"Max: {hum_max:.1f}%", "fecha_lectura": lectura.fecha.isoformat()})
+            except Exception as e_compare:
+                print(f"Error comparando lectura para aire {aire_obj.id} con umbral {umbral.id}: {e_compare}", file=sys.stderr)
+    return alertas_detalladas
+
 def verificar_lectura_dentro_umbrales_helper(aire_id, temperatura, humedad):
     """
     Helper para verificar si una lectura está dentro de los umbrales configurados.
@@ -3487,3 +3583,18 @@ def eliminar_documento_route(documento_id):
         print(f"Error inesperado eliminando documento {documento_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado al eliminar el documento."}), 500
+
+@api.route('/alertas_activas_detalladas', methods=['GET'])
+@jwt_required()
+def get_alertas_activas_detalladas_route():
+    """
+    Endpoint para obtener un listado detallado de todas las alertas activas,
+    incluyendo aires no operativos y alertas de temperatura/humedad.
+    Requiere autenticación.
+    """
+    try:
+        detalles = obtener_detalles_alertas_activas_helper()
+        return jsonify(detalles), 200
+    except Exception as e:
+        print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
