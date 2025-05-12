@@ -7,6 +7,8 @@ import {
   Button,
   Spinner,
   Alert,
+  Pagination, // <--- Añadido
+  Form, Row, Col // <--- Añadido
 } from "react-bootstrap";
 import {
   FiPlus,
@@ -22,6 +24,8 @@ import MantenimientoAddModal from "../component/Mantenimientos/MantenimientoAddM
 import MantenimientoViewModal from "../component/Mantenimientos/MantenimientoViewModal.jsx";
 import MantenimientoImagenModal from "../component/Mantenimientos/MantenimientoImagenModal.jsx";
 
+const PER_PAGE_OPTIONS = [10, 20, 50, 100];
+
 // Remove TypeScript interfaces
 
 const Mantenimientos = () => { // Remove : React.FC
@@ -34,6 +38,7 @@ const Mantenimientos = () => { // Remove : React.FC
     otrosEquiposList: otrosEquipos, // Use the correct store key, rename for consistency
     mantenimientosLoading: loading,
     mantenimientosError: error,
+    mantenimientosPaginationInfo, // <--- Añadido
   } = store;
   const {
     fetchMantenimientos,
@@ -46,6 +51,8 @@ const Mantenimientos = () => { // Remove : React.FC
 
   // Local state
   const [filtroAire, setFiltroAire] = useState(null); // number | null -> null
+  const [currentPage, setCurrentPage] = useState(1); // <--- Añadido
+  const [itemsPerPage, setItemsPerPage] = useState(20); // <--- Añadido
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -75,19 +82,20 @@ const Mantenimientos = () => { // Remove : React.FC
     if (filtroAire) {
       filters.aire_id = filtroAire;
     }
-    fetchMantenimientos(filters);
+    fetchMantenimientos(filters, currentPage, itemsPerPage);
 
     // Cleanup function
     return () => {
       if (clearMantenimientosError) clearMantenimientosError();
     };
-  }, [filtroAire, fetchMantenimientos, clearMantenimientosError]); // Depend on filtroAire and actions
+  }, [filtroAire, currentPage, itemsPerPage, fetchMantenimientos, clearMantenimientosError]); // Depend on filter and actions
 
   // --- Handlers ---
 
   const handleFiltrarPorAire = useCallback((aireId) => { // Remove type number | null
     setFiltroAire(aireId);
     // The useEffect will trigger fetchMantenimientos with the new filter
+    setCurrentPage(1); // Reset a la primera página al cambiar filtro
   }, []);
 
   const handleChange = useCallback((e) => { // Remove type annotation
@@ -192,7 +200,10 @@ const Mantenimientos = () => { // Remove : React.FC
     // Call Flux action
     const success = await addMantenimiento(formDataObj);
 
-    setLoadingSubmit(false);
+    // No es necesario setLoadingSubmit(false) aquí si addMantenimiento ya lo hace
+    // o si el refetch de mantenimientos actualiza el estado de carga global.
+    // Sin embargo, si tienes un estado de carga local para el modal, sí deberías resetearlo.
+    // Para este ejemplo, asumimos que el estado de carga global es suficiente.
     if (success) {
       setShowAddModal(false); // Close modal on success
     }
@@ -230,6 +241,35 @@ const Mantenimientos = () => { // Remove : React.FC
     setShowAddModal(false);
   }, []);
 
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= mantenimientosPaginationInfo.total_pages) {
+        setCurrentPage(pageNumber);
+    }
+  };
+
+  const handleItemsPerPageChange = (e) => {
+      setItemsPerPage(parseInt(e.target.value));
+      setCurrentPage(1); // Reset a la primera página
+  };
+
+  // Lógica para mostrar números de página (simplificada)
+  const pageNumbers = [];
+  if (mantenimientosPaginationInfo && mantenimientosPaginationInfo.total_pages > 0) {
+      const totalPages = mantenimientosPaginationInfo.total_pages;
+      const currentPageNum = mantenimientosPaginationInfo.current_page;
+      let startPage = Math.max(1, currentPageNum - 2);
+      let endPage = Math.min(totalPages, currentPageNum + 2);
+
+      if (currentPageNum <= 3) {
+          endPage = Math.min(5, totalPages);
+      }
+      if (currentPageNum > totalPages - 3) {
+          startPage = Math.max(1, totalPages - 4);
+      }
+      for (let i = startPage; i <= endPage; i++) {
+          pageNumbers.push(i);
+      }
+  }
   // --- Renderizado ---
   return (
     <div className="container mt-4"> {/* Added container */}
@@ -243,6 +283,14 @@ const Mantenimientos = () => { // Remove : React.FC
             filtroAire={filtroAire}
             onFilterChange={handleFiltrarPorAire}
           />
+          <Form.Group as={Col} md="auto" controlId="itemsPerPageSelectMantenimientos" className="mb-0">
+            <div className="d-flex align-items-center">
+                <Form.Label className="me-2 mb-0">Por Pág:</Form.Label>
+                <Form.Select size="sm" value={itemsPerPage} onChange={handleItemsPerPageChange} style={{ width: 'auto' }}>
+                    {PER_PAGE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </Form.Select>
+            </div>
+          </Form.Group>
           {canEdit && (
             <Button variant="primary" onClick={handleAdd}>
               <FiPlus className="me-2" /> Registrar Mantenimiento
@@ -290,6 +338,44 @@ const Mantenimientos = () => { // Remove : React.FC
             </div>
           )}
         </Card.Body>
+        {mantenimientosPaginationInfo && mantenimientosPaginationInfo.total_items > 0 && mantenimientosPaginationInfo.total_pages > 1 && (
+            <Card.Footer className="d-flex justify-content-between align-items-center">
+                <span className="text-muted">
+                    Página {mantenimientosPaginationInfo.current_page} de {mantenimientosPaginationInfo.total_pages} (Total: {mantenimientosPaginationInfo.total_items} mantenimientos)
+                </span>
+                <Pagination className="mb-0">
+                    <Pagination.First 
+                        onClick={() => handlePageChange(1)} 
+                        disabled={mantenimientosPaginationInfo.current_page === 1} 
+                    />
+                    <Pagination.Prev 
+                        onClick={() => handlePageChange(mantenimientosPaginationInfo.current_page - 1)} 
+                        disabled={!mantenimientosPaginationInfo.has_prev} 
+                    />
+                    
+                    {pageNumbers[0] > 1 && <Pagination.Ellipsis disabled />}
+                    {pageNumbers.map(num => (
+                        <Pagination.Item 
+                            key={num} 
+                            active={num === mantenimientosPaginationInfo.current_page} 
+                            onClick={() => handlePageChange(num)}
+                        >
+                            {num}
+                        </Pagination.Item>
+                    ))}
+                    {pageNumbers[pageNumbers.length - 1] < mantenimientosPaginationInfo.total_pages && <Pagination.Ellipsis disabled />}
+
+                    <Pagination.Next 
+                        onClick={() => handlePageChange(mantenimientosPaginationInfo.current_page + 1)} 
+                        disabled={!mantenimientosPaginationInfo.has_next} 
+                    />
+                    <Pagination.Last 
+                        onClick={() => handlePageChange(mantenimientosPaginationInfo.total_pages)} 
+                        disabled={mantenimientosPaginationInfo.current_page === mantenimientosPaginationInfo.total_pages} 
+                    />
+                </Pagination>
+            </Card.Footer>
+        )}
       </Card>
 
       {/* Modales */}

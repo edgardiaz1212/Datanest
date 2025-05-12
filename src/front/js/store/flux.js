@@ -46,6 +46,14 @@ const getState = ({ getStore, getActions, setStore }) => {
       // --- Mantenimientos ---
       mantenimientos: [],
       mantenimientosLoading: false,
+      mantenimientosPaginationInfo: {
+        total_items: 0,
+        total_pages: 0,
+        current_page: 1,
+        per_page: 20,
+        has_next: false,
+        has_prev: false,
+      },
       mantenimientosError: null,
       // --- Lecturas ---
       lecturas: [],
@@ -1329,15 +1337,20 @@ const getState = ({ getStore, getActions, setStore }) => {
       },
 
       // --- Mantenimientos Actions ---
-      fetchMantenimientos: async (filters = {}) => {
+      fetchMantenimientos: async (filters = {}, page = 1, perPage = 20) => {
         // Ruta protegida, necesita token
         setStore({ mantenimientosLoading: true, mantenimientosError: null });
         try {
+          // Estas llamadas son para asegurar que los nombres de los equipos estén disponibles
+          // para el filtro y el modal de agregar. No afectan directamente la lista de mantenimientos.
           await getActions().fetchAires();
           await getActions().fetchOtrosEquipos();
 
           let url = `${process.env.BACKEND_URL}/mantenimientos`;
           const queryParams = new URLSearchParams();
+          queryParams.append('page', page);
+          queryParams.append('per_page', perPage);
+
           if (filters.aire_id) queryParams.append("aire_id", filters.aire_id);
           if (filters.otro_equipo_id)
             queryParams.append("otro_equipo_id", filters.otro_equipo_id);
@@ -1356,10 +1369,20 @@ const getState = ({ getStore, getActions, setStore }) => {
                 `Error fetching mantenimientos: ${response.status}`
             );
           }
-          const data = await response.json();
+          const responseData = await response.json();
+          // Asumimos que el backend ahora devuelve una estructura paginada
           setStore({
-            mantenimientos: data || [],
+            mantenimientos: responseData.items || [],
+            mantenimientosPaginationInfo: {
+              total_items: responseData.total_items,
+              total_pages: responseData.total_pages,
+              current_page: responseData.current_page,
+              per_page: responseData.per_page,
+              has_next: responseData.has_next,
+              has_prev: responseData.has_prev,
+            },
             mantenimientosLoading: false,
+            mantenimientosError: null, // Limpiar error en éxito
           });
         } catch (error) {
           console.error("Error in fetchMantenimientos:", error);
@@ -1367,6 +1390,8 @@ const getState = ({ getStore, getActions, setStore }) => {
             mantenimientosError:
               error.message || "Error cargando los registros de mantenimiento.",
             mantenimientosLoading: false,
+            mantenimientos: [],
+            mantenimientosPaginationInfo: { total_items: 0, total_pages: 0, current_page: 1, per_page: perPage, has_next: false, has_prev: false },
           });
         }
       },
@@ -1403,7 +1428,10 @@ const getState = ({ getStore, getActions, setStore }) => {
                 `Error adding mantenimiento: ${response.status}`
             );
           }
-          await getActions().fetchMantenimientos(/* filter */);
+          // Recargar la página actual después de agregar
+          const store = getStore();
+          const currentPage = store.mantenimientosPaginationInfo.current_page || 1;
+          await getActions().fetchMantenimientos(filters, currentPage, store.mantenimientosPaginationInfo.per_page || 20);
           return true;
         } catch (error) {
           console.error("Error in addMantenimiento:", error);

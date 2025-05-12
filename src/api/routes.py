@@ -2006,19 +2006,34 @@ def obtener_todos_mantenimientos_route():
     Opcionalmente filtra por ?aire_id=X o ?otro_equipo_id=Y.
     """
     try:
-        query = db.session.query(Mantenimiento)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        if per_page > 100: # Limitar per_page para evitar sobrecarga
+            per_page = 100
+
+        query_obj = db.session.query(Mantenimiento)
 
         aire_id_filter = request.args.get('aire_id', type=int)
         otro_equipo_id_filter = request.args.get('otro_equipo_id', type=int)
 
         if aire_id_filter:
-            query = query.filter(Mantenimiento.aire_id == aire_id_filter)
+            query_obj = query_obj.filter(Mantenimiento.aire_id == aire_id_filter)
         elif otro_equipo_id_filter:
-            query = query.filter(Mantenimiento.otro_equipo_id == otro_equipo_id_filter)
+            query_obj = query_obj.filter(Mantenimiento.otro_equipo_id == otro_equipo_id_filter)
 
-        mantenimientos = query.order_by(Mantenimiento.fecha.desc()).all()
-        results = [m.serialize() for m in mantenimientos]
-        return jsonify(results), 200
+        paginated_mantenimientos = query_obj.order_by(Mantenimiento.fecha.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        results = [m.serialize() for m in paginated_mantenimientos.items]
+        return jsonify({
+            "items": results,
+            "total_items": paginated_mantenimientos.total,
+            "total_pages": paginated_mantenimientos.pages,
+            "current_page": paginated_mantenimientos.page,
+            "per_page": paginated_mantenimientos.per_page,
+            "has_next": paginated_mantenimientos.has_next,
+            "has_prev": paginated_mantenimientos.has_prev
+        }), 200
 
     except Exception as e:
         print(f"!!! ERROR inesperado en obtener_todos_mantenimientos_route: {e}", file=sys.stderr)
