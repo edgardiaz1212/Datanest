@@ -775,7 +775,6 @@ def agregar_aire_route():
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
-
 @api.route('/aires', methods=['GET'])
 @jwt_required() 
 def obtener_aires_route():

@@ -64,9 +64,11 @@ const AlertasActivas = () => {
         <Container className="mt-4">
             <h1 className="mb-4"><FiAlertTriangle className="me-2"/>Alertas Activas</h1>
 
-            {detailedAlertsList.length === 0 && !detailedAlertsLoading && (
+            {/* Mostrar mensaje si no hay alertas y no está cargando */}
+            {detailedAlertsList.length === 0 && !detailedAlertsLoading && !detailedAlertsError && (
                  <Alert variant="success">
-                    <FiAlertTriangle className="me-2"/> No hay alertas activas en este momento. ¡Todo en orden!
+                    <FiAlertTriangle className="me-2" /> 
+                    No hay alertas activas en este momento. ¡Todo en orden!
                  </Alert>
             )}
 

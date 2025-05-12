@@ -550,9 +550,10 @@ const getState = ({ getStore, getActions, setStore }) => {
             error:
               "Error de conexión o del servidor al intentar iniciar sesión.",
             isAuthenticated: false,
+            token: null, // <--- Limpia token en error
             loading: false,
             trackerUser: null,
-            token: null, // <--- Limpia token en error
+            
           });
           localStorage.removeItem("trackerUser");
           localStorage.removeItem("token"); // <--- Limpia token en error
@@ -565,6 +566,22 @@ const getState = ({ getStore, getActions, setStore }) => {
           trackerUser: null,
           token: null, // <--- Limpia token
           isAuthenticated: false,
+           // Limpiar también otros estados que podrían depender del usuario
+          aires: [],
+          lecturas: [],
+          umbrales: [],
+          otrosEquiposList: [],
+          mantenimientos: [],
+          lecturasUbicacion: [],
+          estadisticasUbicacion: [],
+          ubicaciones: [],
+          _rawLecturasGenerales: [], // For general charts
+      _rawLecturasAire: [],
+      proveedores: [],
+      contactos: [],
+      actividadesProveedor: [],
+      detailedAlertsList: [],
+      documentos: [],
           error: null,
         });
         localStorage.removeItem("trackerUser");
@@ -845,9 +862,15 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (!response.ok) {
             const errorData = await response.json();
             if (response.status === 401) getActions().logoutTrackerUser();
-            throw new Error(
+             // Si es un error de token expirado, es importante que logoutTrackerUser se ejecute
+            // y el error no se propague de forma que impida la redirección o el re-login.
+            // Podríamos no lanzar el error aquí si logoutTrackerUser ya maneja la redirección.
+            setStore({ airesError: responseData.msg || `Error fetching aires: ${response.status}`, airesLoading: false });
+            return null; // Indicar fallo sin lanzar error si el logout ya se encargó.
+            /* throw new Error(
+            
               errorData.msg || `Error fetching aires: ${response.status}`
-            );
+            );*/
           }
           const data = await response.json();
           if (Array.isArray(data)) {
@@ -855,9 +878,9 @@ const getState = ({ getStore, getActions, setStore }) => {
             return data;
           } else {
             throw new Error(
-              "Formato de respuesta inesperado del servidor al listar aires."
+              "Formato de respuesta inesperado del servidor al listar aires." // Esto es un error diferente a 401
             );
-          }
+          } 
           
         } catch (error) {
           console.error("Error in fetchAires:", error);
@@ -1013,11 +1036,14 @@ const getState = ({ getStore, getActions, setStore }) => {
           if (!umbralesResponse.ok) {
             const errorData = await umbralesResponse.json();
             if (umbralesResponse.status === 401)
-              getActions().logoutTrackerUser();
-            throw new Error(
+              getActions().logoutTrackerUser(); // Esto debería limpiar el token y redirigir
+            // Similar a fetchAires, si es 401, el logout ya se encarga.
+            setStore({ umbralesError: errorData.msg || `Error fetching umbrales: ${umbralesResponse.status}`, umbralesLoading: false });
+            return; // No continuar si hay error
+            /* throw new Error(
               errorData.msg ||
                 `Error fetching umbrales: ${umbralesResponse.status}`
-            );
+            );*/
           }
           const umbralesData = await umbralesResponse.json();
           setStore({ umbrales: umbralesData || [], umbralesLoading: false });
@@ -1570,6 +1596,38 @@ const getState = ({ getStore, getActions, setStore }) => {
           return false;
         }
       },
+ addLectura: async (aireId, lecturaData) => {
+        // Ruta protegida, necesita token
+        // No se establece lecturasLoading aquí para no afectar la tabla principal
+        // El modal manejará su propio estado de 'isSubmitting'
+        // setStore({ lecturasError: null }); // Limpiar error previo
+        try {
+          const url = `${process.env.BACKEND_URL}/aires/${aireId}/lecturas`;
+          const response = await fetch(url, {
+            method: "POST",
+            headers: getAuthHeaders(), // Usa cabeceras con token
+            body: JSON.stringify({ // Asegúrate que el backend espera estos nombres
+              fecha_hora: lecturaData.fecha_hora, // 'YYYY-MM-DDTHH:MM:SS'
+              temperatura: lecturaData.temperatura,
+              humedad: lecturaData.humedad, // Puede ser null
+            }),
+          });
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            // Propagar el mensaje de error del backend
+            throw new Error(responseData.msg || `Error agregando lectura: ${response.status}`);
+          }
+          // No es necesario refetch aquí, Lecturas.jsx lo hará después de un add exitoso.
+          return true; // Indica éxito
+        } catch (error) {
+          console.error("Error in addLectura:", error);
+          // El error se manejará en el componente que llama a esta acción
+          // setStore({ lecturasError: error.message || "Error al guardar la lectura." });
+          throw error; // Re-lanzar el error para que el componente lo capture
+        }
+      },
+
 
       deleteLectura: async (lecturaId) => {
         // Ruta protegida, necesita token
@@ -1607,7 +1665,11 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       clearLecturasError: () => {
         setStore({ lecturasError: null });
-      },
+       },
+
+      setLecturasError: (errorMessage) => { // Nueva acción
+        setStore({ lecturasError: errorMessage });
+ },
 
       uploadLecturasExcel: async (file, onProgress) => {
         // onProgress no se usa activamente aquí, pero se deja por si se implementa con Axios
@@ -1737,9 +1799,13 @@ const getState = ({ getStore, getActions, setStore }) => {
             if (!resp.ok) {
               const errorData = await resp.json().catch(() => ({}));
               if (resp.status === 401) getActions().logoutTrackerUser();
-              throw new Error(
+              // Si es 401, logoutTrackerUser se encarga. No necesitamos propagar este error específico
+              // para que el Promise.all falle de forma que impida el login.
+              // Devolvemos un objeto que indique el error para que el Promise.all no falle catastróficamente.
+              return { _error: true, status: resp.status, msg: errorData.msg || `Error ${resp.status}` };
+              /* throw new Error(
                 `Error cargando ${name}: ${errorData.msg || resp.status}`
-              );
+              );*/
             }
             // Manejar respuesta vacía o no JSON
             const text = await resp.text();
@@ -1750,6 +1816,9 @@ const getState = ({ getStore, getActions, setStore }) => {
               return []; // Devuelve array vacío si no es JSON
             }
           };
+          // Helper para verificar si una respuesta de checkResp fue un error
+          const isErrorResponse = (data) => data && data._error === true;
+
 
           // Parse JSON data safely
           const estGenData = await checkResp(
@@ -1777,11 +1846,14 @@ const getState = ({ getStore, getActions, setStore }) => {
             ubicacionesResponse,
             "ubicaciones"
           );
-
-          // Ya no necesitas derivar las ubicaciones desde store.aires
-          // const store = getStore();
-          // const ubicacionesUnicas = Array.from(new Set(store.aires.map(aire => aire.ubicacion))).filter(Boolean);
-
+  // Verificar si alguna de las llamadas falló (especialmente por 401 que no queremos que rompa el login)
+          if (isErrorResponse(estGenData) || isErrorResponse(estUbicData) || isErrorResponse(lecturasGenData) || 
+              isErrorResponse(contadoresData) || isErrorResponse(alertasCountData) || isErrorResponse(ubicacionesData)) {
+            console.warn("Una o más llamadas iniciales fallaron después del login, posiblemente por token. El logout ya debería haberse activado.");
+            // No actualizamos el store con datos parciales o erróneos. El logout se encargará.
+            return; 
+          }
+          
           setStore({
             // --- USAR DATOS DIRECTOS DE LA API ---
             ubicaciones: Array.isArray(ubicacionesData) ? ubicacionesData : [], // Asegura que sea un array
@@ -2604,7 +2676,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       fetchDetailedAlerts: async () => {
         setStore({ detailedAlertsLoading: true, detailedAlertsError: null });
         try {
-            const response = await fetch(`${process.env.BACKEND_URL}/api/alertas_activas_detalladas`, {
+            const response = await fetch(`${process.env.BACKEND_URL}/alertas_activas_detalladas`, {
                 method: "GET",
                 headers: getAuthHeaders(),
             });

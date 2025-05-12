@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 8cc3458463a4
+Revision ID: 10ac806507a8
 Revises: 
-Create Date: 2025-04-29 09:27:02.134456
+Create Date: 2025-05-12 15:00:59.395954
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '8cc3458463a4'
+revision = '10ac806507a8'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -125,12 +125,24 @@ def upgrade():
     sa.ForeignKeyConstraint(['proveedor_id'], ['proveedores.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('documento_externo',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nombre', sa.String(length=200), nullable=False),
+    sa.Column('descripcion', sa.Text(), nullable=True),
+    sa.Column('nombre_archivo_original', sa.String(length=255), nullable=False),
+    sa.Column('datos_archivo', sa.LargeBinary(), nullable=False),
+    sa.Column('tipo_mime', sa.String(length=100), nullable=False),
+    sa.Column('fecha_carga', sa.DateTime(), nullable=False),
+    sa.Column('usuario_carga_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['usuario_carga_id'], ['tracker_usuarios.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('lecturas',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aire_id', sa.Integer(), nullable=False),
     sa.Column('fecha', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('temperatura', sa.Float(), nullable=False),
-    sa.Column('humedad', sa.Float(), nullable=False),
+    sa.Column('humedad', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['aire_id'], ['aires_acondicionados.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -243,6 +255,7 @@ def downgrade():
     op.drop_table('rack')
     op.drop_table('mantenimientos')
     op.drop_table('lecturas')
+    op.drop_table('documento_externo')
     op.drop_table('contactos_proveedor')
     op.drop_table('actividades_proveedor')
     op.drop_table('user_form')

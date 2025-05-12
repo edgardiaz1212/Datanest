@@ -26,8 +26,7 @@ const Lecturas = () => {
     addLectura,
     deleteLectura,
     clearLecturasError,
-    // Asumimos que setLecturasError es una acción disponible si se usa en handleSubmit
-    // setLecturasError 
+    setLecturasError // <--- Asegúrate que esta línea esté presente y descomentada
   } = actions;
 
   // Local state
@@ -113,7 +112,7 @@ const Lecturas = () => {
 
 
     setFormData({
-      aire_id: defaultAire ? defaultAire.id.toString() : '', // Default to first AC
+      aire_id: '', // Dejar vacío, el modal lo manejará
       fecha: today,
       hora: now,
       temperatura: '',
@@ -206,8 +205,8 @@ const Lecturas = () => {
     } catch (err) {
       console.error('Error submitting lectura:', err);
       // Set error in Flux store (asegúrate que actions.setLecturasError exista y funcione)
-      if (actions.setLecturasError) {
-        actions.setLecturasError(err.message || 'Error al guardar la lectura.');
+      if (setLecturasError) { // Usar la variable destructurada
+        setLecturasError(err.message || 'Error al guardar la lectura.');
       } else {
         // Fallback si la acción no existe, aunque el Alert global ya usa store.error
         // Podrías tener un estado de error local para el modal si es preferible
@@ -215,8 +214,8 @@ const Lecturas = () => {
       }
     } finally {
       setIsSubmitting(false);
-    }
-  }, [formData, addLectura, clearLecturasError, actions, aires]);
+    } // Quitar 'actions' de las dependencias si solo usas 'setLecturasError' y 'addLectura' destructuradas
+  }, [formData, addLectura, clearLecturasError, setLecturasError, aires, filtroAire, currentPage, itemsPerPage, actions.fetchLecturas]); // Añadir dependencias faltantes
 
   // --- Formatting Helpers ---
   const formatearFecha = useCallback((fechaStr) => {
