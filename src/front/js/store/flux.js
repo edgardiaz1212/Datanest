@@ -1591,6 +1591,40 @@ if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
         setStore({ lecturasError: null });
       },
 
+      uploadLecturasExcel: async (file, onProgress) => {
+        // onProgress no se usa activamente aquí, pero se deja por si se implementa con Axios
+        const actions = getActions();
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch(`${process.env.BACKEND_URL}/api/lecturas/upload_excel`, { // Asegúrate que la ruta sea /api/...
+            method: 'POST',
+            headers: getAuthHeaders(false), // No 'Content-Type', FormData lo maneja
+            body: formData,
+            // onUploadProgress: onProgress, // Esto es más para Axios, fetch no lo soporta directamente
+          });
+
+          const responseData = await response.json();
+
+          if (!response.ok) {
+            if (response.status === 401) actions.logoutTrackerUser();
+            // Devuelve el objeto de error del backend
+            return { success: false, message: responseData.msg || `Error ${response.status}`, errors: responseData.errors || [] };
+          }
+          // Devuelve el objeto de éxito del backend
+          return { success: true, message: responseData.msg || "Archivo procesado.", details: responseData };
+
+        } catch (error) {
+          console.error("Error in uploadLecturasExcel:", error);
+          return { 
+            success: false, 
+            message: error.message || "Error de red o del servidor al subir el archivo.",
+            errors: []
+          };
+        }
+      },
+
       fetchLecturasPorUbicacion: async (ubicacion) => {
         // Limpiar si no hay ubicación
         if (!ubicacion) {
@@ -1908,6 +1942,8 @@ if (!fetchedAiresList && !getStore().airesError) { // Solo para depuración
       clearStatsError: () => {
         setStore({ statsError: null });
       },
+
+
 
       // --- Dashboard Action ---
       fetchDashboardResumen: async () => {

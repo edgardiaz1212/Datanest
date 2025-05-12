@@ -5,6 +5,7 @@ import { Context } from '../store/appContext';
 import LecturasFilter from '../component/Lecturas/LecturasFilter.jsx';
 import LecturasTable from '../component/Lecturas/LecturasTable.jsx';
 import LecturasAddModal from '../component/Lecturas/LecturasAddModal.jsx';
+import LecturasExcelUploadModal from '../component/Lecturas/LecturasExcelUploadModal.jsx'; // <--- NUEVO IMPORT
 
 
 const Lecturas = () => {
@@ -30,6 +31,8 @@ const Lecturas = () => {
   const [filtroAire, setFiltroAire] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false); // <--- NUEVO ESTADO
+
   const [formData, setFormData] = useState({
     aire_id: '',
     fecha: '',
@@ -242,11 +245,14 @@ const Lecturas = () => {
             filtroAire={filtroAire}
             onFilterChange={handleFiltrarPorAire}
           />
-          {canAdd && (
+          {canAdd && (<>
             <Button variant="primary" onClick={handleAdd}>
               <FiPlus className="me-2" /> Agregar Lectura
             </Button>
-          )}
+             <Button variant="success" onClick={() => setShowExcelModal(true)} className="ms-2">
+             Cargar desde Excel
+           </Button>
+           </> )}
         </div>
       </div>
 
@@ -284,6 +290,11 @@ const Lecturas = () => {
         onChange={handleChange}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+      <LecturasExcelUploadModal
+        show={showExcelModal}
+        onHide={() => setShowExcelModal(false)}
+        onUploadComplete={() => actions.fetchLecturas(filtroAire ? { aire_id: filtroAire } : {})}
       />
     </div>
   );
