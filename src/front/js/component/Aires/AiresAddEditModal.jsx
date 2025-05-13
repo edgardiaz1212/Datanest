@@ -215,6 +215,36 @@ const AiresAddEditModal = ({
                                             disabled={isSubmitting}
                                         />
                                     </Form.Group>
+                                    {/* --- Campos de Fecha/Hora Diagnóstico Evaporadora (Condicional) --- */}
+                                    {!formData.evaporadora_operativa && (
+                                        <Row>
+                                            <Col md={6}>
+                                                <Form.Group className="mb-3" controlId="formEvapFechaDiagnostico">
+                                                    <Form.Label>Fecha Detección Falla (Evap.)</Form.Label>
+                                                    <Form.Control
+                                                        type="date"
+                                                        name="evaporadora_fecha_diagnostico"
+                                                        value={formData.evaporadora_fecha_diagnostico || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                    />
+                                                </Form.Group>
+                                            </Col>
+                                            <Col md={6}>
+                                                <Form.Group className="mb-3" controlId="formEvapHoraDiagnostico">
+                                                    <Form.Label>Hora Detección Falla (Evap.)</Form.Label>
+                                                    <Form.Control
+                                                        type="time"
+                                                        name="evaporadora_hora_diagnostico"
+                                                        value={formData.evaporadora_hora_diagnostico || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                    />
+                                                </Form.Group>
+                                            </Col>
+                                        </Row>
+                                    )}
+                                    {/* --- Fin Campos Fecha/Hora Diagnóstico Evaporadora --- */}
                                     {/* --- Campos de Diagnóstico para Evaporadora (Condicional) --- */}
                                     {!formData.evaporadora_operativa && (
                                         <>
@@ -300,6 +330,36 @@ const AiresAddEditModal = ({
                                             disabled={isSubmitting}
                                         />
                                     </Form.Group>
+                                    {/* --- Campos de Fecha/Hora Diagnóstico Condensadora (Condicional) --- */}
+                                    {!formData.condensadora_operativa && (
+                                        <Row>
+                                            <Col md={6}>
+                                                <Form.Group className="mb-3" controlId="formCondFechaDiagnostico">
+                                                    <Form.Label>Fecha Detección Falla (Cond.)</Form.Label>
+                                                    <Form.Control
+                                                        type="date"
+                                                        name="condensadora_fecha_diagnostico"
+                                                        value={formData.condensadora_fecha_diagnostico || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                    />
+                                                </Form.Group>
+                                            </Col>
+                                            <Col md={6}>
+                                                <Form.Group className="mb-3" controlId="formCondHoraDiagnostico">
+                                                    <Form.Label>Hora Detección Falla (Cond.)</Form.Label>
+                                                    <Form.Control
+                                                        type="time"
+                                                        name="condensadora_hora_diagnostico"
+                                                        value={formData.condensadora_hora_diagnostico || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                    />
+                                                </Form.Group>
+                                            </Col>
+                                        </Row>
+                                    )}
+                                    {/* --- Fin Campos Fecha/Hora Diagnóstico Condensadora --- */}
                                     {/* --- Campos de Diagnóstico para Condensadora (Condicional) --- */}
                                     {!formData.condensadora_operativa && (
                                         <>

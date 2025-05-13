@@ -908,13 +908,33 @@ def actualizar_aire_route(aire_id):
 
         # --- Actualizar diagnósticos ---
         if 'evaporadora_operativa' in data:
-            aire.evaporadora_diagnostico_id = data.get('evaporadora_diagnostico_id') if not bool(data['evaporadora_operativa']) else None
-            aire.evaporadora_diagnostico_notas = data.get('evaporadora_diagnostico_notas') if not bool(data['evaporadora_operativa']) else None
+            if not bool(data['evaporadora_operativa']):
+                aire.evaporadora_diagnostico_id = data.get('evaporadora_diagnostico_id')
+                aire.evaporadora_diagnostico_notas = data.get('evaporadora_diagnostico_notas')
+                if data.get('evaporadora_fecha_hora_diagnostico'):
+                    try:
+                        aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(data['evaporadora_fecha_hora_diagnostico'])
+                    except (ValueError, TypeError):
+                        aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
+            else: # Si se marca como operativa, limpiar diagnóstico y fecha
+                aire.evaporadora_diagnostico_id = None
+                aire.evaporadora_diagnostico_notas = None
+                aire.evaporadora_fecha_hora_diagnostico = None
             updated = True
 
         if 'condensadora_operativa' in data:
-            aire.condensadora_diagnostico_id = data.get('condensadora_diagnostico_id') if not bool(data['condensadora_operativa']) else None
-            aire.condensadora_diagnostico_notas = data.get('condensadora_diagnostico_notas') if not bool(data['condensadora_operativa']) else None
+            if not bool(data['condensadora_operativa']):
+                aire.condensadora_diagnostico_id = data.get('condensadora_diagnostico_id')
+                aire.condensadora_diagnostico_notas = data.get('condensadora_diagnostico_notas')
+                if data.get('condensadora_fecha_hora_diagnostico'):
+                    try:
+                        aire.condensadora_fecha_hora_diagnostico = datetime.fromisoformat(data['condensadora_fecha_hora_diagnostico'])
+                    except (ValueError, TypeError):
+                        aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
+            else: # Si se marca como operativa, limpiar diagnóstico y fecha
+                aire.condensadora_diagnostico_id = None
+                aire.condensadora_diagnostico_notas = None
+                aire.condensadora_fecha_hora_diagnostico = None
             updated = True
         # --- Fin Actualizar diagnósticos ---
 
@@ -2581,10 +2601,11 @@ def obtener_detalles_alertas_activas_helper():
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.",
                 "diagnostico_nombre": aire_obj.evaporadora_diagnostico_componente.nombre if aire_obj.evaporadora_diagnostico_componente else "No especificado",
                 "diagnostico_notas": aire_obj.evaporadora_diagnostico_notas,
-                "valor_actual": "No Operativa", 
-                "limite_violado": "Debe estar Operativa", 
-                "fecha_lectura": now_iso
+                "valor_actual": "No Operativa",
+                "limite_violado": "Debe estar Operativa",
+                "fecha_lectura": aire_obj.evaporadora_fecha_hora_diagnostico.isoformat() if aire_obj.evaporadora_fecha_hora_diagnostico else now_iso
             })
+            
         if not aire_obj.condensadora_operativa:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, 
@@ -2594,9 +2615,9 @@ def obtener_detalles_alertas_activas_helper():
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
                 "diagnostico_nombre": aire_obj.condensadora_diagnostico_componente.nombre if aire_obj.condensadora_diagnostico_componente else "No especificado",
                 "diagnostico_notas": aire_obj.condensadora_diagnostico_notas,
-                "valor_actual": "No Operativa", 
-                "limite_violado": "Debe estar Operativa", 
-                "fecha_lectura": now_iso
+                "valor_actual": "No Operativa",
+                "limite_violado": "Debe estar Operativa",
+                "fecha_lectura": aire_obj.condensadora_fecha_hora_diagnostico.isoformat() if aire_obj.condensadora_fecha_hora_diagnostico else now_iso
             })
 
     # 3. Obtener la última lectura de cada aire

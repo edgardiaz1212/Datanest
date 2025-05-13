@@ -1,6 +1,6 @@
 import React, { useEffect, useContext, useState } from 'react';
-import { Card, Spinner, Alert, Button, Form, Row, Col } from 'react-bootstrap'; // Added Form, Row, Col
-import { HiOutlineDocumentReport } from 'react-icons/hi'
+import { Card, Spinner, Alert, Button, Tabs, Tab, Row, Col } from 'react-bootstrap'; // Changed Form to Tabs, Tab
+import { HiOutlineDocumentReport, HiOutlineTable, HiOutlineExclamationCircle } from 'react-icons/hi' // Added more icons
 import { Context } from '../store/appContext';
 import ReportesAiresTable from '../component/Reportes/ReportesAiresTable.jsx';
 import ReportesOtrosEquiposTable from '../component/Reportes/ReportesOtrosEquiposTable.jsx';
@@ -33,7 +33,7 @@ const Reportes = () => {
 
   const [groupedAires, setGroupedAires] = useState({});
   const [groupedOtrosEquipos, setGroupedOtrosEquipos] = useState({});
-  const [reporteSeleccionado, setReporteSeleccionado] = useState('datosEquipo'); // 'datosEquipo' o 'fallasRegistradas'
+  const [activeTab, setActiveTab] = useState('datosEquipo'); // 'datosEquipo' o 'fallasRegistradas'
 
   useEffect(() => {
     fetchAires();
@@ -273,27 +273,18 @@ const Reportes = () => {
 
   return (
     <div className="container mt-4">
-      <Row className="mb-3 align-items-center">
-        <Col md={8}>
-          <h1><HiOutlineDocumentReport className="me-2" />Reportes</h1>
-        </Col>
-        <Col md={4}>
-          <Form.Group controlId="reporteSelector">
-            <Form.Label className="fw-bold">Seleccionar Tipo de Reporte:</Form.Label>
-            <Form.Select
-              value={reporteSeleccionado}
-              onChange={(e) => setReporteSeleccionado(e.target.value)}
-            >
-              <option value="datosEquipo">Datos de Equipos</option>
-              <option value="fallasRegistradas">Fallas Registradas (Aires)</option>
-            </Form.Select>
-          </Form.Group>
-        </Col>
-      </Row>
+      <h1><HiOutlineDocumentReport className="me-2" />Reportes</h1>
 
-      {/* --- SECCIÓN DATOS DE EQUIPO --- */}
-      {reporteSeleccionado === 'datosEquipo' && (
-        <>
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(k) => setActiveTab(k)}
+        className="mb-3"
+        id="reportes-tabs"
+        mountOnEnter // Carga el contenido de la pestaña solo cuando se activa
+        unmountOnExit // Descarga el contenido cuando se desactiva (opcional, para liberar memoria)
+      >
+        {/* --- PESTAÑA DATOS DE EQUIPO --- */}
+        <Tab eventKey="datosEquipo" title={<><HiOutlineTable className="me-1" /> Datos de Equipos</>}>
           {/* Aires Section */}
           <Card className="mb-4">
             <Card.Header>
@@ -403,11 +394,11 @@ const Reportes = () => {
               )}
             </Card.Body>
           </Card>
-        </>
-      )}
+        </Tab>
 
-      {/* --- SECCIÓN FALLAS REGISTRADAS --- */}
-      {reporteSeleccionado === 'fallasRegistradas' && (
+        {/* --- PESTAÑA FALLAS REGISTRADAS --- */}
+        <Tab eventKey="fallasRegistradas" title={<><HiOutlineExclamationCircle className="me-1" /> Fallas Registradas (Aires)</>}>
+
         <Card className="mb-4">
           <Card.Header className="d-flex justify-content-between align-items-center">
             <h2>Reporte de Fallas Registradas (Aires)</h2>
@@ -439,7 +430,8 @@ const Reportes = () => {
             )}
           </Card.Body>
         </Card>
-      )}
+        </Tab>
+      </Tabs>
     </div>
   );
 };

@@ -874,17 +874,17 @@ diagnosticoComponentesError: null,
             headers: getAuthHeaders(), // <--- Usa cabeceras con token
           });
           if (!response.ok) {
-            const errorData = await response.json();
-            if (response.status === 401) getActions().logoutTrackerUser();
-             // Si es un error de token expirado, es importante que logoutTrackerUser se ejecute
-            // y el error no se propague de forma que impida la redirección o el re-login.
-            // Podríamos no lanzar el error aquí si logoutTrackerUser ya maneja la redirección.
-            setStore({ airesError: responseData.msg || `Error fetching aires: ${response.status}`, airesLoading: false });
-            return null; // Indicar fallo sin lanzar error si el logout ya se encargó.
-            /* throw new Error(
+            // Intenta parsear el errorData, pero maneja el caso de que no sea JSON
+            let errorData = { msg: `Error fetching aires: ${response.status}` }; // Default error
+            try {
+              errorData = await response.json();
+            } catch (e) {
+              console.warn("Could not parse error response as JSON in fetchAires");
+            }
             
-              errorData.msg || `Error fetching aires: ${response.status}`
-            );*/
+            if (response.status === 401) getActions().logoutTrackerUser();
+            setStore({ airesError: errorData.msg || `Error fetching aires: ${response.status}`, airesLoading: false }); // <--- CORREGIDO: usar errorData.msg
+            return null;
           }
           const data = await response.json();
           if (Array.isArray(data)) {

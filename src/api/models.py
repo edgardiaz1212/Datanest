@@ -280,6 +280,7 @@ class AireAcondicionado(db.Model):
     evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
     # evaporadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la evaporadora no está operativa") # REMOVIDO
+    evaporadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la evaporadora")
 
     evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
     evaporadora_diagnostico_notas = db.Column(db.Text, nullable=True)
@@ -294,6 +295,7 @@ class AireAcondicionado(db.Model):
     condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
     # condensadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la condensadora no está operativa") # REMOVIDO
+    condensadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la condensadora")
 
     condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
     condensadora_diagnostico_notas = db.Column(db.Text, nullable=True)
@@ -324,6 +326,7 @@ class AireAcondicionado(db.Model):
             'evaporadora_codigo_inventario': self.evaporadora_codigo_inventario,
             'evaporadora_ubicacion_instalacion': self.evaporadora_ubicacion_instalacion,
             'evaporadora_diagnostico_id': self.evaporadora_diagnostico_id,
+            'evaporadora_fecha_hora_diagnostico': self.evaporadora_fecha_hora_diagnostico.isoformat() if self.evaporadora_fecha_hora_diagnostico else None,
             'evaporadora_diagnostico_nombre': self.evaporadora_diagnostico_componente.nombre if self.evaporadora_diagnostico_componente else None,
             'evaporadora_diagnostico_notas': self.evaporadora_diagnostico_notas,
             
@@ -334,6 +337,7 @@ class AireAcondicionado(db.Model):
             'condensadora_codigo_inventario': self.condensadora_codigo_inventario,
             'condensadora_ubicacion_instalacion': self.condensadora_ubicacion_instalacion,
             'condensadora_diagnostico_id': self.condensadora_diagnostico_id,
+            'condensadora_fecha_hora_diagnostico': self.condensadora_fecha_hora_diagnostico.isoformat() if self.condensadora_fecha_hora_diagnostico else None,
             'condensadora_diagnostico_nombre': self.condensadora_diagnostico_componente.nombre if self.condensadora_diagnostico_componente else None,
             'condensadora_diagnostico_notas': self.condensadora_diagnostico_notas,
         }
