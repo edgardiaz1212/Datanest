@@ -2279,20 +2279,37 @@ def crear_umbral_configuracion_route():
         hum_max = float(data['hum_max'])
         aire_id = data.get('aire_id')
         notificar_activo = bool(data.get('notificar_activo', True))
-
+        
         if temp_min >= temp_max:
             return jsonify({"msg": "temp_min debe ser menor que temp_max"}), 400
         if hum_min >= hum_max:
             return jsonify({"msg": "hum_min debe ser menor que hum_max"}), 400
-        if not es_global and aire_id is None:
-            return jsonify({"msg": "Se requiere aire_id si el umbral no es global (es_global=false)"}), 400
-        if es_global:
-            aire_id = None
 
-        if aire_id is not None:
+        # --- Proactive checks for uniqueness ---
+        existing_by_name = UmbralConfiguracion.query.filter_by(nombre=nombre).first()
+        if existing_by_name:
+            return jsonify({"msg": f"Ya existe una configuración de umbral con el nombre '{nombre}'."}), 409
+
+        if es_global:
+            existing_global = UmbralConfiguracion.query.filter_by(es_global=True).first()
+            if existing_global:
+                return jsonify({"msg": "Ya existe una configuración de umbral global. Solo se permite una."}), 409
+            aire_id = None # Ensure aire_id is None for global DB storage
+        elif aire_id is not None: # Umbral específico
             aire = db.session.get(AireAcondicionado, aire_id)
             if not aire:
                  return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+            existing_specific = UmbralConfiguracion.query.filter_by(es_global=False, aire_id=aire_id).first()
+            if existing_specific:
+                # Intenta obtener el nombre del aire para un mensaje más amigable
+                aire_nombre_msg = f"el aire con ID {aire_id}"
+                if hasattr(aire, 'nombre') and aire.nombre:
+                    aire_nombre_msg = f"el aire '{aire.nombre}'"
+                return jsonify({"msg": f"Ya existe una configuración de umbral específica para {aire_nombre_msg}. Solo se permite una por aire."}), 409
+        else: # not es_global and aire_id is None
+            return jsonify({"msg": "Se requiere seleccionar un aire acondicionado para un umbral específico."}), 400
+        # --- End proactive checks ---
+
 
         nuevo_umbral = UmbralConfiguracion(
             nombre=nombre,
@@ -2315,8 +2332,9 @@ def crear_umbral_configuracion_route():
         return jsonify({"msg": f"Error en el tipo de dato: {ve}. Asegúrate que los umbrales sean números."}), 400
     except IntegrityError as e:
         db.session.rollback()
-        print(f"Error de integridad al crear umbral: {e}", file=sys.stderr)
-        return jsonify({"msg": "Error de integridad al crear el umbral."}), 409
+        # This catch is now a fallback for other unexpected integrity errors
+        print(f"Error de integridad (inesperado) al crear umbral: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al crear el umbral. Verifique los datos o contacte al administrador."}), 500
     except SQLAlchemyError as e:
         db.session.rollback()
         print(f"!!! ERROR SQLAlchemy en crear_umbral_configuracion_route: {e}", file=sys.stderr)
