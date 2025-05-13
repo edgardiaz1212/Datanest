@@ -558,6 +558,7 @@ class ContactoProveedor(db.Model):
         return {
             'id': self.id,
             'proveedor_id': self.proveedor_id,
+            'cargo': self.cargo, # <-- Añadido cargo
             'nombre_contacto': self.nombre_contacto,
             'telefono_contacto': self.telefono_contacto,
             'email_contacto': self.email_contacto,

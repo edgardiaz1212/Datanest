@@ -2123,7 +2123,8 @@ const getState = ({ getStore, getActions, setStore }) => {
           setStore({
             proveedoresError: error.message || "Error cargando proveedores.",
             proveedoresLoading: false,
-            proveedores: [],
+            // No limpiar proveedores aquí si ya hay datos; el error se mostrará.
+            // Si es la carga inicial y falla, la lista permanecerá vacía como se inicializó.
           });
           return false;
         }
@@ -2145,13 +2146,33 @@ const getState = ({ getStore, getActions, setStore }) => {
             if (response.status === 401) getActions().logoutTrackerUser();
             throw new Error(responseData.msg || `Error ${response.status}`);
           }
-          await getActions().fetchProveedores(); // Recarga la lista
+
+          // Optimistic update:
+          const newProvider = responseData; // El backend devuelve el proveedor creado
+          const currentProveedores = getStore().proveedores;
+          // Añadir el nuevo proveedor y re-ordenar la lista (asumiendo que se muestra ordenada por nombre)
+          const updatedProveedores = [...currentProveedores, newProvider].sort((a, b) => a.nombre.localeCompare(b.nombre));
+          
+          setStore({ 
+            proveedores: updatedProveedores, 
+            proveedoresError: null, // Limpiar error previo si el POST fue exitoso
+            proveedoresLoading: false // Terminar el loading del 'add' aquí
+          });
+
+          // Intentar una sincronización completa con el backend en segundo plano.
+          // fetchProveedores manejará sus propios estados de carga/error.
+          getActions().fetchProveedores().catch(fetchErr => {
+            console.warn("AddProveedor: Background refresh via fetchProveedores failed after optimistic update.", fetchErr);
+            // El error de fetchProveedores ya se maneja en esa acción (no limpia la lista)
+            // y el store.proveedoresError se establecerá allí si es necesario.
+          });
+
           return true;
         } catch (error) {
           console.error("Error adding proveedor:", error);
           setStore({
             proveedoresError: error.message || "Error al agregar proveedor.",
-            proveedoresLoading: false,
+            proveedoresLoading: false, // Asegurar que loading se resetea en error del POST
           });
           return false;
         }

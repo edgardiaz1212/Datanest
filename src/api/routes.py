@@ -3203,6 +3203,7 @@ def crear_contacto_route(proveedor_id):
         nuevo_contacto = ContactoProveedor(
             proveedor_id=proveedor_id,
             nombre_contacto=data['nombre_contacto'],
+            cargo=data.get('cargo'), # <-- Añadido para tomar el cargo
             telefono_contacto=data.get('telefono_contacto'),
             email_contacto=data.get('email_contacto')
         )
@@ -3277,6 +3278,10 @@ def actualizar_contacto_route(contacto_id):
             updated = True
         if 'email_contacto' in data and data['email_contacto'] != contacto.email_contacto:
             contacto.email_contacto = data['email_contacto'] if data['email_contacto'] else None
+            updated = True
+        # --- Añadido para actualizar el cargo ---
+        if 'cargo' in data and data['cargo'] != contacto.cargo:
+            contacto.cargo = data['cargo'] if data['cargo'] else None
             updated = True
 
         if updated:
