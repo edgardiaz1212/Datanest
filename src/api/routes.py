@@ -3028,9 +3028,18 @@ def crear_proveedor_route():
     if not data or not data.get('nombre'):
         return jsonify({"msg": "El campo 'nombre' es requerido."}), 400
 
+    nombre_proveedor = data['nombre'].strip() # Normalizar: quitar espacios al inicio/final
+    if not nombre_proveedor: # Verificar que después de quitar espacios, el nombre no esté vacío
+        return jsonify({"msg": "El campo 'nombre' no puede estar vacío."}), 400
+
+    # Verificación proactiva de existencia
+    existing_proveedor = Proveedor.query.filter(func.lower(Proveedor.nombre) == func.lower(nombre_proveedor)).first()
+    if existing_proveedor:
+        return jsonify({"msg": f"Ya existe un proveedor con el nombre '{nombre_proveedor}' (o una variación)."}), 409
+
     try:
         nuevo_proveedor = Proveedor(
-            nombre=data['nombre'],
+            nombre=nombre_proveedor, # Usar el nombre normalizado
             email_proveedor=data.get('email_proveedor')
         )
         db.session.add(nuevo_proveedor)
@@ -3041,7 +3050,8 @@ def crear_proveedor_route():
         return jsonify({"msg": str(ve)}), 400
     except IntegrityError: # Captura violación de unicidad (nombre)
         db.session.rollback()
-        return jsonify({"msg": f"Ya existe un proveedor con el nombre '{data['nombre']}'."}), 409
+        # Este mensaje ahora es un fallback, la verificación proactiva debería atrapar la mayoría de los casos.
+        return jsonify({"msg": f"Error de integridad: Ya existe un proveedor con el nombre '{nombre_proveedor}'."}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
         print(f"Error DB creando proveedor: {e}", file=sys.stderr)
