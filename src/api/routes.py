@@ -1302,69 +1302,99 @@ def upload_lecturas_excel_route():
         return jsonify({"msg": f"Error al procesar el archivo Excel: {str(e)}"}), 500
 
 @api.route('/lecturas/download_excel_template', methods=['GET'])
-@jwt_required() # Opcional, si quieres que solo usuarios logueados la descarguen
+@jwt_required()
 def download_excel_template_route():
     try:
-        # Crear un DataFrame de Pandas con la estructura base
-        # Columnas: Fecha/Hora, Aire1_Temp, Aire1_Hum, Aire2_Temp, Aire2_Hum, ...
-        
-        # Nombres de ejemplo para los aires (podrías obtener algunos reales si quisieras)
-        aires_ejemplo = ["Aire Sala Servidores 1", "Aire UPS Principal"]
-        
-        # Fila 1: Fecha/Hora, Nombre Aire 1, Nombre Aire 1, Nombre Aire 2, Nombre Aire 2
-        # Fila 2: (vacío)  , Temp        , Hum         , Temp        , Hum
-        column_headers_row1 = ["Fecha/Hora"] 
-        column_headers_row2 = ["(DD/MM/YYYY o YYYY-MM-DD) / (HH:MM)"] # Instrucción para el formato de la primera columna
-        
-        for aire_nombre in aires_ejemplo:
-            column_headers_row1.extend([aire_nombre, aire_nombre]) # Nombre del aire ocupa 2 celdas
-            column_headers_row2.extend(["Temp", "Hum"])
-            
-        # Datos de ejemplo
-        # Asegurarse de que todas las listas internas tengan la misma longitud que los encabezados
-        num_cols = len(column_headers_row1)
-        data_ejemplo = [
-            column_headers_row1,
-            column_headers_row2,
-            # Ejemplo de cómo se verían los datos
-            ["22/03/2025"] + [""] * (num_cols - 1), # Fila de Fecha
-            ["06:00", "22.5", "50.1", "23.0", ""] + [""] * (num_cols - 5 if num_cols > 5 else 0), # Fila de Hora y datos
-            ["09:00", "22.7", "49.5", "23.1", ""] + [""] * (num_cols - 5 if num_cols > 5 else 0),
-            # Añadir una fila completamente vacía (excepto la primera celda si es necesario) para que el usuario comience
-            [""] * num_cols
-        ]
-        
-        df_template = pd.DataFrame(data_ejemplo)
+        # Crear un DataFrame vacío
+        df_template = pd.DataFrame()
 
-        # Crear un buffer de BytesIO para guardar el archivo Excel en memoria
+        # Configurar la estructura base según tu archivo de ejemplo
+        # -----------------------------------------------------------------
+        # Encabezados principales (filas 1-4)
+        encabezados = {
+            # Fila 1: Títulos principales
+            0: ['', '', 'Calculos', '', '', '', '', '', '', 'SABADO'] + ['']*(256-10),
+            
+            # Fila 2: Promedios y horas
+            1: ['', '', 'Promedio 24horas', 'Promedio Semanal 1', 'Promedio Semanal 2', 
+                'Promedio Semanal 3', 'Promedio Semanal 4', 'Promedio Semanal 5', 
+                'Promedio Mensual', '02:00:00', '06:00:00', '09:00:00', '12:00:00', 
+                '15:00:00', '18:00:00', '22:00:00'] + ['']*(256-15),
+            
+            # Fila 3: Fechas (ejemplo para 5 días)
+            2: ['']*9 + [datetime(2025, 3, 1), datetime(2025, 3, 2), datetime(2025, 3, 3), 
+                       datetime(2025, 3, 4), datetime(2025, 3, 5)] + ['']*(256-14),
+            
+            # Fila 4: Horas (ejemplo)
+            3: ['']*9 + ['02:00:00', '06:00:00', '09:00:00', '12:00:00', '15:00:00'] + ['']*(256-14)
+        }
+
+        # Datos de ejemplo para sensores (filas 5+)
+        sensores_ejemplo = [
+            ['SALA 32E', 'AAP1', '', 18.9, 18.6, 18.5, 18.8, 18.8],
+            ['', 'AA2', '', 17.1, 16.8, 16.8, 17.2, 17.2],
+            ['', 'AA3', '', 18.9, 18.5, 18.5, 18.8, 18.8],
+            ['SALA 31E', 'AAP1', '', 21.0, 20.0, 21.0, 21.0, 21.0]
+        ]
+
+        # Construir el DataFrame
+        for row_idx, data in encabezados.items():
+            df_template = pd.concat([
+                df_template, 
+                pd.DataFrame([data], columns=range(256))
+            ], ignore_index=True)
+
+        for sensor_data in sensores_ejemplo:
+            df_template = pd.concat([
+                df_template,
+                pd.DataFrame([sensor_data + ['']*(256 - len(sensor_data))], 
+                columns=range(256))
+            ], ignore_index=True)
+
+        # Formatear el archivo Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Escribir el DataFrame sin índice ni cabeceras de pandas, ya que las hemos incluido en los datos
-            df_template.to_excel(writer, index=False, header=False, sheet_name='PlantillaLecturas')
-            writer.save()  # Explicit save to ensure data is written
-            # Opcional: ajustar ancho de columnas
-            # worksheet = writer.sheets['PlantillaLecturas']
-            # worksheet.column_dimensions['A'].width = 20 # Ancho para Fecha/Hora
-        
-        # Log para depuración del tamaño del archivo generado
-        file_size = output.tell() # Obtiene el tamaño actual del buffer (posición del cursor después de escribir)
-        print(f"Tamaño del buffer de Excel generado para plantilla: {file_size} bytes", file=sys.stderr)
-        if file_size < 200: # Un archivo .xlsx válido y no vacío suele ser de varios KB
-            print("ADVERTENCIA: La plantilla Excel generada es muy pequeña, podría estar corrupta o vacía.", file=sys.stderr)
+            df_template.to_excel(
+                writer, 
+                index=False, 
+                header=False, 
+                sheet_name='Plantilla'
+            )
+            
+            workbook = writer.book
+            worksheet = writer.sheets['Plantilla']
+            
+            # Estilos y formatos
+            header_fill = PatternFill(start_color='C0C0C0', end_color='C0C0C0', fill_type='solid')
+            date_format = 'yyyy-mm-dd'
+            time_format = 'hh:mm:ss'
+            
+            # Aplicar formatos a fechas y horas
+            for col in range(9, 14):  # Columnas J-N
+                cell = worksheet.cell(row=3, column=col+1)
+                cell.number_format = date_format
                 
-        output.seek(0) # Regresar al inicio del buffer
+                cell = worksheet.cell(row=4, column=col+1)
+                cell.number_format = time_format
+            
+            # Ajustar anchos de columnas
+            worksheet.column_dimensions['A'].width = 15  # Columna A
+            worksheet.column_dimensions['B'].width = 12  # Columna B
+            worksheet.column_dimensions['C'].width = 18  # Columna C
+            
+        output.seek(0)
 
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name='plantilla_lecturas_historicas.xlsx'
+            download_name='plantilla_lecturas_salas.xlsx'
         )
 
     except Exception as e:
-        print(f"Error generando plantilla Excel: {e}", file=sys.stderr)
+        print(f"Error generando plantilla: {str(e)}")
         traceback.print_exc()
-        return jsonify({"msg": "Error al generar la plantilla Excel."}), 500
+        return jsonify({"msg": "Error al generar plantilla"}), 500
 
 @api.route('/aires/<int:aire_id>/estadisticas', methods=['GET'])
 def obtener_estadisticas_por_aire_route(aire_id):
