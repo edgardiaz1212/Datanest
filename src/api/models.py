@@ -379,6 +379,7 @@ class Mantenimiento(db.Model):
     imagen_nombre = db.Column(db.String(255))
     imagen_tipo = db.Column(db.String(50))
     imagen_datos = db.Column(db.LargeBinary)
+    alertas_resueltas_info = db.Column(db.Text, nullable=True, comment="Información sobre las alertas que este mantenimiento resolvió") # <--- NUEVO CAMPO
 
     # Relaciones
     aire = db.relationship("AireAcondicionado", back_populates="mantenimientos")
@@ -433,6 +434,8 @@ class Mantenimiento(db.Model):
             'equipo_nombre': equipo_nombre,
             'equipo_ubicacion': equipo_ubicacion,
             'equipo_tipo': equipo_tipo,
+            'alertas_resueltas_info': self.alertas_resueltas_info, # <--- AÑADIR AL SERIALIZE
+
         }
 
 class UmbralConfiguracion(db.Model):

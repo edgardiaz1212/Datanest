@@ -1,6 +1,6 @@
 // src/front/js/component/Mantenimientos/MantenimientoViewModal.jsx
 
-import React from "react";
+import React, { useMemo } from "react"; // <--- Añadido useMemo
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Modal, Button, Row, Col, Badge, Alert } from "react-bootstrap";
 import {
@@ -14,7 +14,7 @@ import {
   FiTag, // Icon for Tipo Equipo
   FiHash, // Icon for ID
   FiFileText, // Icon for Descripción
-  FiCheckSquare, // Icon for Tiene Imagen (alternative)
+  FiCheckSquare, // Icon for Tiene Imagen (alternative) or Alerta Resuelta
   FiXSquare, // Icon for No Tiene Imagen (alternative)
 } from "react-icons/fi";
 
@@ -89,6 +89,19 @@ const MantenimientoViewModal = ({ // Remove : React.FC<MantenimientoViewModalPro
     </Badge>
   ) : null; // Handle case where tipo might be missing
 
+  // --- Parsear alertas_resueltas_info ---
+  const alertasResueltas = useMemo(() => {
+    if (mantenimiento && mantenimiento.alertas_resueltas_info) {
+      try {
+        return JSON.parse(mantenimiento.alertas_resueltas_info);
+      } catch (e) {
+        console.error("Error parseando alertas_resueltas_info:", e);
+        return [];
+      }
+    }
+    return [];
+  }, [mantenimiento]);
+
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
@@ -132,6 +145,32 @@ const MantenimientoViewModal = ({ // Remove : React.FC<MantenimientoViewModalPro
               </Col>
             </Row>
           )}
+
+          {/* --- Sección de Alertas Resueltas --- */}
+          {alertasResueltas && alertasResueltas.length > 0 && (
+            <>
+              <hr className="my-3" />
+              <h5 className="mb-3"><FiCheckSquare className="me-2 text-success"/>Alertas de Operatividad Resueltas por este Mantenimiento</h5>
+              {alertasResueltas.map((alerta, index) => (
+                <div key={index} className="mb-2 p-2 border rounded bg-light-subtle">
+                  <p className="mb-1">
+                    <Badge bg="danger" pill className="me-2">{alerta.componente || 'Componente Desconocido'}</Badge>
+                    <strong>Diagnóstico:</strong> {alerta.diagnostico || alerta.mensaje || 'No especificado'}
+                  </p>
+                  {alerta.notas_diagnostico && (
+                    <p className="mb-0 ms-4">
+                      <small className="text-muted">Notas del diagnóstico original: {alerta.notas_diagnostico}</small>
+                    </p>
+                  )}
+                   {alerta.fecha_lectura_original && (
+                    <p className="mb-0 ms-4">
+                      <small className="text-muted">Falla detectada el: {formatearFechaHora(alerta.fecha_lectura_original)}</small>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
         </>
       </Modal.Body>
       <Modal.Footer>
@@ -159,6 +198,7 @@ MantenimientoViewModal.propTypes = {
     equipo_nombre: PropTypes.string,
     equipo_ubicacion: PropTypes.string,
     equipo_tipo: PropTypes.string,
+    alertas_resueltas_info: PropTypes.string, // Es un string JSON
   }),
   // Modified to accept string or number (ID) or undefined
   onShowImagen: PropTypes.func.isRequired,

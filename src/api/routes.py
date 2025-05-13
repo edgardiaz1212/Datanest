@@ -1993,6 +1993,17 @@ def agregar_mantenimiento_aire_route(aire_id):
     tipo_mantenimiento = request.form['tipo_mantenimiento']
     descripcion = request.form['descripcion']
     tecnico = request.form['tecnico']
+    alertas_resueltas_info_str = request.form.get('alertas_resueltas_info') # Se espera un string JSON
+    # --- NUEVO: Obtener si el mantenimiento resuelve la operatividad ---
+    resuelve_operatividad_evaporadora = request.form.get('resuelve_operatividad_evaporadora', 'false').lower() == 'true'
+    resuelve_operatividad_condensadora = request.form.get('resuelve_operatividad_condensadora', 'false').lower() == 'true'
+    # --- NUEVO: Obtener datos de diagnóstico si el componente NO queda operativo ---
+    evap_diag_id = request.form.get('evaporadora_diagnostico_id')
+    evap_diag_notas = request.form.get('evaporadora_diagnostico_notas')
+    evap_diag_fecha_hora_str = request.form.get('evaporadora_fecha_hora_diagnostico') # Espera ISO string
+    cond_diag_id = request.form.get('condensadora_diagnostico_id')
+    cond_diag_notas = request.form.get('condensadora_diagnostico_notas')
+    cond_diag_fecha_hora_str = request.form.get('condensadora_fecha_hora_diagnostico') # Espera ISO string
 
     imagen_datos = None
     imagen_nombre = None
@@ -2018,10 +2029,50 @@ def agregar_mantenimiento_aire_route(aire_id):
             tecnico=tecnico,
             imagen_nombre=imagen_nombre,
             imagen_tipo=imagen_tipo,
-            imagen_datos=imagen_datos
+            imagen_datos=imagen_datos,
+            alertas_resueltas_info=alertas_resueltas_info_str 
         )
         db.session.add(nuevo_mantenimiento)
         db.session.commit()
+
+        # --- NUEVO: Actualizar estado operativo del aire si es necesario ---
+        if resuelve_operatividad_evaporadora:
+            aire.evaporadora_operativa = True
+            aire.evaporadora_diagnostico_id = None
+            aire.evaporadora_diagnostico_notas = None
+            aire.evaporadora_fecha_hora_diagnostico = None
+        elif not aire.evaporadora_operativa: # Si NO resuelve y ya estaba no operativa (o se mantiene no operativa)
+            aire.evaporadora_operativa = False # Asegurar que sigue no operativa
+            if evap_diag_id: # Solo actualizar si se proporciona un nuevo diagnóstico
+                aire.evaporadora_diagnostico_id = int(evap_diag_id) if evap_diag_id.isdigit() else None
+                aire.evaporadora_diagnostico_notas = evap_diag_notas
+                if evap_diag_fecha_hora_str:
+                    try:
+                        aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(evap_diag_fecha_hora_str)
+                    except (ValueError, TypeError):
+                        aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
+                else: # Si no se especifica fecha para el nuevo diagnóstico, usar la del mantenimiento
+                    aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
+
+        if resuelve_operatividad_condensadora:
+            aire.condensadora_operativa = True
+            aire.condensadora_diagnostico_id = None
+            aire.condensadora_diagnostico_notas = None
+            aire.condensadora_fecha_hora_diagnostico = None
+        elif not aire.condensadora_operativa: # Si NO resuelve y ya estaba no operativa
+            aire.condensadora_operativa = False
+            if cond_diag_id:
+                aire.condensadora_diagnostico_id = int(cond_diag_id) if cond_diag_id.isdigit() else None
+                aire.condensadora_diagnostico_notas = cond_diag_notas
+                if cond_diag_fecha_hora_str:
+                    try:
+                        aire.condensadora_fecha_hora_diagnostico = datetime.fromisoformat(cond_diag_fecha_hora_str)
+                    except (ValueError, TypeError):
+                        aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
+                else:
+                    aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
+        
+        db.session.commit() # Guardar cambios en el aire
         return jsonify(nuevo_mantenimiento.serialize()), 201 # Usar serialize_with_details
 
     except SQLAlchemyError as e:
