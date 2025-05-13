@@ -1445,11 +1445,8 @@ const getState = ({ getStore, getActions, setStore }) => {
       deleteMantenimiento: async (mantenimientoId) => {
         // Ruta protegida, necesita token
         const store = getStore();
-        const originalList = [...store.mantenimientos];
-        const updatedList = originalList.filter(
-          (m) => m.id !== mantenimientoId
-        );
-        setStore({ mantenimientos: updatedList, mantenimientosError: null });
+        // La actualización optimista se elimina; el componente se encargará de recargar.
+        setStore({ mantenimientosError: null }); // Limpiar error previo
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/mantenimientos/${mantenimientoId}`,
@@ -1459,27 +1456,32 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           if (!response.ok) {
-            setStore({ mantenimientos: originalList });
+            // No es necesario revertir la actualización optimista si se eliminó.
             const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) getActions().logoutTrackerUser();
+            setStore({ // Establecer el error global
+              mantenimientosError: errorData.msg || `Error deleting mantenimiento: ${response.status}`
+            });
             throw new Error(
               errorData.msg ||
                 `Error deleting mantenimiento: ${response.status}`
             );
           }
           console.log(`Mantenimiento ${mantenimientoId} deleted successfully.`);
+          setStore({ mantenimientosError: null }); // Limpiar error en caso de éxito
           return true;
         } catch (error) {
           console.error("Error in deleteMantenimiento:", error);
-          setStore({
-            mantenimientos: originalList,
-            mantenimientosError:
-              error.message || "Error al eliminar el mantenimiento.",
-          });
+          // El error ya debería estar establecido si fue un error HTTP.
+          // Esto es para errores de red u otros.
+          if (!store.mantenimientosError) {
+            setStore({
+              mantenimientosError: error.message || "Error al eliminar el mantenimiento.",
+            });
+          }
           return false;
         }
       },
-
       fetchMantenimientoImagenBase64: async (mantenimientoId) => {
         // Ruta protegida, necesita token
         try {

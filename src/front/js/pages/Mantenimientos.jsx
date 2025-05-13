@@ -136,13 +136,29 @@ const Mantenimientos = () => { // Remove : React.FC
       setLoadingSubmit(true); // Indicate activity
       const success = await deleteMantenimiento(id);
       setLoadingSubmit(false);
-      if (!success) {
-        // Error is handled globally
-        // alert("Error al eliminar"); // Optional local feedback
+
+      if (success) {
+        // Después de una eliminación exitosa, recargar la lista de mantenimientos.
+        const currentFilters = {};
+        if (filtroAire) {
+          currentFilters.aire_id = filtroAire;
+        }
+        
+        // Ajustar la página si se eliminó el último elemento de la página actual (y no es la primera página)
+        let pageToFetch = currentPage;
+        if (mantenimientos.length === 1 && currentPage > 1) {
+          pageToFetch = currentPage - 1;
+          // setCurrentPage(pageToFetch); // Opcional: actualizar el estado local de la página inmediatamente
+                                      // pero fetchMantenimientos ya lo hará al actualizar paginationInfo
+        }
+        fetchMantenimientos(currentFilters, pageToFetch, itemsPerPage);
       }
-      // UI updates optimistically via Flux
+      // El error global se maneja a través de 'mantenimientosError' en el store.
     }
-  }, [deleteMantenimiento, clearMantenimientosError]);
+  }, [
+    deleteMantenimiento, clearMantenimientosError, filtroAire, 
+    currentPage, itemsPerPage, fetchMantenimientos, mantenimientos.length 
+  ]);
 
   const handleShowImagen = useCallback(async (id) => { // Remove type number
     if (clearMantenimientosError) clearMantenimientosError();
