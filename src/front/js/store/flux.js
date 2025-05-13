@@ -1660,9 +1660,8 @@ const getState = ({ getStore, getActions, setStore }) => {
       deleteLectura: async (lecturaId) => {
         // Ruta protegida, necesita token
         const store = getStore();
-        const originalList = [...store.lecturas];
-        const updatedList = originalList.filter((l) => l.id !== lecturaId);
-        setStore({ lecturas: updatedList, lecturasError: null });
+        // Eliminamos la actualización optimista. El componente se encargará de recargar.
+        setStore({ lecturasError: null }); // Limpiar error previo
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/lecturas/${lecturaId}`,
@@ -1672,7 +1671,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           if (!response.ok) {
-            setStore({ lecturas: originalList });
+            // No es necesario revertir la actualización optimista si se eliminó.
             const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) getActions().logoutTrackerUser();
             throw new Error(
@@ -1680,13 +1679,17 @@ const getState = ({ getStore, getActions, setStore }) => {
             );
           }
           console.log(`Lectura ${lecturaId} deleted successfully.`);
+          // No es necesario actualizar el store.lecturas aquí.
           return true;
         } catch (error) {
           console.error("Error in deleteLectura:", error);
-          setStore({
-            lecturas: originalList,
-            lecturasError: error.message || "Error al eliminar la lectura.",
-          });
+          // El error ya debería estar establecido si fue un error HTTP.
+          // Esto es para errores de red u otros.
+          if (!store.lecturasError) { // Solo establece si no hay un error HTTP previo
+            setStore({
+              lecturasError: error.message || "Error al eliminar la lectura.",
+            });
+          }
           return false;
         }
       },

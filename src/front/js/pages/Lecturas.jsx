@@ -127,13 +127,32 @@ const Lecturas = () => {
     if (window.confirm('¿Está seguro de eliminar esta lectura?')) {
       if (clearLecturasError) clearLecturasError();
       // Optionally set a local loading state for the specific row if needed
+      // setIsDeleting(id); // Ejemplo si tuvieras un estado para esto
       const success = await deleteLectura(id);
-      if (!success && !store.lecturasError) { // Si deleteLectura no maneja el error globalmente
-        alert("Error al eliminar la lectura.");
+      // setIsDeleting(null); // Reset
+
+      if (success) {
+        // Después de una eliminación exitosa, recargar la lista de lecturas.
+        const currentFilters = {};
+        if (filtroAire) { // Solo aplicar filtro de aire si está activo
+          currentFilters.aire_id = parseInt(filtroAire);
+        }
+
+        let pageToFetch = currentPage;
+        // Ajustar la página solo si hay un filtro de aire activo y se eliminó el último ítem de una página
+        if (filtroAire && lecturas.length === 1 && currentPage > 1) {
+          pageToFetch = currentPage - 1;
+        }
+        // Llamar a fetchLecturas con los filtros, la página ajustada y los items por página
+        actions.fetchLecturas(currentFilters, pageToFetch, itemsPerPage);
+      } else if (!store.lecturasError) { 
+        // Si deleteLectura devuelve false pero no establece un error en el store,
+        // podrías mostrar una alerta genérica o establecer un error local.
+        // actions.setLecturasError("Error al eliminar la lectura."); // Opcional
       }
       // Si deleteLectura ya establece store.lecturasError, el Alert global lo mostrará
     }
-  }, [deleteLectura, clearLecturasError, store.lecturasError]);
+  }, [deleteLectura, clearLecturasError, store.lecturasError, filtroAire, currentPage, itemsPerPage, actions.fetchLecturas, lecturas.length]);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
