@@ -1428,17 +1428,15 @@ const getState = ({ getStore, getActions, setStore }) => {
                 `Error adding mantenimiento: ${response.status}`
             );
           }
-          // Recargar la página actual después de agregar
-          const store = getStore();
-          const currentPage = store.mantenimientosPaginationInfo.current_page || 1;
-          await getActions().fetchMantenimientos(filters, currentPage, store.mantenimientosPaginationInfo.per_page || 20);
+          // La recarga de datos se manejará en el componente después de una adición exitosa.
+          setStore({ mantenimientosLoading: false }); // Indicar que la operación de 'add' ha terminado.
           return true;
         } catch (error) {
           console.error("Error in addMantenimiento:", error);
           setStore({
             mantenimientosError:
               error.message || "Error al guardar el mantenimiento.",
-            mantenimientosLoading: false,
+            mantenimientosLoading: false, // Asegurarse de resetear el loading en caso de error.
           });
           return false;
         }

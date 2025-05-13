@@ -200,16 +200,28 @@ const Mantenimientos = () => { // Remove : React.FC
     // Call Flux action
     const success = await addMantenimiento(formDataObj);
 
-    // No es necesario setLoadingSubmit(false) aquí si addMantenimiento ya lo hace
-    // o si el refetch de mantenimientos actualiza el estado de carga global.
-    // Sin embargo, si tienes un estado de carga local para el modal, sí deberías resetearlo.
-    // Para este ejemplo, asumimos que el estado de carga global es suficiente.
+    setLoadingSubmit(false); // Reset local submit loading state
+
     if (success) {
       setShowAddModal(false); // Close modal on success
+      // Re-fetch mantenimientos with current filters and pagination
+      const currentFilters = {};
+      if (filtroAire) {
+        currentFilters.aire_id = filtroAire;
+      }
+      fetchMantenimientos(currentFilters, currentPage, itemsPerPage);
     }
     // Error display handled globally by 'mantenimientosError' state
 
-  }, [formData, addMantenimiento, clearMantenimientosError]); // Dependencies
+  }, [
+    formData,
+    addMantenimiento,
+    clearMantenimientosError,
+    fetchMantenimientos, // Added fetchMantenimientos to dependencies
+    filtroAire,          // Added filtroAire
+    currentPage,         // Added currentPage
+    itemsPerPage         // Added itemsPerPage
+  ]); // Dependencies
 
   // --- Formatting Helpers (remain the same, remove types) ---
   const formatearFechaHora = useCallback((fechaStr) => {
