@@ -1,10 +1,11 @@
 import React, { useEffect, useContext, useState } from 'react';
-import { Card, Spinner, Alert, Button } from 'react-bootstrap';
+import { Card, Spinner, Alert, Button, Form, Row, Col } from 'react-bootstrap'; // Added Form, Row, Col
 import { HiOutlineDocumentReport } from 'react-icons/hi'
 import { Context } from '../store/appContext';
 import ReportesAiresTable from '../component/Reportes/ReportesAiresTable.jsx';
 import ReportesOtrosEquiposTable from '../component/Reportes/ReportesOtrosEquiposTable.jsx';
-
+import ReportesFallasTable from '../component/Reportes/ReportesFallasTable.jsx'; // <--- NUEVO: Componente para tabla de fallas
+ 
 // Importa jsPDF como siempre
 import jsPDF from 'jspdf';
 // Importa autoTable explícitamente desde jspdf-autotable
@@ -23,17 +24,22 @@ const Reportes = () => {
     otrosEquiposList,
     otrosEquiposLoading,
     otrosEquiposError,
+    detailedAlertsList, // <--- NUEVO: Para obtener las fallas activas
+    detailedAlertsLoading, // <--- NUEVO
+    detailedAlertsError,   // <--- NUEVO
   } = store;
 
-  const { fetchAires, fetchOtrosEquipos } = actions;
+  const { fetchAires, fetchOtrosEquipos, fetchDetailedAlerts } = actions; // <--- NUEVO: fetchDetailedAlerts
 
   const [groupedAires, setGroupedAires] = useState({});
   const [groupedOtrosEquipos, setGroupedOtrosEquipos] = useState({});
+  const [reporteSeleccionado, setReporteSeleccionado] = useState('datosEquipo'); // 'datosEquipo' o 'fallasRegistradas'
 
   useEffect(() => {
     fetchAires();
     fetchOtrosEquipos();
-  }, [fetchAires, fetchOtrosEquipos]);
+    fetchDetailedAlerts(); // <--- NUEVO: Cargar alertas/fallas
+  }, [fetchAires, fetchOtrosEquipos, fetchDetailedAlerts]);
 
   useEffect(() => {
     if (airesList && Array.isArray(airesList)) {
@@ -150,12 +156,59 @@ const Reportes = () => {
     }
   };
   // --- Fin de la función ---
-// ... (dentro del componente Reportes, después de handleDownloadAiresPDF) ...
 
-// --- Función para generar PDF de Otros Equipos por Tipo ---
-const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
-  if (!equipos || equipos.length === 0) {
-    console.warn('No hay datos de otros equipos para generar el PDF para el tipo:', tipo);
+  // --- Función para generar PDF de Fallas Registradas ---
+  const handleDownloadFallasPDF = () => {
+    const fallasOperatividad = detailedAlertsList.filter(alerta => alerta.alerta_tipo === "Operatividad");
+    if (!fallasOperatividad || fallasOperatividad.length === 0) {
+      console.warn('No hay fallas de operatividad para generar el PDF.');
+      alert('No hay fallas de operatividad para generar el PDF.');
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const tableColumn = [
+      "Aire", "Ubicación", "Componente Falla", "Mensaje",
+      "Diagnóstico", "Notas Diagnóstico", "Detectado"
+    ];
+    const tableRows = [];
+
+    doc.setFontSize(18);
+    doc.text("Reporte de Fallas Registradas en Aires Acondicionados", 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+
+    fallasOperatividad.forEach(falla => {
+      const fallaData = [
+        falla.aire_nombre || '-',
+        falla.aire_ubicacion || '-',
+        falla.componente || '-',
+        falla.mensaje || '-',
+        falla.diagnostico_nombre || 'No especificado',
+        falla.diagnostico_notas || '-',
+        falla.fecha_lectura ? new Date(falla.fecha_lectura).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-',
+      ];
+      tableRows.push(fallaData);
+    });
+
+    try {
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [220, 53, 69] }, // Color rojo para fallas
+        margin: { top: 30 }
+      });
+      doc.save('reporte_fallas_aires.pdf');
+    } catch (error) {
+      console.error("Error al generar el PDF de fallas:", error);
+    }
+  };
+  const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
+    if (!equipos || equipos.length === 0) {
+      console.warn('No hay datos de otros equipos para generar el PDF para el tipo:', tipo);
     return;
   }
 
@@ -220,124 +273,173 @@ const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
 
   return (
     <div className="container mt-4">
-       <h1 > Reportes</h1>
- 
-      {/* Aires Section */}
-      <Card className="mb-4">
-        <Card.Header>
-          <h2>Aires Acondicionados por Tipo</h2>
-        </Card.Header>
-        <Card.Body>
-          {airesLoading && (
-            <div className="text-center p-3">
-              <Spinner animation="border" variant="primary" />
-              <p>Cargando aires acondicionados...</p>
-            </div>
-          )}
-          {airesError && (
-            <Alert variant="danger">
-              Error al cargar aires acondicionados: {airesError}
-            </Alert>
-          )}
-          {!airesLoading && !airesError && (
-            Object.keys(groupedAires).length === 0 ? (
-              <p>No hay aires acondicionados registrados.</p>
-            ) : (
-              Object.entries(groupedAires).map(([tipo, dataTipo]) => {
-                // Si el tipo es 'Precision' y tiene subgrupos por ubicación
-                if (tipo.toLowerCase() === 'precision' && Object.keys(dataTipo.byUbicacion).length > 0) {
-                  return (
-                    <div key={tipo} className="mb-4">
-                      <h2 className="mb-3" style={{ borderBottom: '2px solid #eee', paddingBottom: '0.5rem' }}>Tipo: {tipo}</h2>
-                      {Object.entries(dataTipo.byUbicacion).map(([ubicacion, airesEnUbicacion]) => (
-                        <div key={`${tipo}-${ubicacion}`} className="mb-3 ps-3"> {/* Indentación para subgrupos */}
+      <Row className="mb-3 align-items-center">
+        <Col md={8}>
+          <h1><HiOutlineDocumentReport className="me-2" />Reportes</h1>
+        </Col>
+        <Col md={4}>
+          <Form.Group controlId="reporteSelector">
+            <Form.Label className="fw-bold">Seleccionar Tipo de Reporte:</Form.Label>
+            <Form.Select
+              value={reporteSeleccionado}
+              onChange={(e) => setReporteSeleccionado(e.target.value)}
+            >
+              <option value="datosEquipo">Datos de Equipos</option>
+              <option value="fallasRegistradas">Fallas Registradas (Aires)</option>
+            </Form.Select>
+          </Form.Group>
+        </Col>
+      </Row>
+
+      {/* --- SECCIÓN DATOS DE EQUIPO --- */}
+      {reporteSeleccionado === 'datosEquipo' && (
+        <>
+          {/* Aires Section */}
+          <Card className="mb-4">
+            <Card.Header>
+              <h2>Aires Acondicionados por Tipo</h2>
+            </Card.Header>
+            <Card.Body>
+              {airesLoading && (
+                <div className="text-center p-3">
+                  <Spinner animation="border" variant="primary" />
+                  <p>Cargando aires acondicionados...</p>
+                </div>
+              )}
+              {airesError && (
+                <Alert variant="danger">
+                  Error al cargar aires acondicionados: {airesError}
+                </Alert>
+              )}
+              {!airesLoading && !airesError && (
+                Object.keys(groupedAires).length === 0 ? (
+                  <p>No hay aires acondicionados registrados.</p>
+                ) : (
+                  Object.entries(groupedAires).map(([tipo, dataTipo]) => {
+                    if (tipo.toLowerCase() === 'precision' && Object.keys(dataTipo.byUbicacion).length > 0) {
+                      return (
+                        <div key={tipo} className="mb-4">
+                          <h3 className="mb-3" style={{ borderBottom: '2px solid #eee', paddingBottom: '0.5rem' }}>Tipo: {tipo}</h3>
+                          {Object.entries(dataTipo.byUbicacion).map(([ubicacion, airesEnUbicacion]) => (
+                            <div key={`${tipo}-${ubicacion}`} className="mb-3 ps-3">
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <h4>Ubicación: {ubicacion} ({airesEnUbicacion.length} equipos)</h4>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => handleDownloadAiresPDF(tipo, airesEnUbicacion, ubicacion)}
+                                  disabled={!airesEnUbicacion || airesEnUbicacion.length === 0}
+                                >
+                                  <HiOutlineDocumentReport className="me-1" /> PDF (Ubic.)
+                                </Button>
+                              </div>
+                              <ReportesAiresTable airesList={airesEnUbicacion} />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } else if (dataTipo.items.length > 0) {
+                      return (
+                        <div key={tipo} className="mb-4">
                           <div className="d-flex justify-content-between align-items-center mb-2">
-                            <h4>Ubicación: {ubicacion} ({airesEnUbicacion.length} equipos)</h4>
+                            <h3>Tipo: {tipo} ({dataTipo.items.length} equipos)</h3>
                             <Button
                               variant="outline-danger"
                               size="sm"
-                              onClick={() => handleDownloadAiresPDF(tipo, airesEnUbicacion, ubicacion)}
-                              disabled={!airesEnUbicacion || airesEnUbicacion.length === 0}
+                              onClick={() => handleDownloadAiresPDF(tipo, dataTipo.items)}
+                              disabled={!dataTipo.items || dataTipo.items.length === 0}
                             >
-                              <i className="fas fa-file-pdf me-2"></i>
-                              Descargar PDF (Ubicación)
+                              <HiOutlineDocumentReport className="me-1" /> PDF (Tipo)
                             </Button>
                           </div>
-                          <ReportesAiresTable airesList={airesEnUbicacion} />
+                          <ReportesAiresTable airesList={dataTipo.items} />
                         </div>
-                      ))}
-                    </div>
-                  );
-                } else if (dataTipo.items.length > 0) { // Para otros tipos o 'Precision' sin desglose por ubicación
-                  return (
+                      );
+                    } return null;
+                  })
+                )
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Otros Equipos Section */}
+          <Card>
+            <Card.Header>
+              <h2>Otros Equipos por Tipo</h2>
+            </Card.Header>
+            <Card.Body>
+              {otrosEquiposLoading && (
+                <div className="text-center p-3">
+                  <Spinner animation="border" variant="primary" />
+                  <p>Cargando otros equipos...</p>
+                </div>
+              )}
+              {otrosEquiposError && (
+                <Alert variant="danger">
+                  Error al cargar otros equipos: {otrosEquiposError}
+                </Alert>
+              )}
+              {!otrosEquiposLoading && !otrosEquiposError && (
+                Object.keys(groupedOtrosEquipos).length === 0 ? (
+                  <p>No hay otros equipos registrados.</p>
+                ) : (
+                  Object.entries(groupedOtrosEquipos).map(([tipo, equipos]) => (
                     <div key={tipo} className="mb-4">
                       <div className="d-flex justify-content-between align-items-center mb-2">
-                        <h2>Tipo: {tipo} ({dataTipo.items.length} equipos)</h2>
+                        <h3>Tipo: {tipo} ({equipos.length} equipos)</h3>
                         <Button
-                          variant="outline-danger"
+                          variant="outline-primary"
                           size="sm"
-                          onClick={() => handleDownloadAiresPDF(tipo, dataTipo.items)}
-                          disabled={!dataTipo.items || dataTipo.items.length === 0}
+                          onClick={() => handleDownloadOtrosEquiposPDF(tipo, equipos)}
+                          disabled={!equipos || equipos.length === 0}
                         >
-                          <i className="fas fa-file-pdf me-2"></i>
-                          Descargar PDF (Tipo)
+                          <HiOutlineDocumentReport className="me-1" /> PDF
                         </Button>
                       </div>
-                      <ReportesAiresTable airesList={dataTipo.items} />
+                      <ReportesOtrosEquiposTable equiposList={equipos} />
                     </div>
-                  );
-                } return null; // Si no hay items ni desglose por ubicación para este tipo
-              })
-            )
-          )}
-        </Card.Body>
-      </Card>
+                  ))
+                )
+              )}
+            </Card.Body>
+          </Card>
+        </>
+      )}
 
-      {/* Otros Equipos Section */}
-      <Card>
-    <Card.Header>
-      <h2>Otros Equipos por Tipo</h2>
-    </Card.Header>
-    <Card.Body>
-      {otrosEquiposLoading && (
-         <div className="text-center p-3">
-           <Spinner animation="border" variant="primary" />
-           <p>Cargando otros equipos...</p>
-         </div>
-       )}
-       {otrosEquiposError && (
-         <Alert variant="danger">
-           Error al cargar otros equipos: {otrosEquiposError}
-         </Alert>
-       )}
-       {!otrosEquiposLoading && !otrosEquiposError && (
-         Object.keys(groupedOtrosEquipos).length === 0 ? (
-           <p>No hay otros equipos registrados.</p>
-         ) : (
-           Object.entries(groupedOtrosEquipos).map(([tipo, equipos]) => (
-             <div key={tipo} className="mb-4">
-               {/* --- Contenedor para título y botón --- */}
-               <div className="d-flex justify-content-between align-items-center mb-2">
-                 <h3>Tipo: {tipo}</h3>
-                 {/* --- Botón de Descarga PDF para Otros Equipos --- */}
-                 <Button
-                   variant="outline-primary" // Puedes usar otro color (ej. primary)
-                   size="sm"
-                   onClick={() => handleDownloadOtrosEquiposPDF(tipo, equipos)}
-                   disabled={!equipos || equipos.length === 0} // Deshabilita si no hay datos
-                 >
-                   <i className="fas fa-file-pdf me-2"></i> {/* Ícono opcional */}
-                   Descargar PDF
-                 </Button>
-                 {/* --- Fin del Botón --- */}
-               </div>
-               <ReportesOtrosEquiposTable equiposList={equipos} />
-             </div>
-           ))
-         )
-       )}
-    </Card.Body>
-  </Card>
+      {/* --- SECCIÓN FALLAS REGISTRADAS --- */}
+      {reporteSeleccionado === 'fallasRegistradas' && (
+        <Card className="mb-4">
+          <Card.Header className="d-flex justify-content-between align-items-center">
+            <h2>Reporte de Fallas Registradas (Aires)</h2>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={handleDownloadFallasPDF}
+              disabled={!detailedAlertsList.some(alerta => alerta.alerta_tipo === "Operatividad")}
+            >
+              <HiOutlineDocumentReport className="me-1" /> Descargar PDF de Fallas
+            </Button>
+          </Card.Header>
+          <Card.Body>
+            {detailedAlertsLoading && (
+              <div className="text-center p-3">
+                <Spinner animation="border" variant="danger" />
+                <p>Cargando fallas...</p>
+              </div>
+            )}
+            {detailedAlertsError && (
+              <Alert variant="danger">
+                Error al cargar fallas: {detailedAlertsError}
+              </Alert>
+            )}
+            {!detailedAlertsLoading && !detailedAlertsError && (
+              <ReportesFallasTable
+                fallas={detailedAlertsList.filter(alerta => alerta.alerta_tipo === "Operatividad")}
+              />
+            )}
+          </Card.Body>
+        </Card>
+      )}
     </div>
   );
 };
