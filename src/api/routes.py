@@ -2766,13 +2766,29 @@ def contar_alertas_activas_helper():
     """
     print("\n--- [DEBUG] Iniciando contar_alertas_activas_helper (Optimizado) ---")
     try:
-        # 1. Obtener la última lectura de cada aire (sin cambios)
+        aires_con_alerta = set()
+
+        # 1. Verificar operatividad de todos los aires
+        print("[DEBUG] Verificando operatividad de los aires...")
+        todos_los_aires = AireAcondicionado.query.all()
+        if not todos_los_aires:
+            print("[DEBUG] No hay aires registrados. Devolviendo 0 alertas.")
+            return 0
+
+        for aire_obj in todos_los_aires:
+            if not aire_obj.evaporadora_operativa or not aire_obj.condensadora_operativa:
+                if aire_obj.id not in aires_con_alerta:
+                    print(f"[DEBUG] Aire ID {aire_obj.id} ({aire_obj.nombre}) NO OPERATIVO. Añadiendo a alertas.")
+                    aires_con_alerta.add(aire_obj.id)
+            else:
+                print(f"[DEBUG] Aire ID {aire_obj.id} ({aire_obj.nombre}) OPERATIVO.")
+
+        # 2. Obtener la última lectura de cada aire (para los que están operativos y podrían tener alertas de umbral)
         print("[DEBUG] Obteniendo últimas lecturas...")
         subquery = db.session.query(
             Lectura.aire_id,
             func.max(Lectura.fecha).label('max_fecha')
         ).group_by(Lectura.aire_id).subquery()
-
         ultimas_lecturas = db.session.query(Lectura).join(
             subquery,
             (Lectura.aire_id == subquery.c.aire_id) & (Lectura.fecha == subquery.c.max_fecha)
@@ -2780,7 +2796,7 @@ def contar_alertas_activas_helper():
         print(f"[DEBUG] Últimas lecturas encontradas: {len(ultimas_lecturas)}")
 
         # --- OPTIMIZACIÓN: Pre-cargar y organizar umbrales ---
-        print("[DEBUG] Pre-cargando y organizando umbrales activos...")
+        print("[DEBUG] Pre-cargando y organizando umbrales activos (para alertas de sensor)...")
 
         # Pre-fetch global thresholds once
         global_umbrales = db.session.query(UmbralConfiguracion).filter(
@@ -2803,17 +2819,23 @@ def contar_alertas_activas_helper():
         print(f"[DEBUG] Specific umbrales ACTIVOS encontrados: {len(specific_umbrales_raw)} (organizados por aire_id)")
         # --- FIN OPTIMIZACIÓN ---
 
-        # Si no hay ningún umbral activo (ni global ni específico), no puede haber alertas
+        # Si no hay ningún umbral activo (ni global ni específico), no puede haber más alertas de umbrales
         if not global_umbrales and not specific_umbrales_dict:
-             print("[DEBUG] No hay umbrales activos (globales ni específicos). Devolviendo 0.")
-             return 0
+             print("[DEBUG] No hay umbrales activos (globales ni específicos) para alertas de sensor.")
+             # No retornamos aquí, porque ya podríamos tener alertas de operatividad
 
-        # 3. Verificar cada última lectura contra los umbrales aplicables (usando los pre-cargados)
-        alertas_count = 0
-        aires_con_alerta = set()
-        print("[DEBUG] Iniciando verificación de lecturas vs umbrales pre-cargados...")
+        print("[DEBUG] Iniciando verificación de lecturas vs umbrales pre-cargados (solo para aires operativos)...")
 
         for lectura in ultimas_lecturas:
+            # Solo procesar lecturas de aires que están operativos
+            aire_actual = next((a for a in todos_los_aires if a.id == lectura.aire_id), None)
+            if not aire_actual or not aire_actual.evaporadora_operativa or not aire_actual.condensadora_operativa:
+                print(f"[DEBUG] Aire ID {lectura.aire_id} no está operativo o no encontrado, saltando verificación de umbrales para su lectura.")
+                continue
+            
+            # Si el aire ya tiene una alerta (por ejemplo, de operatividad), no necesitamos re-evaluarlo para el conteo.
+            # Sin embargo, la lógica de `obtener_detalles_alertas_activas_helper` sí mostraría ambas.
+            # Para el conteo simple, una vez que un aire está en `aires_con_alerta`, ya cuenta.
             print(f"\n[DEBUG] Verificando Aire ID: {lectura.aire_id} (T:{lectura.temperatura}, H:{lectura.humedad})")
             alerta_encontrada_para_este_aire = False
 
@@ -2848,8 +2870,7 @@ def contar_alertas_activas_helper():
                         print(f"[DEBUG]       ¡VIOLACIÓN DETECTADA por umbral {umbral.id}!")
                         alerta_encontrada_para_este_aire = True
                         if lectura.aire_id not in aires_con_alerta:
-                            print(f"[DEBUG]       Añadiendo Aire ID {lectura.aire_id} a alertas. Incrementando contador.")
-                            alertas_count += 1
+                            print(f"[DEBUG]       Añadiendo Aire ID {lectura.aire_id} a alertas (por umbral).")
                             aires_con_alerta.add(lectura.aire_id)
                         else:
                             print(f"[DEBUG]       Aire ID {lectura.aire_id} ya estaba en alertas.")
@@ -2862,8 +2883,8 @@ def contar_alertas_activas_helper():
             if not alerta_encontrada_para_este_aire:
                  print(f"[DEBUG]   Lectura DENTRO de todos los umbrales aplicables para Aire ID {lectura.aire_id}.")
 
-        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper (Optimizado). Total alertas contadas: {alertas_count} ---")
-        return alertas_count
+        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper (Optimizado). Total aires con alguna alerta: {len(aires_con_alerta)} ---")
+        return len(aires_con_alerta)
 
     except Exception as e:
         print(f"!!! ERROR GENERAL en contar_alertas_activas_helper (Optimizado): {e}", file=sys.stderr)
