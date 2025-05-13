@@ -29,6 +29,7 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     {path: '/actividades-proveedor', icon: LuBriefcaseConveyorBelt, label: 'Actividades Proveedor' },
     {path: '/servicios-externos', icon: FiExternalLink, label: 'Servicios Externos' },
     {path: '/documentos', icon: GrDocumentStore, label: 'Procedimientos y Planillas' },
+    
 
     
   ];
@@ -36,6 +37,7 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
   const adminLinks = [
     { path: '/umbrales', icon: FiAlertCircle, label: 'Umbrales' },
     { path: '/usuarios', icon: FiUsers, label: 'Usuarios' },
+    { path: '/gestion-diagnosticos', icon: FiAlertCircle, label: 'Gestión Diagnósticos AA' },
   ];
 
   const renderNavLink = (link) => (

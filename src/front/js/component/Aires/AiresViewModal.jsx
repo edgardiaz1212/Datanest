@@ -14,7 +14,7 @@ const AiresViewModal = ({
 }) => {
 
     // Helper para renderizar un par etiqueta-valor
-    const renderDetail = (label, value) => {
+    const renderDetail = (label, value, isTextArea = false) => {
         let displayValue = '-'; // Default value if null, undefined, or empty
 
         // Format the value for display
@@ -29,6 +29,12 @@ const AiresViewModal = ({
             } else if (typeof value === 'number' && isNaN(value)) {
                 // Handle NaN specifically if needed (e.g., toneladas)
                 displayValue = '-';
+            } else if (isTextArea && typeof value === 'string') {
+                // Para campos de texto largos, podríamos querer un formato diferente o simplemente el texto
+                // Por ahora, solo mostramos el texto. Si es muy largo, se podría truncar o usar un <pre>
+                displayValue = value;
+            } else if (typeof value === 'string' && value.trim() === '') { // Considerar string vacío como '-'
+                displayValue = '-';
             } else {
                 // Convert to string for other types (numbers, strings)
                 displayValue = value.toString();
@@ -38,8 +44,12 @@ const AiresViewModal = ({
         // Return the column structure for the detail
         return (
             <React.Fragment key={label}> {/* Use Fragment with key for implicit lists */}
-                <Col xs={5} sm={4} className="text-muted fw-bold">{label}:</Col>
+                <Col xs={5} sm={4} className={`text-muted fw-bold ${isTextArea ? 'align-self-start' : ''}`}>
+                    {label}:
+                </Col>
                 <Col xs={7} sm={8}>{displayValue}</Col>
+                {/* Si es un textarea y hay valor, añadir un pequeño espacio después para que no se pegue al siguiente label */}
+                {isTextArea && value && <Col xs={12} className="mb-1"></Col>}
             </React.Fragment>
         );
     };
@@ -82,6 +92,13 @@ const AiresViewModal = ({
                         {renderDetail('Evaporadora - Serial', selectedAireDetails.evaporadora_serial)}
                         {renderDetail('Evaporadora - Cód. Inventario', selectedAireDetails.evaporadora_codigo_inventario)}
                         {renderDetail('Evaporadora - Ubic. Específica', selectedAireDetails.evaporadora_ubicacion_instalacion)}
+                        {/* Mostrar diagnóstico de evaporadora si no está operativa */}
+                        {!selectedAireDetails.evaporadora_operativa && (
+                            <>
+                                {renderDetail('Evaporadora - Diagnóstico', selectedAireDetails.evaporadora_diagnostico_nombre)}
+                                {renderDetail('Evaporadora - Notas Diagnóstico', selectedAireDetails.evaporadora_diagnostico_notas, true)}
+                            </>
+                        )}
 
                         {/* Separator */}
                          <Col xs={12}><hr className="my-3" /></Col>
@@ -95,6 +112,13 @@ const AiresViewModal = ({
                         {renderDetail('Condensadora - Serial', selectedAireDetails.condensadora_serial)}
                         {renderDetail('Condensadora - Cód. Inventario', selectedAireDetails.condensadora_codigo_inventario)}
                         {renderDetail('Condensadora - Ubic. Específica', selectedAireDetails.condensadora_ubicacion_instalacion)}
+                        {/* Mostrar diagnóstico de condensadora si no está operativa */}
+                        {!selectedAireDetails.condensadora_operativa && (
+                            <>
+                                {renderDetail('Condensadora - Diagnóstico', selectedAireDetails.condensadora_diagnostico_nombre)}
+                                {renderDetail('Condensadora - Notas Diagnóstico', selectedAireDetails.condensadora_diagnostico_notas, true)}
+                            </>
+                        )}
                     </Row>
                 )}
                 {/* Message if no details (just in case) */}
@@ -129,12 +153,18 @@ AiresViewModal.propTypes = {
         evaporadora_serial: PropTypes.string,
         evaporadora_codigo_inventario: PropTypes.string,
         evaporadora_ubicacion_instalacion: PropTypes.string,
+        evaporadora_diagnostico_id: PropTypes.number, // Puede ser null
+        evaporadora_diagnostico_nombre: PropTypes.string, // Puede ser null
+        evaporadora_diagnostico_notas: PropTypes.string, // Puede ser null o ''
         condensadora_operativa: PropTypes.bool,
         condensadora_marca: PropTypes.string,
         condensadora_modelo: PropTypes.string,
         condensadora_serial: PropTypes.string,
         condensadora_codigo_inventario: PropTypes.string,
         condensadora_ubicacion_instalacion: PropTypes.string,
+        condensadora_diagnostico_id: PropTypes.number, // Puede ser null
+        condensadora_diagnostico_nombre: PropTypes.string, // Puede ser null
+        condensadora_diagnostico_notas: PropTypes.string, // Puede ser null o ''
     }), // Note: It's okay that this is nullable here, the default parameter handles it
     loadingDetails: PropTypes.bool.isRequired,
     viewError: PropTypes.string, // Note: It's okay that this is nullable here, the default parameter handles it

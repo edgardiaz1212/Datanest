@@ -23,7 +23,8 @@ const Aires = () => {
     addAire,
     updateAire,
     deleteAire,
-    clearAiresError 
+    clearAiresError,
+    fetchDiagnosticoComponentes // <--- Añadir para pasar al modal
   } = actions;
 
 
@@ -81,6 +82,7 @@ const Aires = () => {
   useEffect(() => {
     fetchAires();
     // Cleanup function
+    // Opcional: Cargar diagnósticos aquí si siempre se necesitan en el modal, o hacerlo dentro del modal
     return () => {
       if (clearAiresError) clearAiresError();
     };
@@ -114,6 +116,8 @@ const Aires = () => {
       evaporadora_serial: '', evaporadora_codigo_inventario: '', evaporadora_ubicacion_instalacion: '',
       condensadora_operativa: true, condensadora_marca: '', condensadora_modelo: '',
       condensadora_serial: '', condensadora_codigo_inventario: '', condensadora_ubicacion_instalacion: '',
+      evaporadora_diagnostico_id: null, evaporadora_diagnostico_notas: '', // Nuevos campos
+      condensadora_diagnostico_id: null, condensadora_diagnostico_notas: '' // Nuevos campos
     });
     setModalTitle('Agregar Aire Acondicionado');
     setFormMode('add');
@@ -143,6 +147,10 @@ const Aires = () => {
           toneladas: (typeof fullDetails.toneladas === 'number' && !isNaN(fullDetails.toneladas)) ? fullDetails.toneladas : null,
           evaporadora_operativa: !!fullDetails.evaporadora_operativa,
           condensadora_operativa: !!fullDetails.condensadora_operativa,
+          evaporadora_diagnostico_id: fullDetails.evaporadora_diagnostico_id || null,
+          evaporadora_diagnostico_notas: fullDetails.evaporadora_diagnostico_notas || '',
+          condensadora_diagnostico_id: fullDetails.condensadora_diagnostico_id || null,
+          condensadora_diagnostico_notas: fullDetails.condensadora_diagnostico_notas || '',
         });
       } else {
         throw new Error("Formato de respuesta inválido al cargar detalles para editar.");
@@ -211,6 +219,11 @@ const Aires = () => {
       toneladas: (formData.toneladas !== null && formData.toneladas !== undefined && !isNaN(Number(formData.toneladas))) ? Number(formData.toneladas) : null,
       evaporadora_operativa: !!formData.evaporadora_operativa,
       condensadora_operativa: !!formData.condensadora_operativa,
+      // Incluir campos de diagnóstico
+      evaporadora_diagnostico_id: !formData.evaporadora_operativa ? formData.evaporadora_diagnostico_id : null,
+      evaporadora_diagnostico_notas: !formData.evaporadora_operativa ? formData.evaporadora_diagnostico_notas : '',
+      condensadora_diagnostico_id: !formData.condensadora_operativa ? formData.condensadora_diagnostico_id : null,
+      condensadora_diagnostico_notas: !formData.condensadora_operativa ? formData.condensadora_diagnostico_notas : '',
     };
     if (formMode === 'add') { delete payload.id; }
 
@@ -314,6 +327,9 @@ const Aires = () => {
         editError={editError} // Pass modal-specific error
         onSubmit={handleSubmit}
         onChange={handleChange}
+        // Pasar diagnósticos y acción de carga al modal
+        diagnosticosDisponibles={store.diagnosticoComponentes}
+        fetchDiagnosticos={actions.fetchDiagnosticoComponentes}
         isSubmitting={isSubmitting} // Pass submitting state
       />
 

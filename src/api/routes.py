@@ -1,8 +1,8 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app 
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno
+from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, AuditLog, DiagnosticoComponente, ParteACEnum, TipoAireRelevanteEnum # <-- Añadido DiagnosticoComponente y Enums
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,6 +26,8 @@ api = Blueprint('api', __name__)
 
 # Allow CORS requests to this API
 CORS(api)
+
+
 # Para formulario 
 #manejo de usuarios que usan el formulario
 @api.route('/addUser', methods=['POST'])
@@ -680,6 +682,39 @@ def delete_tracker_user(user_id):
         traceback.print_exc()
         return jsonify({"msg": "Error deleting tracker user", "error": str(error)}), 500
 
+def registrar_auditoria(user_db_id, action, entity_type=None, entity_id=None, entity_description=None, details=None):
+    """
+    Registra una acción en el log de auditoría.
+    Esta función añade la entrada a la sesión de DB; el commit debe hacerse externamente.
+    """
+    try:
+        usuario = db.session.get(TrackerUsuario, user_db_id)
+        if not usuario:
+            print(f"AUDIT_ERROR: Usuario con ID {user_db_id} no encontrado para auditoría.", file=sys.stderr)
+            # Considera si quieres lanzar una excepción o solo loggear el error.
+            # Por ahora, solo imprimimos y continuamos para no detener la operación principal.
+            return
+
+        log_entry = AuditLog(
+            user_id=user_db_id,
+            username=usuario.username, # Guardamos el username para fácil visualización
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_description=entity_description,
+            details=details # Podría ser un json.dumps(dict_detalles) si guardas estructuras complejas
+        )
+        db.session.add(log_entry)
+        # El commit se hará junto con la acción principal o en un paso separado.
+        print(f"AUDIT_LOG: User '{usuario.username}' performed action '{action}' on {entity_type or 'N/A'}:{entity_id or 'N/A'}", file=sys.stderr)
+
+    except Exception as e:
+        print(f"AUDIT_ERROR: Error al registrar auditoría: {e}", file=sys.stderr)
+        # No hacer rollback aquí, ya que podría interferir con la transacción principal.
+        # El error de auditoría no debería detener la operación principal si es posible.
+
+
+
 # --- Rutas para AireAcondicionado ---
 
 @api.route('/aires', methods=['POST'])
@@ -870,6 +905,19 @@ def actualizar_aire_route(aire_id):
         aire.condensadora_serial = data.get('condensadora_serial', aire.condensadora_serial)
         aire.condensadora_codigo_inventario = data.get('condensadora_codigo_inventario', aire.condensadora_codigo_inventario)
         aire.condensadora_ubicacion_instalacion = data.get('condensadora_ubicacion_instalacion', aire.condensadora_ubicacion_instalacion)
+
+        # --- Actualizar diagnósticos ---
+        if 'evaporadora_operativa' in data:
+            aire.evaporadora_diagnostico_id = data.get('evaporadora_diagnostico_id') if not bool(data['evaporadora_operativa']) else None
+            aire.evaporadora_diagnostico_notas = data.get('evaporadora_diagnostico_notas') if not bool(data['evaporadora_operativa']) else None
+            updated = True
+
+        if 'condensadora_operativa' in data:
+            aire.condensadora_diagnostico_id = data.get('condensadora_diagnostico_id') if not bool(data['condensadora_operativa']) else None
+            aire.condensadora_diagnostico_notas = data.get('condensadora_diagnostico_notas') if not bool(data['condensadora_operativa']) else None
+            updated = True
+        # --- Fin Actualizar diagnósticos ---
+
 
         db.session.commit()
         return jsonify(aire.serialize()), 200
@@ -2526,15 +2574,29 @@ def obtener_detalles_alertas_activas_helper():
     for aire_id, aire_obj in aires_map.items():
         if not aire_obj.evaporadora_operativa:
             alertas_detalladas.append({
-                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "aire_id": aire_obj.id, 
+                "aire_nombre": aire_obj.nombre, 
+                "aire_ubicacion": aire_obj.ubicacion, 
+                "componente": "Evaporadora",
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.",
-                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "diagnostico_nombre": aire_obj.evaporadora_diagnostico_componente.nombre if aire_obj.evaporadora_diagnostico_componente else "No especificado",
+                "diagnostico_notas": aire_obj.evaporadora_diagnostico_notas,
+                "valor_actual": "No Operativa", 
+                "limite_violado": "Debe estar Operativa", 
+                "fecha_lectura": now_iso
             })
         if not aire_obj.condensadora_operativa:
             alertas_detalladas.append({
-                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "aire_id": aire_obj.id, 
+                "aire_nombre": aire_obj.nombre, 
+                "aire_ubicacion": aire_obj.ubicacion, 
+                "componente": "Condensadora",
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
-                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "diagnostico_nombre": aire_obj.condensadora_diagnostico_componente.nombre if aire_obj.condensadora_diagnostico_componente else "No especificado",
+                "diagnostico_notas": aire_obj.condensadora_diagnostico_notas,
+                "valor_actual": "No Operativa", 
+                "limite_violado": "Debe estar Operativa", 
+                "fecha_lectura": now_iso
             })
 
     # 3. Obtener la última lectura de cada aire
@@ -3722,3 +3784,116 @@ def get_alertas_activas_detalladas_route():
     except Exception as e:
         print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
         return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
+
+# --- Rutas para DiagnosticoComponente ---
+@api.route('/diagnostico_componentes', methods=['POST'])
+@jwt_required()
+def crear_diagnostico_componente():
+    current_user_id = get_jwt_identity()
+    # Aquí puedes añadir lógica de permisos si es necesario
+    # logged_in_user = TrackerUsuario.query.get(current_user_id)
+    # if not logged_in_user or logged_in_user.rol not in ['admin']:
+    #     return jsonify({"msg": "Acceso no autorizado"}), 403
+
+    data = request.get_json()
+    if not data or not data.get('nombre') or not data.get('parte_ac'):
+        return jsonify({"msg": "Nombre y parte_ac son requeridos."}), 400
+
+    try:
+        parte_ac_enum = ParteACEnum(data['parte_ac'])
+        tipo_aire_sugerido_enum = TipoAireRelevanteEnum(data.get('tipo_aire_sugerido', TipoAireRelevanteEnum.AMBOS.value))
+    except ValueError as e:
+        return jsonify({"msg": f"Valor inválido para parte_ac o tipo_aire_sugerido: {e}"}), 400
+
+    nuevo_diagnostico = DiagnosticoComponente(
+        nombre=data['nombre'],
+        parte_ac=parte_ac_enum,
+        tipo_aire_sugerido=tipo_aire_sugerido_enum,
+        descripcion_ayuda=data.get('descripcion_ayuda'),
+        activo=data.get('activo', True)
+    )
+    db.session.add(nuevo_diagnostico)
+    try:
+        db.session.commit()
+        return jsonify(nuevo_diagnostico.serialize()), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un diagnóstico con el nombre '{data['nombre']}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500
+
+@api.route('/diagnostico_componentes', methods=['GET'])
+@jwt_required()
+def obtener_diagnostico_componentes():
+    query = DiagnosticoComponente.query
+
+    # Filtros opcionales
+    if 'activo' in request.args:
+        query = query.filter_by(activo=request.args.get('activo').lower() == 'true')
+    if 'parte_ac' in request.args:
+        try:
+            parte_ac_enum = ParteACEnum(request.args['parte_ac'])
+            query = query.filter_by(parte_ac=parte_ac_enum)
+        except ValueError:
+            return jsonify({"msg": "Valor de 'parte_ac' inválido para filtrar."}), 400
+    if 'tipo_aire_sugerido' in request.args:
+        try:
+            tipo_aire_enum = TipoAireRelevanteEnum(request.args['tipo_aire_sugerido'])
+            query = query.filter_by(tipo_aire_sugerido=tipo_aire_enum)
+        except ValueError:
+            return jsonify({"msg": "Valor de 'tipo_aire_sugerido' inválido para filtrar."}), 400
+            
+    diagnosticos = query.order_by(DiagnosticoComponente.nombre).all()
+    return jsonify([d.serialize() for d in diagnosticos]), 200
+
+@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_diagnostico_componente(diagnostico_id):
+    # Permisos
+    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
+    if not diagnostico:
+        return jsonify({"msg": "Diagnóstico no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos."}), 400
+
+    try:
+        if 'nombre' in data:
+            diagnostico.nombre = data['nombre']
+        if 'parte_ac' in data:
+            diagnostico.parte_ac = ParteACEnum(data['parte_ac'])
+        if 'tipo_aire_sugerido' in data:
+            diagnostico.tipo_aire_sugerido = TipoAireRelevanteEnum(data['tipo_aire_sugerido'])
+        if 'descripcion_ayuda' in data:
+            diagnostico.descripcion_ayuda = data['descripcion_ayuda']
+        if 'activo' in data:
+            diagnostico.activo = bool(data['activo'])
+        
+        db.session.commit()
+        return jsonify(diagnostico.serialize()), 200
+    except ValueError as e: # Error en conversión de Enum
+        db.session.rollback()
+        return jsonify({"msg": f"Valor inválido para campo Enum: {e}"}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un diagnóstico con el nombre '{data.get('nombre')}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500
+
+@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_diagnostico_componente(diagnostico_id):
+    # Permisos
+    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
+    if not diagnostico:
+        return jsonify({"msg": "Diagnóstico no encontrado."}), 404
+    try:
+        db.session.delete(diagnostico)
+        db.session.commit()
+        return '', 204
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500

@@ -84,7 +84,10 @@ const AlertasActivas = () => {
                                     <tr>
                                         <th>Aire</th>
                                         <th>Ubicación</th>
+                                        <th>Componente Falla</th>
                                         <th>Mensaje</th>
+                                        <th>Diagnóstico</th>
+                                        <th>Notas Diagnóstico</th>
                                         <th>Detectado</th>
                                     </tr>
                                 </thead>
@@ -93,12 +96,20 @@ const AlertasActivas = () => {
                                         <tr key={`op-${alerta.aire_id}-${index}-${alerta.mensaje}`}> {/* Added alerta.mensaje to key for more uniqueness */}
                                             <td>{alerta.aire_nombre || 'N/A'}</td>
                                             <td>{alerta.aire_ubicacion || 'N/A'}</td>
+                                            <td>{alerta.componente || 'N/A'}</td>
                                             <td>
                                                 <Badge bg={getAlertVariant(alerta.alerta_tipo)} pill className="me-2">
                                                     {getAlertIcon(alerta.alerta_tipo)}
                                                     {alerta.alerta_tipo}
                                                 </Badge>
                                                 {alerta.mensaje}
+                                                {/* {alerta.razon && <><br/><small className="text-muted">Razón: {alerta.razon}</small></>} */}
+                                            </td>
+                                            <td>
+                                                {alerta.diagnostico_nombre || <span className="text-muted">N/E</span>}
+                                            </td>
+                                            <td>
+                                                {alerta.diagnostico_notas || <span className="text-muted">-</span>}
                                             </td>
                                             <td>{formatDate(alerta.fecha_lectura)}</td>
                                         </tr>
@@ -113,7 +124,7 @@ const AlertasActivas = () => {
             {alertasAmbientales.length > 0 && (
                 <Card className="mb-4 shadow-sm">
                     <Card.Header className="bg-warning text-dark">
-                        <h5 className="mb-0"><FiThermometer className="me-2" />Alertas Ambientales ({alertasAmbientales.length})</h5>
+                        <h5 className="mb-0"><FiThermometer className="me-2" />Alertas Ambientales ({alertasAmbientales.length})</h5> {/* Added key to Card */}
                     </Card.Header>
                     <Card.Body>
                         <div className="table-responsive">
@@ -132,7 +143,7 @@ const AlertasActivas = () => {
                                 <tbody>
                                     {alertasAmbientales.map((alerta, index) => (
                                         <tr key={`amb-${alerta.aire_id}-${index}-${alerta.alerta_tipo}-${alerta.mensaje}`}> {/* Added alerta.mensaje to key */}
-                                            <td>{alerta.aire_nombre || 'N/A'}</td>
+                                            <td>{alerta.aire_nombre || 'N/A'}</td> {/* Added key to Card */}
                                             <td>{alerta.aire_ubicacion || 'N/A'}</td>
                                             <td><Badge bg={getAlertVariant(alerta.alerta_tipo)} pill>{getAlertIcon(alerta.alerta_tipo)}{alerta.alerta_tipo}</Badge></td>
                                             <td>{alerta.mensaje}</td>

@@ -32,10 +32,11 @@ import ActividadesProveedor  from "./pages/ActividadesProveedor.jsx";
 import ExternalServices from "./pages/ExternalServices.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
 import AlertasActivas from "./pages/AlertasActivas.jsx";
-
+import GestionDiagnosticos from "./pages/GestionDiagnosticos.jsx";
 // Tus otros imports (CSS)
 import "../styles/index.css";
 import "../styles/layout.css";
+
 
 
 // Componente principal de la aplicación
@@ -79,7 +80,8 @@ const App = () => {
                      <Route path="/actividades-proveedor" element={<ActividadesProveedor />} />
                      <Route path="/servicios-externos" element={<ExternalServices />} />
                      <Route path="/documentos" element={<DocumentsPage />} />
-                     <Route path="alertas-activas" element={<AlertasActivas />} />
+                     <Route path="/alertas-activas" element={<AlertasActivas />} />
+                     <Route path="/gestion-diagnosticos" element={<GestionDiagnosticos />} />
 
                     {/* Ruta para 404 Not Found (también dentro del Layout) */}
                     <Route path="*" element={<NotFound />} />

@@ -224,6 +224,44 @@ class Equipment(db.Model):
             'user':self.user_form.serialize() if self.user_form else None
              }
 # --- Nuevos Modelos (Temperature Tracker) ---
+# --- Enums para DiagnosticoComponente ---
+class ParteACEnum(enum.Enum):
+    EVAPORADORA = "evaporadora"
+    CONDENSADORA = "condensadora"
+    GENERAL = "general" # Para diagnósticos que afectan al sistema en general
+
+class TipoAireRelevanteEnum(enum.Enum):
+    CONFORT = "confort"
+    PRECISION = "precision"
+    AMBOS = "ambos"
+# --- Fin Enums ---
+
+class DiagnosticoComponente(db.Model):
+    __tablename__ = 'diagnostico_componente'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(255), nullable=False, unique=True)
+    # A qué parte principal del AC se refiere este diagnóstico (Evaporadora, Condensadora, General)
+    parte_ac = db.Column(SQLAlchemyEnum(ParteACEnum), nullable=False)
+    # Para qué tipo de aire es más relevante este diagnóstico (ayuda a filtrar en el frontend)
+    tipo_aire_sugerido = db.Column(SQLAlchemyEnum(TipoAireRelevanteEnum), nullable=False, default=TipoAireRelevanteEnum.AMBOS)
+    # Descripción o ejemplos, como los que proporcionaste con porcentajes
+    descripcion_ayuda = db.Column(db.Text, nullable=True)
+    activo = db.Column(db.Boolean, default=True, nullable=False) # Para habilitar/deshabilitar opciones
+
+    def __repr__(self):
+        return f"<DiagnosticoComponente(id={self.id}, nombre='{self.nombre}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'nombre': self.nombre,
+            'parte_ac': self.parte_ac.value if self.parte_ac else None,
+            'tipo_aire_sugerido': self.tipo_aire_sugerido.value if self.tipo_aire_sugerido else None,
+            'descripcion_ayuda': self.descripcion_ayuda,
+            'activo': self.activo
+        }
+
 class AireAcondicionado(db.Model):
     __tablename__ = 'aires_acondicionados'
 
@@ -231,7 +269,7 @@ class AireAcondicionado(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     ubicacion = db.Column(db.String(200), comment="Ubicación general del equipo completo")
     fecha_instalacion = db.Column(db.Date, nullable=True)
-    tipo = db.Column(db.String(50), nullable=True, comment="Tipo de aire (precision, confort, etc.)")
+    tipo = db.Column(db.String(50), nullable=True, comment="Tipo de aire (confort, precision, etc.)") # Mantener como string o cambiar a Enum
     toneladas = db.Column(db.Float, nullable=True, comment="Capacidad en toneladas de refrigeración")
 
     # --- Detalles Evaporadora ---
@@ -241,6 +279,12 @@ class AireAcondicionado(db.Model):
     evaporadora_serial = db.Column(db.String(100), nullable=True)
     evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
+    # evaporadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la evaporadora no está operativa") # REMOVIDO
+
+    evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
+    evaporadora_diagnostico_notas = db.Column(db.Text, nullable=True)
+    evaporadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[evaporadora_diagnostico_id], lazy='select')
+
 
     # --- Detalles Condensadora ---
     condensadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la condensadora")
@@ -249,11 +293,17 @@ class AireAcondicionado(db.Model):
     condensadora_serial = db.Column(db.String(100), nullable=True)
     condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
+    # condensadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la condensadora no está operativa") # REMOVIDO
+
+    condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
+    condensadora_diagnostico_notas = db.Column(db.Text, nullable=True)
+    condensadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[condensadora_diagnostico_id], lazy='select')
+
 
     # Relaciones
     lecturas = db.relationship("Lectura", back_populates="aire", cascade="all, delete-orphan")
     mantenimientos = db.relationship("Mantenimiento", back_populates="aire", cascade="all, delete-orphan")
-    umbrales = db.relationship("UmbralConfiguracion", back_populates="aire", cascade="all, delete-orphan") # Relación añadida para umbrales específicos
+    umbrales = db.relationship("UmbralConfiguracion", back_populates="aire", cascade="all, delete-orphan") 
 
     def __repr__(self):
         return f"<AireAcondicionado(id={self.id}, nombre='{self.nombre}')>"
@@ -266,24 +316,27 @@ class AireAcondicionado(db.Model):
             'fecha_instalacion': self.fecha_instalacion.isoformat() if self.fecha_instalacion else None,
             'tipo': self.tipo,
             'toneladas': self.toneladas,
+            
             'evaporadora_operativa': self.evaporadora_operativa,
             'evaporadora_marca': self.evaporadora_marca,
             'evaporadora_modelo': self.evaporadora_modelo,
             'evaporadora_serial': self.evaporadora_serial,
             'evaporadora_codigo_inventario': self.evaporadora_codigo_inventario,
             'evaporadora_ubicacion_instalacion': self.evaporadora_ubicacion_instalacion,
+            'evaporadora_diagnostico_id': self.evaporadora_diagnostico_id,
+            'evaporadora_diagnostico_nombre': self.evaporadora_diagnostico_componente.nombre if self.evaporadora_diagnostico_componente else None,
+            'evaporadora_diagnostico_notas': self.evaporadora_diagnostico_notas,
+            
             'condensadora_operativa': self.condensadora_operativa,
             'condensadora_marca': self.condensadora_marca,
             'condensadora_modelo': self.condensadora_modelo,
             'condensadora_serial': self.condensadora_serial,
             'condensadora_codigo_inventario': self.condensadora_codigo_inventario,
             'condensadora_ubicacion_instalacion': self.condensadora_ubicacion_instalacion,
-            # No serializar relaciones por defecto para evitar data muy grande/recursión
-            # 'lecturas': [l.serialize() for l in self.lecturas],
-            # 'mantenimientos': [m.serialize() for m in self.mantenimientos],
-            # 'umbrales': [u.serialize() for u in self.umbrales]
+            'condensadora_diagnostico_id': self.condensadora_diagnostico_id,
+            'condensadora_diagnostico_nombre': self.condensadora_diagnostico_componente.nombre if self.condensadora_diagnostico_componente else None,
+            'condensadora_diagnostico_notas': self.condensadora_diagnostico_notas,
         }
-
 class Lectura(db.Model):
     __tablename__ = 'lecturas'
 
@@ -671,4 +724,43 @@ class DocumentoExterno(db.Model):
             "fecha_carga": self.fecha_carga.isoformat() if self.fecha_carga else None,
             "usuario_carga": self.usuario_carga.username if self.usuario_carga else "Desconocido"
             # La URL de descarga se sigue construyendo en la ruta GET
+        }
+    
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    # Quién realizó la acción
+    user_id = db.Column(db.Integer, db.ForeignKey('tracker_usuarios.id'), nullable=False)
+    username = db.Column(db.String(50), nullable=False) # Para mostrar directamente y evitar joins constantes en la vista de logs
+
+    # Qué acción se realizó
+    action = db.Column(db.String(255), nullable=False) # Ej: "crear_lectura", "actualizar_aire", "eliminar_umbral"
+
+    # Sobre qué entidad (opcional, pero útil)
+    entity_type = db.Column(db.String(100), nullable=True) # Ej: "Lectura", "AireAcondicionado", "UmbralConfiguracion"
+    entity_id = db.Column(db.Integer, nullable=True) # ID del objeto afectado (si aplica)
+    entity_description = db.Column(db.Text, nullable=True) # Un nombre o breve descripción del objeto para referencia rápida
+
+    # Detalles adicionales (opcional, podría ser un JSON string)
+    details = db.Column(db.Text, nullable=True)
+
+    # Relación para poder acceder a más datos del usuario si es necesario (opcional para la serialización básica)
+    user = db.relationship('TrackerUsuario', backref=db.backref('audit_logs', lazy=True))
+
+    def __repr__(self):
+        return f'<AuditLog {self.id} - {self.username} {self.action} on {self.entity_type or "system"} at {self.timestamp}>'
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "user_id": self.user_id,
+            "username": self.username,
+            "action": self.action,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "entity_description": self.entity_description,
+            "details": self.details,
         }

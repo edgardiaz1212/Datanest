@@ -35,6 +35,11 @@ const getState = ({ getStore, getActions, setStore }) => {
       aires: [],
       airesLoading: false,
       airesError: null,
+      selectedAireDetails: null, // To store details when editing
+// --- Diagnostico Componentes ---
+diagnosticoComponentes: [],
+diagnosticoComponentesLoading: false,
+diagnosticoComponentesError: null,
       // --- Umbrales ---
       umbrales: [],
       umbralesLoading: false,
@@ -861,6 +866,7 @@ const getState = ({ getStore, getActions, setStore }) => {
       // --- Aires Actions ---
       fetchAires: async () => {
         // Ruta protegida, necesita token
+        setStore({ selectedAireDetails: null });
         setStore({ airesLoading: true, airesError: null });
         try {
           const response = await fetch(`${process.env.BACKEND_URL}/aires`, {
@@ -919,7 +925,9 @@ const getState = ({ getStore, getActions, setStore }) => {
                 `Error fetching details for aire ${aireId}: ${response.status}`
             );
           }
-          return await response.json();
+          const details = await response.json();
+          setStore({ selectedAireDetails: details }); // Store details in Flux
+          return details;
         } catch (error) {
           console.error("Error in fetchAireDetails:", error);
           throw error;
@@ -958,6 +966,8 @@ const getState = ({ getStore, getActions, setStore }) => {
       updateAire: async (aireId, aireData) => {
         // Ruta protegida, necesita token
         setStore({ airesLoading: true, airesError: null });
+        setStore({ selectedAireDetails: null }); // Clear details after attempting update
+       
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/aires/${aireId}`,
@@ -2727,6 +2737,8 @@ const getState = ({ getStore, getActions, setStore }) => {
       // --- Detailed Alerts Actions ---
       fetchDetailedAlerts: async () => {
         setStore({ detailedAlertsLoading: true, detailedAlertsError: null });
+         // Clear previous alerts list while loading
+         setStore({ detailedAlertsList: [] });
         try {
             const response = await fetch(`${process.env.BACKEND_URL}/alertas_activas_detalladas`, {
                 method: "GET",
@@ -2753,6 +2765,106 @@ const getState = ({ getStore, getActions, setStore }) => {
       clearDetailedAlertsError: () => {
           setStore({ detailedAlertsError: null });
       },
+// --- DiagnosticoComponente Actions ---
+fetchDiagnosticoComponentes: async (filters = {}) => {
+  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+  try {
+    const queryParams = new URLSearchParams(filters);
+    const url = `${process.env.BACKEND_URL}/diagnostico_componentes?${queryParams.toString()}`;
+    
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(errorData.msg || `Error fetching diagnostico componentes: ${response.status}`);
+    }
+    const data = await response.json();
+    setStore({ diagnosticoComponentes: data || [], diagnosticoComponentesLoading: false });
+    return data;
+  } catch (error) {
+    console.error("Error in fetchDiagnosticoComponentes:", error);
+    setStore({
+      diagnosticoComponentesError: error.message || "Error cargando lista de diagnósticos.",
+      diagnosticoComponentesLoading: false,
+      diagnosticoComponentes: [],
+    });
+    return null;
+  }
+},
+
+addDiagnosticoComponente: async (diagnosticoData) => {
+  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(diagnosticoData),
+    });
+    const responseData = await response.json();
+    if (!response.ok) {
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(responseData.msg || `Error adding diagnostico: ${response.status}`);
+    }
+    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+    return true;
+  } catch (error) {
+    console.error("Error in addDiagnosticoComponente:", error);
+    setStore({ diagnosticoComponentesError: error.message || "Error al agregar diagnóstico.", diagnosticoComponentesLoading: false });
+    return false;
+  }
+},
+
+updateDiagnosticoComponente: async (id, diagnosticoData) => {
+  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(diagnosticoData),
+    });
+    const responseData = await response.json();
+    if (!response.ok) {
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(responseData.msg || `Error updating diagnostico: ${response.status}`);
+    }
+    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+    return true;
+  } catch (error) {
+    console.error("Error in updateDiagnosticoComponente:", error);
+    setStore({ diagnosticoComponentesError: error.message || "Error al actualizar diagnóstico.", diagnosticoComponentesLoading: false });
+    return false;
+  }
+},
+
+deleteDiagnosticoComponente: async (id) => {
+  // Optimistic update or refetch after delete
+  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(false), // No content-type for DELETE
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) getActions().logoutTrackerUser();
+      throw new Error(errorData.msg || `Error deleting diagnostico: ${response.status}`);
+    }
+    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+    return true;
+  } catch (error) {
+    console.error("Error in deleteDiagnosticoComponente:", error);
+    setStore({ diagnosticoComponentesError: error.message || "Error al eliminar diagnóstico.", diagnosticoComponentesLoading: false });
+    return false;
+  }
+},
+
+clearDiagnosticoComponentesError: () => {
+  setStore({ diagnosticoComponentesError: null });
+}
+
     },
   };
 };

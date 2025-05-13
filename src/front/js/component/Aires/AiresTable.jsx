@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
-import { Table, Button, Spinner, Alert, Tooltip, OverlayTrigger } from 'react-bootstrap';
+import { Table, Spinner, Badge, Button, OverlayTrigger, Tooltip, Stack } from 'react-bootstrap'; // Added Stack
 import { FiEdit, FiTrash2, FiWind, FiPlus, FiInfo } from 'react-icons/fi';
 
 // Componente funcional de la Tabla
@@ -57,7 +57,10 @@ const AiresTable = ({
                         <th>Nombre</th>
                         <th>Ubicación</th>
                         <th>Tipo</th>
-                        <th>Toneladas</th>
+                        <th>Capacidad</th>
+                        <th>Operatividad</th>
+                        <th>Diagnóstico Evap.</th>
+                        <th>Diagnóstico Cond.</th>
                         {/* Columna de acciones solo si tiene permisos */}
                         {canManage && <th className="text-end">Acciones</th>}
                     </tr>
@@ -79,7 +82,36 @@ const AiresTable = ({
                         <td>{aire.nombre || 'N/A'}</td>
                         <td>{aire.ubicacion || 'N/A'}</td>
                         <td>{aire.tipo || 'N/A'}</td>
-                        <td>{aire.toneladas || 'N/A'}</td>
+                        <td>{aire.toneladas != null ? `${aire.toneladas} ton` : 'N/A'}</td>
+                        <td>
+                          <Stack direction="horizontal" gap={1}>
+                            <Badge bg={aire.evaporadora_operativa ? 'success' : 'danger'}>
+                              Evap: {aire.evaporadora_operativa ? 'OK' : 'Falla'}
+                            </Badge>
+                            <Badge bg={aire.condensadora_operativa ? 'success' : 'danger'}>
+                              Cond: {aire.condensadora_operativa ? 'OK' : 'Falla'}
+                            </Badge>
+                          </Stack>
+                        </td>
+                        <td>
+                          {!aire.evaporadora_operativa ? (
+                            <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.evaporadora_diagnostico_notas || 'Sin notas adicionales')}>
+                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>
+                                {aire.evaporadora_diagnostico_nombre || 'No especificado'}
+                              </span>
+                            </OverlayTrigger>
+                          ) : '-'}
+                        </td>
+                        <td>
+                          {!aire.condensadora_operativa ? (
+                             <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.condensadora_diagnostico_notas || 'Sin notas adicionales')}>
+                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>
+                                {aire.condensadora_diagnostico_nombre || 'No especificado'}
+                              </span>
+                            </OverlayTrigger>
+                          ) : '-'}
+                        </td>
+                        
                         {canManage && (
                           <td className="text-end" onClick={(e) => e.stopPropagation()}>
                             {/* Botón Ver Detalles */}
@@ -132,7 +164,16 @@ AiresTable.propTypes = {
         id: PropTypes.number.isRequired,
         nombre: PropTypes.string.isRequired,
         ubicacion: PropTypes.string.isRequired,
+        tipo: PropTypes.string,
+        toneladas: PropTypes.number,
+        evaporadora_operativa: PropTypes.bool,
+        condensadora_operativa: PropTypes.bool,
+        evaporadora_diagnostico_nombre: PropTypes.string,
+        evaporadora_diagnostico_notas: PropTypes.string,
+        condensadora_diagnostico_nombre: PropTypes.string,
+        condensadora_diagnostico_notas: PropTypes.string,
         fecha_instalacion: PropTypes.string, // Can be string or potentially null/undefined if formatting handles it
+
     })), // Removed .isRequired for the array itself
     loading: PropTypes.bool.isRequired,
     error: PropTypes.string, // Can be null

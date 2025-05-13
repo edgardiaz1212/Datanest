@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState, useMemo } from 'react'; // <--- Añadido useEffect, useState, useMemo
 import PropTypes from 'prop-types';
 import { Modal, Form, Button, Row, Col, Spinner, Alert, Accordion } from 'react-bootstrap';
 import { FiInfo, FiPackage, FiZap } from 'react-icons/fi';
@@ -14,9 +14,38 @@ const AiresAddEditModal = ({
     editError,
     onSubmit,
     onChange,
+    diagnosticosDisponibles, // <--- Nuevo prop
+    fetchDiagnosticos,       // <--- Nuevo prop
     // Set default value directly here
     isSubmitting = false
 }) => {
+
+    // Cargar diagnósticos cuando el modal es visible y está en modo edición,
+    // o cuando el tipo de aire en el formulario cambia.
+    useEffect(() => {
+        if (show && fetchDiagnosticos) {
+            // Cargar todos los diagnósticos activos. El filtrado se hará en el render.
+            fetchDiagnosticos({ activo: true });
+        }
+    }, [show, fetchDiagnosticos]);
+
+    // Filtrar diagnósticos para evaporadora
+    const diagnosticosEvaporadora = useMemo(() => {
+        if (!diagnosticosDisponibles) return [];
+        return diagnosticosDisponibles.filter(d =>
+            (d.parte_ac === 'evaporadora' || d.parte_ac === 'general') &&
+            (d.tipo_aire_sugerido === formData.tipo?.toLowerCase() || d.tipo_aire_sugerido === 'ambos' || !formData.tipo)
+        );
+    }, [diagnosticosDisponibles, formData.tipo]);
+
+    // Filtrar diagnósticos para condensadora
+    const diagnosticosCondensadora = useMemo(() => {
+        if (!diagnosticosDisponibles) return [];
+        return diagnosticosDisponibles.filter(d =>
+            (d.parte_ac === 'condensadora' || d.parte_ac === 'general') &&
+            (d.tipo_aire_sugerido === formData.tipo?.toLowerCase() || d.tipo_aire_sugerido === 'ambos' || !formData.tipo)
+        );
+    }, [diagnosticosDisponibles, formData.tipo]);
 
     // Helper para manejar cambios en checkboxes (llama al onChange general)
     const handleCheckboxChange = (e) => {
@@ -186,6 +215,39 @@ const AiresAddEditModal = ({
                                             disabled={isSubmitting}
                                         />
                                     </Form.Group>
+                                    {/* --- Campos de Diagnóstico para Evaporadora (Condicional) --- */}
+                                    {!formData.evaporadora_operativa && (
+                                        <>
+                                            <Form.Group className="mb-3" controlId="formEvapDiagnosticoId">
+                                                <Form.Label>Diagnóstico Evaporadora</Form.Label>
+                                                <Form.Select
+                                                    name="evaporadora_diagnostico_id"
+                                                    value={formData.evaporadora_diagnostico_id || ''}
+                                                    onChange={onChange}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <option value="">Seleccione un diagnóstico...</option>
+                                                    {diagnosticosEvaporadora.map(diag => (
+                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
+                                                    ))}
+                                                </Form.Select>
+                                            </Form.Group>
+                                            <Form.Group className="mb-3" controlId="formEvapDiagnosticoNotas">
+                                                <Form.Label>Notas del Diagnóstico (Evap.)</Form.Label>
+                                                <Form.Control
+                                                    as="textarea"
+                                                    rows={2}
+                                                    name="evaporadora_diagnostico_notas"
+                                                    value={formData.evaporadora_diagnostico_notas || ''}
+                                                    onChange={onChange}
+                                                    placeholder="Detalles adicionales sobre la falla de la evaporadora..."
+                                                    disabled={isSubmitting}
+                                                />
+                                            </Form.Group>
+                                        </>
+                                    )}
+                                    {/* --- Fin Campos de Diagnóstico Evaporadora --- */}
+
                                 </Accordion.Body>
                             </Accordion.Item>
 
@@ -238,6 +300,38 @@ const AiresAddEditModal = ({
                                             disabled={isSubmitting}
                                         />
                                     </Form.Group>
+                                    {/* --- Campos de Diagnóstico para Condensadora (Condicional) --- */}
+                                    {!formData.condensadora_operativa && (
+                                        <>
+                                            <Form.Group className="mb-3" controlId="formCondDiagnosticoId">
+                                                <Form.Label>Diagnóstico Condensadora</Form.Label>
+                                                <Form.Select
+                                                    name="condensadora_diagnostico_id"
+                                                    value={formData.condensadora_diagnostico_id || ''}
+                                                    onChange={onChange}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <option value="">Seleccione un diagnóstico...</option>
+                                                    {diagnosticosCondensadora.map(diag => (
+                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
+                                                    ))}
+                                                </Form.Select>
+                                            </Form.Group>
+                                            <Form.Group className="mb-3" controlId="formCondDiagnosticoNotas">
+                                                <Form.Label>Notas del Diagnóstico (Cond.)</Form.Label>
+                                                <Form.Control
+                                                    as="textarea"
+                                                    rows={2}
+                                                    name="condensadora_diagnostico_notas"
+                                                    value={formData.condensadora_diagnostico_notas || ''}
+                                                    onChange={onChange}
+                                                    placeholder="Detalles adicionales sobre la falla de la condensadora..."
+                                                    disabled={isSubmitting}
+                                                />
+                                            </Form.Group>
+                                        </>
+                                    )}
+                                    {/* --- Fin Campos de Diagnóstico Condensadora --- */}
                                 </Accordion.Body>
                             </Accordion.Item>
                         </Accordion>
@@ -273,6 +367,11 @@ AiresAddEditModal.propTypes = {
     editError: PropTypes.string,
     onSubmit: PropTypes.func.isRequired,
     onChange: PropTypes.func.isRequired,
+    diagnosticosDisponibles: PropTypes.arrayOf(PropTypes.shape({ // <--- Nuevo PropType
+        id: PropTypes.number.isRequired,
+        nombre: PropTypes.string.isRequired,
+    })).isRequired,
+    fetchDiagnosticos: PropTypes.func.isRequired, // <--- Nuevo PropType
     // PropType for isSubmitting is still useful for validation
     isSubmitting: PropTypes.bool,
 };
