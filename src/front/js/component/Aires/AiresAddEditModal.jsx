@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react'; // <--- Añadido useEffect, useState, useMemo
 import PropTypes from 'prop-types';
-import { Modal, Form, Button, Row, Col, Spinner, Alert, Accordion } from 'react-bootstrap';
-import { FiInfo, FiPackage, FiZap } from 'react-icons/fi';
+import { Modal, Form, Button, Row, Col, Spinner, Alert, Accordion, InputGroup } from 'react-bootstrap'; // Added InputGroup
+import { FiInfo, FiPackage, FiZap, FiPlus } from 'react-icons/fi'; // Added FiPlus
+import DiagnosticoAddModal from '../Diagnosticos/DiagnosticoAddModal.jsx'; // <--- NUEVO IMPORT
 
 // Componente funcional del Modal
 const AiresAddEditModal = ({
@@ -19,6 +20,11 @@ const AiresAddEditModal = ({
     // Set default value directly here
     isSubmitting = false
 }) => {
+
+    const [showAddDiagnosticoModal, setShowAddDiagnosticoModal] = useState(false);
+    const [diagnosticoTarget, setDiagnosticoTarget] = useState(null); // 'evaporadora' o 'condensadora'
+    const [defaultParteACForNewDiag, setDefaultParteACForNewDiag] = useState('general');
+    const [defaultTipoAireForNewDiag, setDefaultTipoAireForNewDiag] = useState('ambos');
 
     // Cargar diagnósticos cuando el modal es visible y está en modo edición,
     // o cuando el tipo de aire en el formulario cambia.
@@ -46,6 +52,26 @@ const AiresAddEditModal = ({
             (d.tipo_aire_sugerido === formData.tipo?.toLowerCase() || d.tipo_aire_sugerido === 'ambos' || !formData.tipo)
         );
     }, [diagnosticosDisponibles, formData.tipo]);
+
+    const handleOpenAddDiagnostico = (targetComponent) => {
+        setDiagnosticoTarget(targetComponent); // 'evaporadora' o 'condensadora'
+        setDefaultParteACForNewDiag(targetComponent === 'evaporadora' ? 'evaporadora' : 'condensadora');
+        setDefaultTipoAireForNewDiag(formData.tipo?.toLowerCase() || 'ambos');
+        setShowAddDiagnosticoModal(true);
+    };
+
+    const handleDiagnosticoAdded = (nuevoDiagnostico) => {
+        // La lista de diagnósticos se actualiza automáticamente por Flux.
+        // Opcional: intentar seleccionar el nuevo diagnóstico.
+        // Esto es complejo porque el 'nuevoDiagnostico' del modal hijo no tendrá ID del backend.
+        // Por ahora, el usuario tendrá que seleccionarlo manualmente de la lista actualizada.
+        // Si tuviéramos el ID, podríamos hacer:
+        // if (diagnosticoTarget && nuevoDiagnostico.id) {
+        //   onChange({ target: { name: `${diagnosticoTarget}_diagnostico_id`, value: nuevoDiagnostico.id.toString() }});
+        // }
+        console.log("Nuevo diagnóstico agregado, la lista debería refrescarse:", nuevoDiagnostico.nombre);
+        setShowAddDiagnosticoModal(false);
+    };
 
     // Helper para manejar cambios en checkboxes (llama al onChange general)
     const handleCheckboxChange = (e) => {
@@ -249,18 +275,24 @@ const AiresAddEditModal = ({
                                     {!formData.evaporadora_operativa && (
                                         <>
                                             <Form.Group className="mb-3" controlId="formEvapDiagnosticoId">
-                                                <Form.Label>Diagnóstico Evaporadora</Form.Label>
-                                                <Form.Select
-                                                    name="evaporadora_diagnostico_id"
-                                                    value={formData.evaporadora_diagnostico_id || ''}
-                                                    onChange={onChange}
-                                                    disabled={isSubmitting}
-                                                >
-                                                    <option value="">Seleccione un diagnóstico...</option>
-                                                    {diagnosticosEvaporadora.map(diag => (
-                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
-                                                    ))}
-                                                </Form.Select>
+                                                <Form.Label>Diagnóstico Evaporadora <span className="text-danger">*</span></Form.Label>
+                                                <InputGroup>
+                                                    <Form.Select
+                                                        name="evaporadora_diagnostico_id"
+                                                        value={formData.evaporadora_diagnostico_id || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                        required={!formData.evaporadora_operativa}
+                                                    >
+                                                        <option value="">Seleccione un diagnóstico...</option>
+                                                        {diagnosticosEvaporadora.map(diag => (
+                                                            <option key={diag.id} value={diag.id}>{diag.nombre}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                    <Button variant="outline-success" onClick={() => handleOpenAddDiagnostico('evaporadora')} disabled={isSubmitting} title="Agregar Nuevo Diagnóstico">
+                                                        <FiPlus />
+                                                    </Button>
+                                                </InputGroup>
                                             </Form.Group>
                                             <Form.Group className="mb-3" controlId="formEvapDiagnosticoNotas">
                                                 <Form.Label>Notas del Diagnóstico (Evap.)</Form.Label>
@@ -364,18 +396,24 @@ const AiresAddEditModal = ({
                                     {!formData.condensadora_operativa && (
                                         <>
                                             <Form.Group className="mb-3" controlId="formCondDiagnosticoId">
-                                                <Form.Label>Diagnóstico Condensadora</Form.Label>
-                                                <Form.Select
-                                                    name="condensadora_diagnostico_id"
-                                                    value={formData.condensadora_diagnostico_id || ''}
-                                                    onChange={onChange}
-                                                    disabled={isSubmitting}
-                                                >
-                                                    <option value="">Seleccione un diagnóstico...</option>
-                                                    {diagnosticosCondensadora.map(diag => (
-                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
-                                                    ))}
-                                                </Form.Select>
+                                                <Form.Label>Diagnóstico Condensadora <span className="text-danger">*</span></Form.Label>
+                                                <InputGroup>
+                                                    <Form.Select
+                                                        name="condensadora_diagnostico_id"
+                                                        value={formData.condensadora_diagnostico_id || ''}
+                                                        onChange={onChange}
+                                                        disabled={isSubmitting}
+                                                        required={!formData.condensadora_operativa}
+                                                    >
+                                                        <option value="">Seleccione un diagnóstico...</option>
+                                                        {diagnosticosCondensadora.map(diag => (
+                                                            <option key={diag.id} value={diag.id}>{diag.nombre}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                    <Button variant="outline-success" onClick={() => handleOpenAddDiagnostico('condensadora')} disabled={isSubmitting} title="Agregar Nuevo Diagnóstico">
+                                                        <FiPlus />
+                                                    </Button>
+                                                </InputGroup>
                                             </Form.Group>
                                             <Form.Group className="mb-3" controlId="formCondDiagnosticoNotas">
                                                 <Form.Label>Notas del Diagnóstico (Cond.)</Form.Label>
@@ -411,7 +449,15 @@ const AiresAddEditModal = ({
                         )}
                     </Button>
                 </Modal.Footer>
-            </Form>
+            </Form> {/* <--- El </Form> principal cierra aquí */}
+            {/* Modal para agregar nuevo diagnóstico */}
+            <DiagnosticoAddModal
+                show={showAddDiagnosticoModal}
+                onHide={() => setShowAddDiagnosticoModal(false)}
+                onDiagnosticoAdded={handleDiagnosticoAdded}
+                defaultParteAC={defaultParteACForNewDiag}
+                defaultTipoAireSugerido={defaultTipoAireForNewDiag}
+            /> {/* El DiagnosticoAddModal va después del cierre del Form principal */}
         </Modal>
     );
 };

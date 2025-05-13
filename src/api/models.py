@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 import base64
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, LargeBinary, Boolean, Date, CheckConstraint
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import validates, relationship
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import Enum as SQLAlchemyEnum # Para el campo estatus
@@ -262,6 +262,36 @@ class DiagnosticoComponente(db.Model):
             'activo': self.activo
         }
 
+class AireDiagnosticoAsociacion(db.Model):
+    __tablename__ = 'aire_diagnostico_asociacion'
+    id = db.Column(db.Integer, primary_key=True)
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False)
+    diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=False)
+    
+    # Indica a qué parte del aire se aplica este diagnóstico específico
+    parte_afectada = db.Column(SQLAlchemyEnum(ParteACEnum), nullable=False) # EVAPORADORA o CONDENSADORA
+    
+    notas_asociacion = db.Column(db.Text, nullable=True)
+    fecha_hora_asociacion = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.now(timezone.utc))
+
+    # Relaciones para acceder a los objetos AireAcondicionado y DiagnosticoComponente
+    aire = relationship("AireAcondicionado", back_populates="diagnosticos_asociados")
+    diagnostico = relationship("DiagnosticoComponente")
+
+    def __repr__(self):
+        return f"<AireDiagnosticoAsociacion aire_id={self.aire_id} diag_id={self.diagnostico_id} parte='{self.parte_afectada.value}'>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'aire_id': self.aire_id,
+            'diagnostico_id': self.diagnostico_id,
+            'diagnostico_nombre': self.diagnostico.nombre if self.diagnostico else None,
+            'parte_afectada': self.parte_afectada.value if self.parte_afectada else None,
+            'notas_asociacion': self.notas_asociacion,
+            'fecha_hora_asociacion': self.fecha_hora_asociacion.isoformat() if self.fecha_hora_asociacion else None
+        }
+
 class AireAcondicionado(db.Model):
     __tablename__ = 'aires_acondicionados'
 
@@ -269,7 +299,7 @@ class AireAcondicionado(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     ubicacion = db.Column(db.String(200), comment="Ubicación general del equipo completo")
     fecha_instalacion = db.Column(db.Date, nullable=True)
-    tipo = db.Column(db.String(50), nullable=True, comment="Tipo de aire (confort, precision, etc.)") # Mantener como string o cambiar a Enum
+    tipo = db.Column(db.String(50), nullable=True, comment="Tipo de aire (confort, precision, etc.)")
     toneladas = db.Column(db.Float, nullable=True, comment="Capacidad en toneladas de refrigeración")
 
     # --- Detalles Evaporadora ---
@@ -279,13 +309,11 @@ class AireAcondicionado(db.Model):
     evaporadora_serial = db.Column(db.String(100), nullable=True)
     evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
-    # evaporadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la evaporadora no está operativa") # REMOVIDO
-    evaporadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la evaporadora")
-
-    evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
-    evaporadora_diagnostico_notas = db.Column(db.Text, nullable=True)
-    evaporadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[evaporadora_diagnostico_id], lazy='select')
-
+    # --- CAMPOS DE DIAGNÓSTICO ÚNICO REMOVIDOS PARA EVAPORADORA ---
+    # evaporadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True)
+    # evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
+    # evaporadora_diagnostico_notas = db.Column(db.Text, nullable=True)
+    # evaporadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[evaporadora_diagnostico_id], lazy='select')
 
     # --- Detalles Condensadora ---
     condensadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la condensadora")
@@ -294,15 +322,16 @@ class AireAcondicionado(db.Model):
     condensadora_serial = db.Column(db.String(100), nullable=True)
     condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
-    # condensadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la condensadora no está operativa") # REMOVIDO
-    condensadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la condensadora")
+    # --- CAMPOS DE DIAGNÓSTICO ÚNICO REMOVIDOS PARA CONDENSADORA ---
+    # condensadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True)
+    # condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
+    # condensadora_diagnostico_notas = db.Column(db.Text, nullable=True)
+    # condensadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[condensadora_diagnostico_id], lazy='select')
 
-    condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
-    condensadora_diagnostico_notas = db.Column(db.Text, nullable=True)
-    condensadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[condensadora_diagnostico_id], lazy='select')
+    # --- NUEVA RELACIÓN PARA MÚLTIPLES DIAGNÓSTICOS ---
+    diagnosticos_asociados = relationship("AireDiagnosticoAsociacion", back_populates="aire", cascade="all, delete-orphan")
 
-
-    # Relaciones
+    # Relaciones existentes
     lecturas = db.relationship("Lectura", back_populates="aire", cascade="all, delete-orphan")
     mantenimientos = db.relationship("Mantenimiento", back_populates="aire", cascade="all, delete-orphan")
     umbrales = db.relationship("UmbralConfiguracion", back_populates="aire", cascade="all, delete-orphan") 
@@ -311,6 +340,16 @@ class AireAcondicionado(db.Model):
         return f"<AireAcondicionado(id={self.id}, nombre='{self.nombre}')>"
 
     def serialize(self):
+        # Filtrar diagnósticos asociados por parte_afectada
+        diagnosticos_evaporadora = [
+            diag.serialize() for diag in self.diagnosticos_asociados 
+            if diag.parte_afectada == ParteACEnum.EVAPORADORA
+        ]
+        diagnosticos_condensadora = [
+            diag.serialize() for diag in self.diagnosticos_asociados
+            if diag.parte_afectada == ParteACEnum.CONDENSADORA
+        ]
+
         return {
             'id': self.id,
             'nombre': self.nombre,
@@ -325,10 +364,7 @@ class AireAcondicionado(db.Model):
             'evaporadora_serial': self.evaporadora_serial,
             'evaporadora_codigo_inventario': self.evaporadora_codigo_inventario,
             'evaporadora_ubicacion_instalacion': self.evaporadora_ubicacion_instalacion,
-            'evaporadora_diagnostico_id': self.evaporadora_diagnostico_id,
-            'evaporadora_fecha_hora_diagnostico': self.evaporadora_fecha_hora_diagnostico.isoformat() if self.evaporadora_fecha_hora_diagnostico else None,
-            'evaporadora_diagnostico_nombre': self.evaporadora_diagnostico_componente.nombre if self.evaporadora_diagnostico_componente else None,
-            'evaporadora_diagnostico_notas': self.evaporadora_diagnostico_notas,
+            'evaporadora_diagnosticos': diagnosticos_evaporadora, # Lista de diagnósticos
             
             'condensadora_operativa': self.condensadora_operativa,
             'condensadora_marca': self.condensadora_marca,
@@ -336,10 +372,7 @@ class AireAcondicionado(db.Model):
             'condensadora_serial': self.condensadora_serial,
             'condensadora_codigo_inventario': self.condensadora_codigo_inventario,
             'condensadora_ubicacion_instalacion': self.condensadora_ubicacion_instalacion,
-            'condensadora_diagnostico_id': self.condensadora_diagnostico_id,
-            'condensadora_fecha_hora_diagnostico': self.condensadora_fecha_hora_diagnostico.isoformat() if self.condensadora_fecha_hora_diagnostico else None,
-            'condensadora_diagnostico_nombre': self.condensadora_diagnostico_componente.nombre if self.condensadora_diagnostico_componente else None,
-            'condensadora_diagnostico_notas': self.condensadora_diagnostico_notas,
+            'condensadora_diagnosticos': diagnosticos_condensadora, # Lista de diagnósticos
         }
 class Lectura(db.Model):
     __tablename__ = 'lecturas'
