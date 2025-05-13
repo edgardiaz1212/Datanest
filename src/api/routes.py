@@ -1311,21 +1311,27 @@ def download_excel_template_route():
         # Nombres de ejemplo para los aires (podrías obtener algunos reales si quisieras)
         aires_ejemplo = ["Aire Sala Servidores 1", "Aire UPS Principal"]
         
-        column_headers_row1 = [""] # Para la columna A (Fecha/Hora)
-        column_headers_row2 = [""] # Para la columna A
+        # Fila 1: Fecha/Hora, Nombre Aire 1, Nombre Aire 1, Nombre Aire 2, Nombre Aire 2
+        # Fila 2: (vacío)  , Temp        , Hum         , Temp        , Hum
+        column_headers_row1 = ["Fecha/Hora"] 
+        column_headers_row2 = ["(DD/MM/YYYY o YYYY-MM-DD) / (HH:MM)"] # Instrucción para el formato de la primera columna
         
         for aire_nombre in aires_ejemplo:
             column_headers_row1.extend([aire_nombre, aire_nombre]) # Nombre del aire ocupa 2 celdas
             column_headers_row2.extend(["Temp", "Hum"])
             
         # Datos de ejemplo
+        # Asegurarse de que todas las listas internas tengan la misma longitud que los encabezados
+        num_cols = len(column_headers_row1)
         data_ejemplo = [
             column_headers_row1,
             column_headers_row2,
-            ["22/03/2025", "", "", "", ""], # Fecha (celdas unidas implícitamente por el usuario)
-            ["06:00", "22.5", "50.1", "23.0", ""], # Hora y lecturas (humedad vacía para el segundo aire ejemplo)
-            ["09:00", "22.7", "49.5", "23.1", ""],
-            ["12:00", "", "", "", ""], # Fila vacía para que el usuario llene
+            # Ejemplo de cómo se verían los datos
+            ["22/03/2025"] + [""] * (num_cols - 1), # Fila de Fecha
+            ["06:00", "22.5", "50.1", "23.0", ""] + [""] * (num_cols - 5 if num_cols > 5 else 0), # Fila de Hora y datos
+            ["09:00", "22.7", "49.5", "23.1", ""] + [""] * (num_cols - 5 if num_cols > 5 else 0),
+            # Añadir una fila completamente vacía (excepto la primera celda si es necesario) para que el usuario comience
+            [""] * num_cols
         ]
         
         df_template = pd.DataFrame(data_ejemplo)
@@ -1333,7 +1339,12 @@ def download_excel_template_route():
         # Crear un buffer de BytesIO para guardar el archivo Excel en memoria
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_template.to_excel(writer, index=False, header=False, sheet_name='PlantillaLecturas') # Añadir sheet_name
+            # Escribir el DataFrame sin índice ni cabeceras de pandas, ya que las hemos incluido en los datos
+            df_template.to_excel(writer, index=False, header=False, sheet_name='PlantillaLecturas')
+            writer.save()  # Explicit save to ensure data is written
+            # Opcional: ajustar ancho de columnas
+            # worksheet = writer.sheets['PlantillaLecturas']
+            # worksheet.column_dimensions['A'].width = 20 # Ancho para Fecha/Hora
         
         # Log para depuración del tamaño del archivo generado
         file_size = output.tell() # Obtiene el tamaño actual del buffer (posición del cursor después de escribir)
