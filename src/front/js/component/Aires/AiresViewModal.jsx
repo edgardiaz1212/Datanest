@@ -13,7 +13,7 @@ const AiresViewModal = ({
     formatDate,
 }) => {
 
-    // Helper para renderizar un par etiqueta-valor
+    // Helper para renderizar un par etiqueta-valor (Keep this helper)
     const renderDetail = (label, value, isTextArea = false) => {
         let displayValue = '-'; // Default value if null, undefined, or empty
         let badgeClass = '';
@@ -100,7 +100,7 @@ const AiresViewModal = ({
                         {renderDetail('Evaporadora - Operativa', selectedAireDetails.evaporadora_operativa)}
                         {renderDetail('Evaporadora - Marca', selectedAireDetails.evaporadora_marca)}
                         {renderDetail('Evaporadora - Modelo', selectedAireDetails.evaporadora_modelo)}                        
-                        {renderDetail('Evaporadora - Serial', selectedAireDetails.evaporadora_serial)}
+                        {renderDetail('Evaporadora - Serial', selectedAireDetails.evaporadora_serial)} {/* Keep serial, inventory, location */}
                         {renderDetail('Evaporadora - Cód. Inventario', selectedAireDetails.evaporadora_codigo_inventario)}
                         {renderDetail('Evaporadora - Ubic. Específica', selectedAireDetails.evaporadora_ubicacion_instalacion)}
                         {/* Mostrar diagnóstico de evaporadora si no está operativa */}
@@ -118,7 +118,7 @@ const AiresViewModal = ({
                         <Col xs={12}><h6 className="text-primary mb-2">Unidad Condensadora</h6></Col>
                         {/* Adjusted labels for clarity */}
                         {renderDetail('Condensadora - Operativa', selectedAireDetails.condensadora_operativa)}
-                        {renderDetail('Condensadora - Marca', selectedAireDetails.condensadora_marca)}
+                        {renderDetail('Condensadora - Marca', selectedAireDetails.condensadora_marca)} {/* Keep serial, inventory, location */}
                         {renderDetail('Condensadora - Modelo', selectedAireDetails.condensadora_modelo)}
                         {renderDetail('Condensadora - Serial', selectedAireDetails.condensadora_serial)}
                         {renderDetail('Condensadora - Cód. Inventario', selectedAireDetails.condensadora_codigo_inventario)}
@@ -162,16 +162,13 @@ AiresViewModal.propTypes = {
         evaporadora_marca: PropTypes.string,
         evaporadora_modelo: PropTypes.string,
         evaporadora_serial: PropTypes.string,
-        evaporadora_codigo_inventario: PropTypes.string,
+        evaporadora_codigo_inventario: PropTypes.string, // Keep these props
         evaporadora_ubicacion_instalacion: PropTypes.string,
-        evaporadora_diagnostico_id: PropTypes.number, // Puede ser null
-        evaporadora_diagnostico_nombre: PropTypes.string, // Puede ser null
-        evaporadora_diagnostico_notas: PropTypes.string, // Puede ser null o ''
         condensadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa', null]),
         condensadora_marca: PropTypes.string,
         condensadora_modelo: PropTypes.string,
         condensadora_serial: PropTypes.string,
-        condensadora_codigo_inventario: PropTypes.string,
+        condensadora_codigo_inventario: PropTypes.string, // Keep these props
         condensadora_ubicacion_instalacion: PropTypes.string,
         condensadora_diagnostico_id: PropTypes.number, // Puede ser null
         condensadora_diagnostico_nombre: PropTypes.string, // Puede ser null

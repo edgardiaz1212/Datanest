@@ -15,16 +15,12 @@ const Aires = () => {
     trackerUser: user, 
     aires: airesList,  
     airesLoading: loading, 
-    airesError: error,
-    // ---> AÑADIR ESTOS PARA OBTENER DEL STORE:
-    diagnosticoComponentes: diagnosticosDisponiblesDelStore,
-    // <---
+    airesError: error, // Global error for the list
   } = store;
   const {
     fetchAires,
-    fetchAireDetails, 
+    fetchAireDetails, // Still needed for view/edit modals
     addAire,
-    updateAire,
     deleteAire,
     clearAiresError,
     // ---> AÑADIR ESTA ACCIÓN:
@@ -33,12 +29,12 @@ const Aires = () => {
   } = actions;
 
 
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false); // Modal for Add/Edit
   const [modalTitle, setModalTitle] = useState('');
-  const [formData, setFormData] = useState({}); 
-  const [formMode, setFormMode] = useState('add'); 
-  const [loadingEditDetails, setLoadingEditDetails] = useState(false); 
-  const [editError, setEditError] = useState(null); 
+  const [formData, setFormData] = useState({}); // Form data for Add/Edit modal
+  const [formMode, setFormMode] = useState('add'); // 'add' or 'edit'
+  const [loadingEditDetails, setLoadingEditDetails] = useState(false); // Loading state for fetching details for edit
+  const [editError, setEditError] = useState(null); // Error specific to the Add/Edit modal
 
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedAireDetails, setSelectedAireDetails] = useState(null); 
@@ -115,10 +111,10 @@ const Aires = () => {
     setFormData({ // Reset form
       nombre: '', ubicacion: '',
       fecha_instalacion: formatDate(new Date().toISOString(), true),
-      tipo: '', toneladas: null, // toneladas as null for empty number
+      tipo: '', toneladas: null,
       evaporadora_operativa: 'operativa', evaporadora_marca: '', evaporadora_modelo: '',
       evaporadora_serial: '', evaporadora_codigo_inventario: '', evaporadora_ubicacion_instalacion: '',
-      condensadora_operativa: 'operativa', condensadora_marca: '', condensadora_modelo: '',
+      condensadora_operativa: 'operativa', condensadora_marca: '', condensadora_modelo: '', // Default operative state
       condensadora_serial: '', condensadora_codigo_inventario: '', condensadora_ubicacion_instalacion: '',
     });
     setModalTitle('Agregar Aire Acondicionado');
@@ -147,8 +143,8 @@ const Aires = () => {
           ...fullDetails,
           fecha_instalacion: formatDate(fullDetails.fecha_instalacion, true),
           toneladas: (typeof fullDetails.toneladas === 'number' && !isNaN(fullDetails.toneladas)) ? fullDetails.toneladas : null,
-          evaporadora_operativa: fullDetails.evaporadora_operativa || 'no_operativa', // Default if null/undefined
-          condensadora_operativa: fullDetails.condensadora_operativa || 'no_operativa', // Default if null/undefined
+          evaporadora_operativa: fullDetails.evaporadora_operativa || 'no_operativa',
+          condensadora_operativa: fullDetails.condensadora_operativa || 'no_operativa',
         });
       } else {
         throw new Error("Formato de respuesta inválido al cargar detalles para editar.");
@@ -159,7 +155,7 @@ const Aires = () => {
     } finally {
       setLoadingEditDetails(false);
     }
-  }, [formatDate, fetchAireDetails, clearAiresError]);
+  }, [formatDate, fetchAireDetails, clearAiresError]); // Dependencies
 
   // Delete AC (calls Flux action)
   const handleDelete = useCallback(async (id) => { 
@@ -173,7 +169,7 @@ const Aires = () => {
          alert("Error al eliminar"); 
       }
     }
-  }, [deleteAire, clearAiresError]);
+  }, [deleteAire, clearAiresError]); // Dependencies
 
   // Submit Add/Edit Form (calls Flux action)
   const handleSubmit = useCallback(async (e) => {
@@ -217,7 +213,7 @@ const Aires = () => {
       toneladas: (formData.toneladas !== null && formData.toneladas !== undefined && !isNaN(Number(formData.toneladas))) ? Number(formData.toneladas) : null,
       evaporadora_operativa: formData.evaporadora_operativa, // Send as string
       condensadora_operativa: formData.condensadora_operativa, // Send as string
-    };
+    }; // Note: Old diagnostic fields are NOT included here
     if (formMode === 'add') { delete payload.id; }
 
     setIsSubmitting(true);
@@ -225,7 +221,7 @@ const Aires = () => {
 
     try {
       if (formMode === 'add') {
-        success = await addAire(payload);
+        success = await addAire(payload); // Use addAire action
       } else if (formMode === 'edit' && formData.id) {
         success = await updateAire(formData.id, payload);
       } else {
@@ -243,7 +239,7 @@ const Aires = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, formMode, addAire, updateAire, clearAiresError]); // Dependencies
+  }, [formData, formMode, addAire, actions.updateAire, clearAiresError]); // Dependencies: include updateAire from actions
 
   // Open View Details Modal (fetches details via Flux action)
   const handleRowClick = useCallback(async (id) => { // Remove type
@@ -267,7 +263,7 @@ const Aires = () => {
     } finally {
       setLoadingDetails(false);
     }
-  }, [fetchAireDetails, clearAiresError]);
+  }, [fetchAireDetails, clearAiresError]); // Dependencies
 
   // --- Render ---
   return (
@@ -320,10 +316,8 @@ const Aires = () => {
         editError={editError} // Pass modal-specific error
         onSubmit={handleSubmit}
         onChange={handleChange}
-        isSubmitting={isSubmitting} // Pass submitting state
-        // ---> PASAR LAS PROPS NECESARIAS AL MODAL:
-        diagnosticosDisponibles={diagnosticosDisponiblesDelStore || []} // Asegurar que siempre sea un array
-        fetchDiagnosticos={fetchDiagnosticoComponentes} // Pasar la acción
+        isSubmitting={isSubmitting} // Pass submitting state (for form submission)
+        // Note: Diagnostic props are NOT passed to this modal anymore
       />
 
       {/* View Details Modal */}

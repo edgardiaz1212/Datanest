@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'; // <--- Añadido useEffect, useState, useMemo
+import React from 'react'; // Removed useEffect, useState, useMemo
 import PropTypes from 'prop-types';
 import { Modal, Form, Button, Row, Col, Spinner, Alert, Accordion } from 'react-bootstrap';
 import { FiInfo, FiPackage, FiZap } from 'react-icons/fi';
@@ -13,39 +13,10 @@ const AiresAddEditModal = ({
     loadingEditDetails,
     editError,
     onSubmit,
-    onChange,
-    diagnosticosDisponibles, // <--- Nuevo prop
-    fetchDiagnosticos,       // <--- Nuevo prop
+    onChange, // Keep onChange for general form fields
     // Set default value directly here
     isSubmitting = false
 }) => {
-
-    // Cargar diagnósticos cuando el modal es visible y está en modo edición,
-    // o cuando el tipo de aire en el formulario cambia.
-    useEffect(() => {
-        if (show && fetchDiagnosticos) {
-            // Cargar todos los diagnósticos activos. El filtrado se hará en el render.
-            fetchDiagnosticos({ activo: true });
-        }
-    }, [show, fetchDiagnosticos]);
-
-    // Filtrar diagnósticos para evaporadora
-    const diagnosticosEvaporadora = useMemo(() => {
-        if (!diagnosticosDisponibles) return [];
-        return diagnosticosDisponibles.filter(d =>
-            (d.parte_ac === 'evaporadora' || d.parte_ac === 'general') &&
-            (d.tipo_aire_sugerido === formData.tipo?.toLowerCase() || d.tipo_aire_sugerido === 'ambos' || !formData.tipo)
-        );
-    }, [diagnosticosDisponibles, formData.tipo]);
-
-    // Filtrar diagnósticos para condensadora
-    const diagnosticosCondensadora = useMemo(() => {
-        if (!diagnosticosDisponibles) return [];
-        return diagnosticosDisponibles.filter(d =>
-            (d.parte_ac === 'condensadora' || d.parte_ac === 'general') &&
-            (d.tipo_aire_sugerido === formData.tipo?.toLowerCase() || d.tipo_aire_sugerido === 'ambos' || !formData.tipo)
-        );
-    }, [diagnosticosDisponibles, formData.tipo]);
 
     return (
         // Componente Modal de react-bootstrap
@@ -209,72 +180,10 @@ const AiresAddEditModal = ({
                                             aria-label="Seleccione el estado de la evaporadora"
                                         >
                                             <option value="operativa">Operativa</option>
-                                            <option value="parcialmente_operativa">Parcialmente Operativa</option>
-                                            <option value="no_operativa">No Operativa</option>
+                                            <option value="parcialmente_operativa">Parcialmente Operativa</option> {/* Keep these options for current state */}
+                                            <option value="no_operativa">No Operativa</option> {/* Keep these options for current state */}
                                         </Form.Select>
                                     </Form.Group>
-                                    {/* --- Campos de Fecha/Hora Diagnóstico Evaporadora (Condicional) --- */}
-                                    {(formData.evaporadora_operativa === 'no_operativa' || formData.evaporadora_operativa === 'parcialmente_operativa') && (
-                                        <Row>
-                                            <Col md={6}>
-                                                <Form.Group className="mb-3" controlId="formEvapFechaDiagnostico">
-                                                    <Form.Label>Fecha Detección Falla (Evap.)</Form.Label>
-                                                    <Form.Control
-                                                        type="date"
-                                                        name="evaporadora_fecha_diagnostico"
-                                                        value={formData.evaporadora_fecha_diagnostico || ''}
-                                                        onChange={onChange}
-                                                        disabled={isSubmitting}
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={6}>
-                                                <Form.Group className="mb-3" controlId="formEvapHoraDiagnostico">
-                                                    <Form.Label>Hora Detección Falla (Evap.)</Form.Label>
-                                                    <Form.Control
-                                                        type="time"
-                                                        name="evaporadora_hora_diagnostico"
-                                                        value={formData.evaporadora_hora_diagnostico || ''}
-                                                        onChange={onChange}
-                                                        disabled={isSubmitting}
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                        </Row>
-                                    )}
-                                    {/* --- Fin Campos Fecha/Hora Diagnóstico Evaporadora --- */}
-                                    {/* --- Campos de Diagnóstico para Evaporadora (Condicional) --- */}
-                                    {(formData.evaporadora_operativa === 'no_operativa' || formData.evaporadora_operativa === 'parcialmente_operativa') && (
-                                        <>
-                                            <Form.Group className="mb-3" controlId="formEvapDiagnosticoId">
-                                                <Form.Label>Diagnóstico Evaporadora</Form.Label>
-                                                <Form.Select
-                                                    name="evaporadora_diagnostico_id"
-                                                    value={formData.evaporadora_diagnostico_id || ''}
-                                                    onChange={onChange}
-                                                    disabled={isSubmitting}
-                                                >
-                                                    <option value="">Seleccione un diagnóstico...</option>
-                                                    {diagnosticosEvaporadora.map(diag => (
-                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
-                                                    ))}
-                                                </Form.Select>
-                                            </Form.Group>
-                                            <Form.Group className="mb-3" controlId="formEvapDiagnosticoNotas">
-                                                <Form.Label>Notas del Diagnóstico (Evap.)</Form.Label>
-                                                <Form.Control
-                                                    as="textarea"
-                                                    rows={2}
-                                                    name="evaporadora_diagnostico_notas"
-                                                    value={formData.evaporadora_diagnostico_notas || ''}
-                                                    onChange={onChange}
-                                                    placeholder="Detalles adicionales sobre la falla de la evaporadora..."
-                                                    disabled={isSubmitting}
-                                                />
-                                            </Form.Group>
-                                        </>
-                                    )}
-                                    {/* --- Fin Campos de Diagnóstico Evaporadora --- */}
 
                                 </Accordion.Body>
                             </Accordion.Item>
@@ -327,72 +236,10 @@ const AiresAddEditModal = ({
                                             aria-label="Seleccione el estado de la condensadora"
                                         >
                                             <option value="operativa">Operativa</option>
-                                            <option value="parcialmente_operativa">Parcialmente Operativa</option>
-                                            <option value="no_operativa">No Operativa</option>
+                                            <option value="parcialmente_operativa">Parcialmente Operativa</option> {/* Keep these options for current state */}
+                                            <option value="no_operativa">No Operativa</option> {/* Keep these options for current state */}
                                         </Form.Select>
                                     </Form.Group>
-                                    {/* --- Campos de Fecha/Hora Diagnóstico Condensadora (Condicional) --- */}
-                                    {(formData.condensadora_operativa === 'no_operativa' || formData.condensadora_operativa === 'parcialmente_operativa') && (
-                                        <Row>
-                                            <Col md={6}>
-                                                <Form.Group className="mb-3" controlId="formCondFechaDiagnostico">
-                                                    <Form.Label>Fecha Detección Falla (Cond.)</Form.Label>
-                                                    <Form.Control
-                                                        type="date"
-                                                        name="condensadora_fecha_diagnostico"
-                                                        value={formData.condensadora_fecha_diagnostico || ''}
-                                                        onChange={onChange}
-                                                        disabled={isSubmitting}
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={6}>
-                                                <Form.Group className="mb-3" controlId="formCondHoraDiagnostico">
-                                                    <Form.Label>Hora Detección Falla (Cond.)</Form.Label>
-                                                    <Form.Control
-                                                        type="time"
-                                                        name="condensadora_hora_diagnostico"
-                                                        value={formData.condensadora_hora_diagnostico || ''}
-                                                        onChange={onChange}
-                                                        disabled={isSubmitting}
-                                                    />
-                                                </Form.Group>
-                                            </Col>
-                                        </Row>
-                                    )}
-                                    {/* --- Fin Campos Fecha/Hora Diagnóstico Condensadora --- */}
-                                    {/* --- Campos de Diagnóstico para Condensadora (Condicional) --- */}
-                                    {(formData.condensadora_operativa === 'no_operativa' || formData.condensadora_operativa === 'parcialmente_operativa') && (
-                                        <>
-                                            <Form.Group className="mb-3" controlId="formCondDiagnosticoId">
-                                                <Form.Label>Diagnóstico Condensadora</Form.Label>
-                                                <Form.Select
-                                                    name="condensadora_diagnostico_id"
-                                                    value={formData.condensadora_diagnostico_id || ''}
-                                                    onChange={onChange}
-                                                    disabled={isSubmitting}
-                                                >
-                                                    <option value="">Seleccione un diagnóstico...</option>
-                                                    {diagnosticosCondensadora.map(diag => (
-                                                        <option key={diag.id} value={diag.id}>{diag.nombre}</option>
-                                                    ))}
-                                                </Form.Select>
-                                            </Form.Group>
-                                            <Form.Group className="mb-3" controlId="formCondDiagnosticoNotas">
-                                                <Form.Label>Notas del Diagnóstico (Cond.)</Form.Label>
-                                                <Form.Control
-                                                    as="textarea"
-                                                    rows={2}
-                                                    name="condensadora_diagnostico_notas"
-                                                    value={formData.condensadora_diagnostico_notas || ''}
-                                                    onChange={onChange}
-                                                    placeholder="Detalles adicionales sobre la falla de la condensadora..."
-                                                    disabled={isSubmitting}
-                                                />
-                                            </Form.Group>
-                                        </>
-                                    )}
-                                    {/* --- Fin Campos de Diagnóstico Condensadora --- */}
                                 </Accordion.Body>
                             </Accordion.Item>
                         </Accordion>
@@ -424,15 +271,10 @@ AiresAddEditModal.propTypes = {
     modalTitle: PropTypes.string.isRequired,
     formData: PropTypes.object.isRequired,
     formMode: PropTypes.oneOf(['add', 'edit']).isRequired,
-    loadingEditDetails: PropTypes.bool.isRequired,
+    loadingEditDetails: PropTypes.bool.isRequired, // Still needed to show spinner when fetching details for edit
     editError: PropTypes.string,
     onSubmit: PropTypes.func.isRequired,
     onChange: PropTypes.func.isRequired,
-    diagnosticosDisponibles: PropTypes.arrayOf(PropTypes.shape({ // <--- Nuevo PropType
-        id: PropTypes.number.isRequired,
-        nombre: PropTypes.string.isRequired,
-    })).isRequired,
-    fetchDiagnosticos: PropTypes.func.isRequired, // <--- Nuevo PropType
     // PropType for isSubmitting is still useful for validation
     isSubmitting: PropTypes.bool,
 };

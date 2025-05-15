@@ -48,6 +48,7 @@ const AiresTable = ({
         </Tooltip>
       );
 
+    // Helper para determinar el badge de operatividad (Keep this)
     // Helper para determinar el badge de operatividad
     const getOperatividadBadge = (estado) => {
         switch (estado) {
@@ -74,8 +75,6 @@ const AiresTable = ({
                         <th>Tipo</th>
                         <th>Capacidad</th>
                         <th>Operatividad</th>
-                        <th>Diagnóstico Evap.</th>
-                        <th>Diagnóstico Cond.</th>
                         {/* Columna de acciones solo si tiene permisos */}
                         {canManage && <th className="text-end">Acciones</th>}
                     </tr>
@@ -107,27 +106,6 @@ const AiresTable = ({
                                     Cond: {getOperatividadBadge(aire.condensadora_operativa).text}
                                 </Badge>
                             </Stack>
-                        </td>
-                        <td>
-                          {/* Mostrar diagnóstico si no está 'operativa' */}
-                          {aire.evaporadora_operativa !== 'operativa' ? (
-                            <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.evaporadora_diagnostico_notas || 'Sin notas adicionales')}>
-                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>
-                                {aire.evaporadora_diagnostico_nombre || 'No especificado'}
-                                {aire.evaporadora_operativa === 'parcialmente_operativa' ? ' (Parcial)' : ''}
-                              </span>
-                            </OverlayTrigger>
-                          ) : '-'}
-                        </td>
-                        <td>
-                          {aire.condensadora_operativa !== 'operativa' ? (
-                             <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.condensadora_diagnostico_notas || 'Sin notas adicionales')}>
-                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>                                
-                                {aire.condensadora_diagnostico_nombre || 'No especificado'}
-                                {aire.condensadora_operativa === 'parcialmente_operativa' ? ' (Parcial)' : ''}
-                              </span>
-                            </OverlayTrigger>                            
-                          ) : '-'}
                         </td>
                         
                         {canManage && (
@@ -186,10 +164,6 @@ AiresTable.propTypes = {
         toneladas: PropTypes.number,
         evaporadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa']),
         condensadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa']),
-        evaporadora_diagnostico_nombre: PropTypes.string,
-        evaporadora_diagnostico_notas: PropTypes.string,
-        condensadora_diagnostico_nombre: PropTypes.string,
-        condensadora_diagnostico_notas: PropTypes.string,
         fecha_instalacion: PropTypes.string, // Can be string or potentially null/undefined if formatting handles it
 
     })), // Removed .isRequired for the array itself

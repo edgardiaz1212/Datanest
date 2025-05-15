@@ -1,7 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app
+from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g
 from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
@@ -17,6 +17,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
+from api.models import RegistroDiagnosticoAire, ParteACEnum # Importar el nuevo modelo y Enum
 from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
@@ -703,8 +704,7 @@ def agregar_aire_route():
     required_fields = [
         'nombre', 'ubicacion', 'fecha_instalacion', 'tipo', 'toneladas',
         'evaporadora_operativa', 'evaporadora_marca', 'evaporadora_modelo', 'evaporadora_serial',
-        'evaporadora_codigo_inventario', 'evaporadora_ubicacion_instalacion',
-        'condensadora_operativa', 'condensadora_marca', 'condensadora_modelo', 'condensadora_serial',
+        'evaporadora_codigo_inventario', 'evaporadora_ubicacion_instalacion', 'condensadora_operativa', 'condensadora_marca', 'condensadora_modelo', 'condensadora_serial',
         'condensadora_codigo_inventario', 'condensadora_ubicacion_instalacion'
     ]
     if not all(field in data for field in required_fields):
@@ -736,7 +736,6 @@ def agregar_aire_route():
         except KeyError:
             return jsonify({"msg": "Faltan campos 'evaporadora_operativa' o 'condensadora_operativa'."}), 400
 
-
         nuevo_aire = AireAcondicionado(
             nombre=data['nombre'],
             ubicacion=data['ubicacion'],
@@ -749,6 +748,10 @@ def agregar_aire_route():
             evaporadora_serial=data['evaporadora_serial'],
             evaporadora_codigo_inventario=data['evaporadora_codigo_inventario'],
             evaporadora_ubicacion_instalacion=data['evaporadora_ubicacion_instalacion'],
+            # Los campos de diagnóstico ya NO se guardan directamente aquí
+            # evaporadora_diagnostico_id=data.get('evaporadora_diagnostico_id'),
+            # evaporadora_diagnostico_notas=data.get('evaporadora_diagnostico_notas'),
+            # evaporadora_fecha_hora_diagnostico=evap_fecha_hora_diagnostico_dt,
             condensadora_operativa=condensadora_operativa_enum,
             condensadora_marca=data['condensadora_marca'],
             condensadora_modelo=data['condensadora_modelo'],
@@ -756,6 +759,9 @@ def agregar_aire_route():
             condensadora_codigo_inventario=data['condensadora_codigo_inventario'],
             condensadora_ubicacion_instalacion=data['condensadora_ubicacion_instalacion']
         )
+        # Los campos de diagnóstico ya NO se guardan directamente aquí
+        # condensadora_diagnostico_id=data.get('condensadora_diagnostico_id'),
+        # condensadora_diagnostico_notas=data.get('condensadora_diagnostico_notas'),
 
         db.session.add(nuevo_aire)
         db.session.commit()
@@ -881,14 +887,35 @@ def actualizar_aire_route(aire_id):
         aire.evaporadora_codigo_inventario = data.get('evaporadora_codigo_inventario', aire.evaporadora_codigo_inventario)
         aire.evaporadora_ubicacion_instalacion = data.get('evaporadora_ubicacion_instalacion', aire.evaporadora_ubicacion_instalacion)
 
+        # Los campos de diagnóstico ya NO se actualizan directamente aquí
+        # if 'evaporadora_diagnostico_id' in data:
+        #     aire.evaporadora_diagnostico_id = data['evaporadora_diagnostico_id']
+        # if 'evaporadora_diagnostico_notas' in data:
+        #     aire.evaporadora_diagnostico_notas = data['evaporadora_diagnostico_notas']
+        # if 'evaporadora_fecha_hora_diagnostico' in data:
+        #     fecha_hora_str = data['evaporadora_fecha_hora_diagnostico']
+        #     if fecha_hora_str:
+        #         try:
+        #             aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(fecha_hora_str)
+        #         except (ValueError, TypeError):
+        #             return jsonify({"msg": "Formato de fecha_hora_diagnostico (evap) inválido. Usar ISO 8601."}), 400
+        #     else:
+        #          aire.evaporadora_fecha_hora_diagnostico = None
+
+
+        # if 'condensadora_operativa' in data: # Old boolean logic
+        #     aire.condensadora_operativa = bool(data['condensadora_operativa'])
+
+        # if 'condensadora_diagnostico_id' in data:
+        #     aire.condensadora_diagnostico_id = data['condensadora_diagnostico_id']
+        # if 'condensadora_diagnostico_notas' in data:
+        #     aire.condensadora_diagnostico_notas = data['condensadora_diagnostico_notas']
         if 'condensadora_operativa' in data:
             try:
                 aire.condensadora_operativa = OperativaStateEnum(data['condensadora_operativa'])
             except ValueError:
                 valid_states = [s.value for s in OperativaStateEnum]
                 return jsonify({"msg": f"Valor inválido para condensadora_operativa. Usar: {', '.join(valid_states)}"}), 400
-
-        # aire.condensadora_operativa = bool(data.get('condensadora_operativa', aire.condensadora_operativa)) # Old boolean logic
 
         aire.condensadora_marca = data.get('condensadora_marca', aire.condensadora_marca)
         aire.condensadora_modelo = data.get('condensadora_modelo', aire.condensadora_modelo)
@@ -2726,7 +2753,7 @@ def obtener_detalles_alertas_activas_helper():
     aires_map = {aire.id: aire for aire in aires}
 
     # 2. Verificar estado operativo para todos los aires
-    for aire_id, aire_obj in aires_map.items():
+    for aire_id, aire_obj in aires_map.items(): # Iterar sobre el mapa para acceso rápido
         if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
@@ -2759,7 +2786,7 @@ def obtener_detalles_alertas_activas_helper():
     ).group_by(Lectura.aire_id).subquery()
 
     ultimas_lecturas_records = db.session.query(Lectura).join(
-        subquery_ultimas_fechas,
+        subquery_ultimas_fechas, # Unirse a la subconsulta para obtener solo las últimas lecturas
         (Lectura.aire_id == subquery_ultimas_fechas.c.aire_id) & (Lectura.fecha == subquery_ultimas_fechas.c.max_fecha)
     ).all()
 
@@ -2784,8 +2811,8 @@ def obtener_detalles_alertas_activas_helper():
         aire_obj = aires_map.get(lectura.aire_id)
         if not aire_obj: 
              continue
-        # Solo alertas ambientales para aires que no estén completamente NO_OPERATIVOS
-        # Es decir, si está OPERATIVA o PARCIALMENTE_OPERATIVA, se verifican umbrales.
+        # Solo alertas ambientales para aires que no estén completamente NO_OPERATIVOS en AMBAS unidades.
+        # Si al menos una unidad está OPERATIVA o PARCIALMENTE_OPERATIVA, se verifican umbrales.
         if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA or aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             continue # Solo alertas ambientales para aires operativos
 

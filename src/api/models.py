@@ -279,18 +279,13 @@ class AireAcondicionado(db.Model):
     toneladas = db.Column(db.Float, nullable=True, comment="Capacidad en toneladas de refrigeración")
 
     # --- Detalles Evaporadora ---
-    evaporadora_operativa = db.Column(SQLAlchemyEnum(OperativaStateEnum), nullable=False, default=OperativaStateEnum.OPERATIVA, comment="Estado operativo de la evaporadora")
+    evaporadora_operativa = db.Column(SQLAlchemyEnum(OperativaStateEnum), nullable=False, default=OperativaStateEnum.OPERATIVA, comment="Estado operativo actual de la evaporadora")
     evaporadora_marca = db.Column(db.String(100), nullable=True)
     evaporadora_modelo = db.Column(db.String(100), nullable=True)
     evaporadora_serial = db.Column(db.String(100), nullable=True)
     evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
-    evaporadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la evaporadora")
-
-    evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
-    evaporadora_diagnostico_notas = db.Column(db.Text, nullable=True)
-    evaporadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[evaporadora_diagnostico_id], lazy='select')
-
+    
 
     # --- Detalles Condensadora ---
     condensadora_operativa = db.Column(SQLAlchemyEnum(OperativaStateEnum), nullable=False, default=OperativaStateEnum.OPERATIVA, comment="Estado operativo de la condensadora")
@@ -299,14 +294,10 @@ class AireAcondicionado(db.Model):
     condensadora_serial = db.Column(db.String(100), nullable=True)
     condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
-    condensadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la condensadora")
-
-    condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
-    condensadora_diagnostico_notas = db.Column(db.Text, nullable=True)
-    condensadora_diagnostico_componente = db.relationship("DiagnosticoComponente", foreign_keys=[condensadora_diagnostico_id], lazy='select')
-
+    
 
     # Relaciones
+    registros_diagnostico = db.relationship("RegistroDiagnosticoAire", back_populates="aire", cascade="all, delete-orphan")
     lecturas = db.relationship("Lectura", back_populates="aire", cascade="all, delete-orphan")
     mantenimientos = db.relationship("Mantenimiento", back_populates="aire", cascade="all, delete-orphan")
     umbrales = db.relationship("UmbralConfiguracion", back_populates="aire", cascade="all, delete-orphan") 
@@ -322,29 +313,57 @@ class AireAcondicionado(db.Model):
             'fecha_instalacion': self.fecha_instalacion.isoformat() if self.fecha_instalacion else None,
             'tipo': self.tipo,
             'toneladas': self.toneladas,
-            
+
             'evaporadora_operativa': self.evaporadora_operativa.value if self.evaporadora_operativa else None,
             'evaporadora_marca': self.evaporadora_marca,
             'evaporadora_modelo': self.evaporadora_modelo,
             'evaporadora_serial': self.evaporadora_serial,
             'evaporadora_codigo_inventario': self.evaporadora_codigo_inventario,
             'evaporadora_ubicacion_instalacion': self.evaporadora_ubicacion_instalacion,
-            'evaporadora_diagnostico_id': self.evaporadora_diagnostico_id,
-            'evaporadora_fecha_hora_diagnostico': self.evaporadora_fecha_hora_diagnostico.isoformat() if self.evaporadora_fecha_hora_diagnostico else None,
-            'evaporadora_diagnostico_nombre': self.evaporadora_diagnostico_componente.nombre if self.evaporadora_diagnostico_componente else None,
-            'evaporadora_diagnostico_notas': self.evaporadora_diagnostico_notas,
-            
+
             'condensadora_operativa': self.condensadora_operativa.value if self.condensadora_operativa else None,
             'condensadora_marca': self.condensadora_marca,
             'condensadora_modelo': self.condensadora_modelo,
             'condensadora_serial': self.condensadora_serial,
             'condensadora_codigo_inventario': self.condensadora_codigo_inventario,
             'condensadora_ubicacion_instalacion': self.condensadora_ubicacion_instalacion,
-            'condensadora_diagnostico_id': self.condensadora_diagnostico_id,
-            'condensadora_fecha_hora_diagnostico': self.condensadora_fecha_hora_diagnostico.isoformat() if self.condensadora_fecha_hora_diagnostico else None,
-            'condensadora_diagnostico_nombre': self.condensadora_diagnostico_componente.nombre if self.condensadora_diagnostico_componente else None,
-            'condensadora_diagnostico_notas': self.condensadora_diagnostico_notas,
+
         }
+        
+class RegistroDiagnosticoAire(db.Model):
+    __tablename__ = 'registros_diagnostico_aire'
+
+    id = db.Column(db.Integer, primary_key=True)
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False)
+    # A qué parte del AC se refiere este registro específico
+    parte_ac = db.Column(SQLAlchemyEnum(ParteACEnum), nullable=False) # 'evaporadora', 'condensadora', 'general'
+    diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=False) # El tipo de diagnóstico predefinido
+    fecha_hora = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now()) # Fecha y hora del registro
+    notas = db.Column(db.Text, nullable=True) # Notas específicas para este registro
+    registrado_por_usuario_id = db.Column(db.Integer, db.ForeignKey('tracker_usuarios.id'), nullable=True) # Quién registró (opcional)
+
+    # Relaciones
+    aire = db.relationship("AireAcondicionado", back_populates="registros_diagnostico")
+    diagnostico = db.relationship("DiagnosticoComponente") # Relación con el diagnóstico predefinido
+    registrado_por = db.relationship("TrackerUsuario") # Relación con el usuario (si aplica)
+
+    def __repr__(self):
+        return f"<RegistroDiagnosticoAire(id={self.id}, aire_id={self.aire_id}, parte='{self.parte_ac.value}', diag_id={self.diagnostico_id}, fecha='{self.fecha_hora}')>"
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'aire_id': self.aire_id,
+            'parte_ac': self.parte_ac.value if self.parte_ac else None,
+            'diagnostico_id': self.diagnostico_id,
+            'fecha_hora': self.fecha_hora.isoformat() if self.fecha_hora else None,
+            'notas': self.notas,
+            'registrado_por_usuario_id': self.registrado_por_usuario_id,
+            # Incluir nombre del diagnóstico y usuario para conveniencia
+            'diagnostico_nombre': self.diagnostico.nombre if self.diagnostico else None,
+            'registrado_por_username': self.registrado_por.username if self.registrado_por else None,
+        }
+        
 class Lectura(db.Model):
     __tablename__ = 'lecturas'
 
@@ -441,7 +460,6 @@ class Mantenimiento(db.Model):
             'alertas_resueltas_info': self.alertas_resueltas_info, # <--- AÑADIR AL SERIALIZE
 
         }
-
 class UmbralConfiguracion(db.Model):
     __tablename__ = 'umbrales_configuracion'
 
@@ -486,14 +504,14 @@ class UmbralConfiguracion(db.Model):
         }
 
 class TrackerUsuario(db.Model):
-    __tablename__ = 'tracker_usuarios' 
+    __tablename__ = 'tracker_usuarios'
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     apellido = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), nullable=False, unique=True)
     username = db.Column(db.String(50), nullable=False, unique=True)
-    password = db.Column(db.String(255), nullable=False) 
+    password = db.Column(db.String(255), nullable=False)
     rol = db.Column(db.String(20), nullable=False, default='operador')
     activo = db.Column(db.Boolean, default=True, nullable=False) # No permitir nulo
     fecha_registro = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -569,6 +587,7 @@ class OtroEquipo(db.Model):
             # No serializar mantenimientos por defecto
             # 'mantenimientos': [m.serialize() for m in self.mantenimientos]
         }
+
 class Proveedor(db.Model):
     __tablename__ = 'proveedores'
 
@@ -606,7 +625,6 @@ class ContactoProveedor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
-    nombre_contacto = db.Column(db.String(150), nullable=False)
     cargo =db.Column(db.String(100), nullable=True)
     telefono_contacto = db.Column(db.String(50), nullable=True)
     email_contacto = db.Column(db.String(120), nullable=True)
@@ -638,7 +656,7 @@ class ContactoProveedor(db.Model):
         if not nombre_contacto or not nombre_contacto.strip():
             raise ValueError("El nombre del contacto no puede estar vacío.")
         return nombre_contacto.strip()
-    
+
 # Enum para los estados de la actividad
 class EstatusActividad(enum.Enum):
     PENDIENTE = 'Pendiente'
@@ -703,7 +721,7 @@ class ActividadProveedor(db.Model):
         if not isinstance(estatus, EstatusActividad):
              raise ValueError("Estatus debe ser un valor válido (Pendiente, En Progreso, Completado, Cancelado)")
         return estatus
-    
+
 class DocumentoExterno(db.Model):
     __tablename__ = 'documento_externo'
 
@@ -736,7 +754,7 @@ class DocumentoExterno(db.Model):
             "usuario_carga": self.usuario_carga.username if self.usuario_carga else "Desconocido"
             # La URL de descarga se sigue construyendo en la ruta GET
         }
-    
+
 class AuditLog(db.Model):
     __tablename__ = 'audit_logs'
 
