@@ -1,7 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g
+from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g # Ensure g is imported if used elsewhere, not directly here
 from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
@@ -2959,6 +2959,28 @@ def obtener_detalles_alertas_activas_helper():
     if not aires:
         return []
 
+    # Pre-fetch latest diagnostic records for all aires and relevant parts
+    all_latest_diagnostics_subquery = db.session.query(
+        RegistroDiagnosticoAire.aire_id,
+        RegistroDiagnosticoAire.parte_ac,
+        func.max(RegistroDiagnosticoAire.fecha_hora).label('max_fecha_diag')
+    ).group_by(RegistroDiagnosticoAire.aire_id, RegistroDiagnosticoAire.parte_ac).subquery()
+
+    all_latest_diagnostics_records = db.session.query(RegistroDiagnosticoAire).join(
+        all_latest_diagnostics_subquery,
+        (RegistroDiagnosticoAire.aire_id == all_latest_diagnostics_subquery.c.aire_id) &
+        (RegistroDiagnosticoAire.parte_ac == all_latest_diagnostics_subquery.c.parte_ac) &
+        (RegistroDiagnosticoAire.fecha_hora == all_latest_diagnostics_subquery.c.max_fecha_diag)
+    ).options(db.joinedload(RegistroDiagnosticoAire.diagnostico)).all() # Eager load diagnostico
+
+    latest_diagnostics_map = {} # {(aire_id, parte_ac_enum): {"nombre": "...", "notas": "..."}}
+    for record in all_latest_diagnostics_records:
+        if record.diagnostico: # Ensure diagnostico relationship is loaded and exists
+            latest_diagnostics_map[(record.aire_id, record.parte_ac)] = { # Use the Enum member as key
+                "nombre": record.diagnostico.nombre,
+                "notas": record.notas
+            }
+
     aires_map = {aire.id: aire for aire in aires}
 
     # 2. Verificar estado operativo para todos los aires
@@ -2966,26 +2988,39 @@ def obtener_detalles_alertas_activas_helper():
         if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
-                "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.",
-                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.", # Mensaje principal
+                "valor_actual": "No Operativa", # Estado del componente
+                "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso, # Fecha de detección del estado
+                "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
             })
         elif aire_obj.evaporadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora parcialmente operativa.",
-                "valor_actual": "Parcialmente Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "valor_actual": "Parcialmente Operativa",
+                "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
+                "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
             })
+
         if aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
-                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "valor_actual": "No Operativa",
+                "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
+                "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
             })
         elif aire_obj.condensadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
             alertas_detalladas.append({
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora parcialmente operativa.",
-                "valor_actual": "Parcialmente Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+                "valor_actual": "Parcialmente Operativa",
+                "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
+                "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
             })
 
     # 3. Obtener la última lectura de cada aire
@@ -4138,5 +4173,3 @@ def get_alertas_activas_detalladas_route():
     except Exception as e:
         print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
         return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
-
-

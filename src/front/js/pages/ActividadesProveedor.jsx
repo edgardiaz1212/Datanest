@@ -269,7 +269,7 @@ const handleProveedorFilterChange = (e) => {
         <Container className="mt-4">
             <Row className="mb-3 align-items-center">
                 <Col xs={12} md={6}> {/* Ajustado para mejor layout */}
-                    <h2>Gestión de Actividades de Proveedores</h2>
+                    <h2>Gestión de Actividades Pendientes de Proveedores Internos</h2>
                 </Col>
                 <Col xs={12} md={6} className="text-md-end mt-2 mt-md-0">
                     {/* --- Botón PDF modificado --- */}

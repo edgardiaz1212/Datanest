@@ -1,6 +1,6 @@
 import React, { useEffect, useContext } from 'react';
 import { Context } from '../store/appContext';
-import { Container, Card, Alert, Spinner, Table, Badge } from 'react-bootstrap';
+import { Container, Card, Alert, Spinner, Table, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { FiAlertTriangle, FiPower, FiThermometer, FiDroplet } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale'; // For Spanish date formatting
@@ -36,6 +36,12 @@ const AlertasActivas = () => {
         if (tipoAlerta.includes("Humedad")) return <FiDroplet className="me-1" />;
         return <FiAlertTriangle className="me-1" />;
     };
+
+    const renderTooltip = (props, text) => (
+        <Tooltip id={`tooltip-${Math.random().toString(36).substring(7)}`} {...props}>
+          {text}
+        </Tooltip>
+      );
 
     if (detailedAlertsLoading) {
         return (
@@ -75,7 +81,7 @@ const AlertasActivas = () => {
             {alertasOperatividad.length > 0 && (
                 <Card className="mb-4 shadow-sm">
                     <Card.Header className="bg-danger text-white">
-                        <h5 className="mb-0"><FiPower className="me-2" />Aires No Operativos ({alertasOperatividad.length})</h5>
+                        <h5 className="mb-0"><FiPower className="me-2" />Alertas de Operatividad ({alertasOperatividad.length})</h5>
                     </Card.Header>
                     <Card.Body>
                         <div className="table-responsive">
@@ -84,9 +90,8 @@ const AlertasActivas = () => {
                                     <tr>
                                         <th>Aire</th>
                                         <th>Ubicación</th>
-                                        <th>Componente Falla</th>
                                         <th>Mensaje</th>
-                                        <th>Diagnóstico</th>
+                                        <th>Últ. Diagnóstico</th>
                                         <th>Notas Diagnóstico</th>
                                         <th>Detectado</th>
                                     </tr>
@@ -96,20 +101,25 @@ const AlertasActivas = () => {
                                         <tr key={`op-${alerta.aire_id}-${index}-${alerta.mensaje}`}> {/* Added alerta.mensaje to key for more uniqueness */}
                                             <td>{alerta.aire_nombre || 'N/A'}</td>
                                             <td>{alerta.aire_ubicacion || 'N/A'}</td>
-                                            <td>{alerta.componente || 'N/A'}</td>
                                             <td>
                                                 <Badge bg={getAlertVariant(alerta.alerta_tipo)} pill className="me-2">
                                                     {getAlertIcon(alerta.alerta_tipo)}
                                                     {alerta.alerta_tipo}
                                                 </Badge>
                                                 {alerta.mensaje}
-                                                {/* {alerta.razon && <><br/><small className="text-muted">Razón: {alerta.razon}</small></>} */}
                                             </td>
+                                            <td>{alerta.diagnostico_nombre || '-'}</td>
                                             <td>
-                                                {alerta.diagnostico_nombre || <span className="text-muted">N/E</span>}
-                                            </td>
-                                            <td>
-                                                {alerta.diagnostico_notas || <span className="text-muted">-</span>}
+                                                {alerta.diagnostico_notas ? (
+                                                    <OverlayTrigger
+                                                        placement="top"
+                                                        overlay={(props) => renderTooltip(props, alerta.diagnostico_notas)}
+                                                    >
+                                                        <span className="d-inline-block text-truncate" style={{ maxWidth: "150px", cursor: "help" }}>
+                                                            {alerta.diagnostico_notas}
+                                                        </span>
+                                                    </OverlayTrigger>
+                                                ) : '-'}
                                             </td>
                                             <td>{formatDate(alerta.fecha_lectura)}</td>
                                         </tr>
@@ -124,7 +134,7 @@ const AlertasActivas = () => {
             {alertasAmbientales.length > 0 && (
                 <Card className="mb-4 shadow-sm">
                     <Card.Header className="bg-warning text-dark">
-                        <h5 className="mb-0"><FiThermometer className="me-2" />Alertas Ambientales ({alertasAmbientales.length})</h5> {/* Added key to Card */}
+                        <h5 className="mb-0"><FiThermometer className="me-2" />Alertas Ambientales ({alertasAmbientales.length})</h5>
                     </Card.Header>
                     <Card.Body>
                         <div className="table-responsive">
@@ -143,7 +153,7 @@ const AlertasActivas = () => {
                                 <tbody>
                                     {alertasAmbientales.map((alerta, index) => (
                                         <tr key={`amb-${alerta.aire_id}-${index}-${alerta.alerta_tipo}-${alerta.mensaje}`}> {/* Added alerta.mensaje to key */}
-                                            <td>{alerta.aire_nombre || 'N/A'}</td> {/* Added key to Card */}
+                                            <td>{alerta.aire_nombre || 'N/A'}</td>
                                             <td>{alerta.aire_ubicacion || 'N/A'}</td>
                                             <td><Badge bg={getAlertVariant(alerta.alerta_tipo)} pill>{getAlertIcon(alerta.alerta_tipo)}{alerta.alerta_tipo}</Badge></td>
                                             <td>{alerta.mensaje}</td>
