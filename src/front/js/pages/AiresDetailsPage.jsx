@@ -1,6 +1,6 @@
 import React, { useEffect, useContext, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Context } from '../store/appContext';
+import { Context } from '../store/appContext'; // Asegúrate de que Context esté importado
 import { Container, Card, Row, Col, Button, Spinner, Alert, Table, Badge, Modal, Form } from 'react-bootstrap';
 import { FiArrowLeft, FiPlus, FiEdit, FiTrash2, FiTool } from 'react-icons/fi';
 
@@ -26,10 +26,13 @@ const AiresDetailsPage = () => {
     // Local state for the "Add Diagnostic Record" modal/form
     const [showAddRecordModal, setShowAddRecordModal] = useState(false);
     const [newRecordFormData, setNewRecordFormData] = useState({
-        parte_ac: 'general', // default
+        parte_ac: 'general', // default for the diagnostic record itself
         diagnostico_id: '',
         fecha_hora: new Date().toISOString().slice(0, 16), // default to now, YYYY-MM-DDTHH:MM
         notas: '',
+        // Add fields for updating the current operative state
+        current_evaporadora_operativa: '',
+        current_condensadora_operativa: '',
     });
     const [isSubmittingRecord, setIsSubmittingRecord] = useState(false);
     const [addRecordError, setAddRecordError] = useState(null);
@@ -38,6 +41,7 @@ const AiresDetailsPage = () => {
     const canManageDiagnostics = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor' || currentUser?.rol === 'tecnico';
 
     useEffect(() => {
+        // Fetch aire details, diagnostic records, and predefined diagnostics
         if (aireId) {
             actions.fetchAireDetails(aireId);
             actions.fetchDiagnosticRecordsByAire(aireId);
@@ -51,7 +55,18 @@ const AiresDetailsPage = () => {
             if (actions.clearSelectedAireDiagnosticRecordsError) actions.clearSelectedAireDiagnosticRecordsError();
             if (actions.clearDiagnosticoComponentesError) actions.clearDiagnosticoComponentesError();
         };
-    }, [aireId, actions, canManageDiagnostics]);
+    }, [aireId, actions, canManageDiagnostics]); // Dependencies
+
+    // Effect to update modal form data when aire details are loaded/updated
+    useEffect(() => {
+        if (aire) {
+            setNewRecordFormData(prev => ({
+                ...prev,
+                current_evaporadora_operativa: aire.evaporadora_operativa || 'no_operativa',
+                current_condensadora_operativa: aire.condensadora_operativa || 'no_operativa',
+            }));
+        }
+    }, [aire]); // Dependency on aire details
 
     const formatDate = useCallback((dateString, includeTime = false) => {
         if (!dateString) return 'N/A';
@@ -82,12 +97,20 @@ const AiresDetailsPage = () => {
     const handleNewRecordChange = (e) => {
         const { name, value } = e.target;
         setNewRecordFormData(prev => ({ ...prev, [name]: value }));
-    };
+    }; // Keep this handler for all form fields
 
     const handleAddRecordSubmit = async (e) => {
         e.preventDefault();
         setAddRecordError(null);
+
+        // Basic validation for the diagnostic record itself
         if (!newRecordFormData.diagnostico_id || !newRecordFormData.fecha_hora) {
+             // Check if at least one operative state is being changed if no diagnostic is selected
+             if (newRecordFormData.current_evaporadora_operativa === (aire?.evaporadora_operativa || 'no_operativa') &&
+                 newRecordFormData.current_condensadora_operativa === (aire?.condensadora_operativa || 'no_operativa')) {
+                 setAddRecordError("Por favor, complete el diagnóstico y la fecha/hora, o cambie al menos un estado operativo.");
+                 return;
+             }
             setAddRecordError("Por favor, complete el diagnóstico y la fecha/hora.");
             return;
         }
@@ -96,15 +119,29 @@ const AiresDetailsPage = () => {
             const payload = {
                 ...newRecordFormData,
                 fecha_hora: new Date(newRecordFormData.fecha_hora).toISOString(), // Ensure full ISO string for backend
+                // Do NOT include current_operative_state fields in the diagnostic record payload
             };
-            const success = await actions.addDiagnosticRecord(aireId, payload);
-            if (success) {
-                setShowAddRecordModal(false);
-                setNewRecordFormData({ parte_ac: 'general', diagnostico_id: '', fecha_hora: new Date().toISOString().slice(0, 16), notas: '' });
-                // The fetchDiagnosticRecordsByAire is called within addDiagnosticRecord action on success
-            } else {
-                // Error should be in store.selectedAireDiagnosticRecordsError
-                setAddRecordError(store.selectedAireDiagnosticRecordsError || "No se pudo agregar el registro.");
+
+            let recordAdded = false;
+            if (newRecordFormData.diagnostico_id) { // Only add record if a diagnostic is selected
+                 recordAdded = await actions.addDiagnosticRecord(aireId, payload);
+                 if (!recordAdded) {
+                     setAddRecordError(store.selectedAireDiagnosticRecordsError || "No se pudo agregar el registro de diagnóstico.");
+                     return; // Stop if adding record failed
+                 }
+            }
+
+            // Prepare payload for updating the main aire details (only operative states)
+            const updateAirePayload = {
+                evaporadora_operativa: newRecordFormData.current_evaporadora_operativa,
+                condensadora_operativa: newRecordFormData.current_condensadora_operativa,
+            };
+            // Call updateAire action
+            const aireUpdated = await actions.updateAire(aireId, updateAirePayload);
+            if (aireUpdated) { // updateAire action should refetch aire details on success
+                 setShowAddRecordModal(false);
+                 // Reset form data, but keep current operative states updated from the store
+                 setNewRecordFormData({ parte_ac: 'general', diagnostico_id: '', fecha_hora: new Date().toISOString().slice(0, 16), notas: '', current_evaporadora_operativa: newRecordFormData.current_evaporadora_operativa, current_condensadora_operativa: newRecordFormData.current_condensadora_operativa });
             }
         } catch (error) {
             setAddRecordError(error.message || "Error al enviar el formulario.");
@@ -115,6 +152,7 @@ const AiresDetailsPage = () => {
 
     const handleDeleteRecord = async (recordId) => {
         if (window.confirm("¿Está seguro de eliminar este registro de diagnóstico?")) {
+            setAddRecordError(null); // Clear any previous error
             await actions.deleteDiagnosticRecord(recordId, aireId);
             // Refetch is handled by the action
         }
@@ -230,8 +268,48 @@ const AiresDetailsPage = () => {
                         {predefinedDiagnosticsLoading && <div className="text-center"><Spinner size="sm" /> Cargando diagnósticos predefinidos...</div>}
                         {predefinedDiagnosticsError && <Alert variant="danger">Error diagnósticos predefinidos: {predefinedDiagnosticsError}</Alert>}
 
-                        <Form.Group className="mb-3" controlId="formRecordParteAC">
-                            <Form.Label>Parte Afectada <span className="text-danger">*</span></Form.Label>
+                        {/* Fields for updating current operative state */}
+                        <Row>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="formRecordCurrentEvapState">
+                                    <Form.Label>Estado Actual Evaporadora <span className="text-danger">*</span></Form.Label>
+                                    <Form.Select name="current_evaporadora_operativa" value={newRecordFormData.current_evaporadora_operativa} onChange={handleNewRecordChange} required disabled={isSubmittingRecord}>
+                                        <option value="operativa">Operativa</option>
+                                        <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                        <option value="no_operativa">No Operativa</option>
+                                    </Form.Select>
+                                </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                                <Form.Group className="mb-3" controlId="formRecordCurrentCondState">
+                                    <Form.Label>Estado Actual Condensadora <span className="text-danger">*</span></Form.Label>
+                                    <Form.Select name="current_condensadora_operativa" value={newRecordFormData.current_condensadora_operativa} onChange={handleNewRecordChange} required disabled={isSubmittingRecord}>
+                                        <option value="operativa">Operativa</option>
+                                        <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                        <option value="no_operativa">No Operativa</option>
+                                    </Form.Select>
+                                </Form.Group>
+                            </Col>
+                        </Row>
+
+                         {/* Separator */}
+                         <hr className="my-3" />
+
+                        {/* Fields for the historical diagnostic record */}
+                        <Form.Group className="mb-3" controlId="formRecordFechaHora">
+                            <Form.Label>Fecha y Hora del Diagnóstico <span className="text-danger">*</span></Form.Label>
+                            <Form.Control
+                                type="datetime-local"
+                                name="fecha_hora"
+                                value={newRecordFormData.fecha_hora}
+                                onChange={handleNewRecordChange}
+                                required
+                                disabled={isSubmittingRecord}
+                            />
+                        </Form.Group>
+
+                         <Form.Group className="mb-3" controlId="formRecordParteAC">
+                            <Form.Label>Parte Afectada (Diagnóstico) <span className="text-danger">*</span></Form.Label>
                             <Form.Select name="parte_ac" value={newRecordFormData.parte_ac} onChange={handleNewRecordChange} required disabled={isSubmittingRecord || predefinedDiagnosticsLoading}>
                                 <option value="general">General</option>
                                 <option value="evaporadora">Evaporadora</option>
@@ -239,7 +317,7 @@ const AiresDetailsPage = () => {
                             </Form.Select>
                         </Form.Group>
 
-                        <Form.Group className="mb-3" controlId="formRecordDiagnosticoId">
+                         <Form.Group className="mb-3" controlId="formRecordDiagnosticoId">
                             <Form.Label>Diagnóstico <span className="text-danger">*</span></Form.Label>
                             <Form.Select name="diagnostico_id" value={newRecordFormData.diagnostico_id} onChange={handleNewRecordChange} required disabled={isSubmittingRecord || predefinedDiagnosticsLoading || !diagnosticosDisponibles.length}>
                                 <option value="">Seleccione un diagnóstico...</option>
@@ -256,19 +334,7 @@ const AiresDetailsPage = () => {
                             )}
                         </Form.Group>
 
-                        <Form.Group className="mb-3" controlId="formRecordFechaHora">
-                            <Form.Label>Fecha y Hora del Diagnóstico <span className="text-danger">*</span></Form.Label>
-                            <Form.Control
-                                type="datetime-local"
-                                name="fecha_hora"
-                                value={newRecordFormData.fecha_hora}
-                                onChange={handleNewRecordChange}
-                                required
-                                disabled={isSubmittingRecord}
-                            />
-                        </Form.Group>
-
-                        <Form.Group className="mb-3" controlId="formRecordNotas">
+                         <Form.Group className="mb-3" controlId="formRecordNotas">
                             <Form.Label>Notas Adicionales</Form.Label>
                             <Form.Control
                                 as="textarea"
@@ -285,7 +351,7 @@ const AiresDetailsPage = () => {
                         <Button variant="secondary" onClick={() => setShowAddRecordModal(false)} disabled={isSubmittingRecord}>
                             Cancelar
                         </Button>
-                        <Button variant="primary" type="submit" disabled={isSubmittingRecord || predefinedDiagnosticsLoading}>
+                        <Button variant="primary" type="submit" disabled={isSubmittingRecord || (newRecordFormData.diagnostico_id === '' && newRecordFormData.current_evaporadora_operativa === (aire?.evaporadora_operativa || 'no_operativa') && newRecordFormData.current_condensadora_operativa === (aire?.condensadora_operativa || 'no_operativa'))}>
                             {isSubmittingRecord ? <><Spinner size="sm" className="me-2" />Guardando...</> : 'Guardar Registro'}
                         </Button>
                     </Modal.Footer>

@@ -996,7 +996,8 @@ const getState = ({ getStore, getActions, setStore }) => {
               responseData.msg || `Error updating aire: ${response.status}`
             );
           }
-          await getActions().fetchAires();
+          // After updating a specific aire, refetch its details for the details page
+          await getActions().fetchAireDetails(aireId);
           return true;
         } catch (error) {
           console.error("Error in updateAire:", error);
