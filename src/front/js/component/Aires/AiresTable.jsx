@@ -48,6 +48,21 @@ const AiresTable = ({
         </Tooltip>
       );
 
+    // Helper para determinar el badge de operatividad
+    const getOperatividadBadge = (estado) => {
+        switch (estado) {
+            case 'operativa':
+                return { bg: 'success', text: 'OK' };
+            case 'parcialmente_operativa':
+                return { bg: 'warning', text: 'Parcial' };
+            case 'no_operativa':
+                return { bg: 'danger', text: 'Falla' };
+            default:
+                return { bg: 'secondary', text: 'N/A' };
+        }
+    };
+
+
     // Renderiza la tabla si hay datos
     return (
         <div className="table-responsive">
@@ -84,20 +99,22 @@ const AiresTable = ({
                         <td>{aire.tipo || 'N/A'}</td>
                         <td>{aire.toneladas != null ? `${aire.toneladas} ton` : 'N/A'}</td>
                         <td>
-                          <Stack direction="horizontal" gap={1}>
-                            <Badge bg={aire.evaporadora_operativa ? 'success' : 'danger'}>
-                              Evap: {aire.evaporadora_operativa ? 'OK' : 'Falla'}
-                            </Badge>
-                            <Badge bg={aire.condensadora_operativa ? 'success' : 'danger'}>
-                              Cond: {aire.condensadora_operativa ? 'OK' : 'Falla'}
-                            </Badge>
-                          </Stack>
+                            <Stack direction="horizontal" gap={1}>
+                                <Badge bg={getOperatividadBadge(aire.evaporadora_operativa).bg}>
+                                    Evap: {getOperatividadBadge(aire.evaporadora_operativa).text}
+                                </Badge>
+                                <Badge bg={getOperatividadBadge(aire.condensadora_operativa).bg}>
+                                    Cond: {getOperatividadBadge(aire.condensadora_operativa).text}
+                                </Badge>
+                            </Stack>
                         </td>
                         <td>
-                          {!aire.evaporadora_operativa ? (
+                          {/* Mostrar diagnóstico si no está 'operativa' */}
+                          {aire.evaporadora_operativa !== 'operativa' ? (
                             <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.evaporadora_diagnostico_notas || 'Sin notas adicionales')}>
                               <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>
                                 {aire.evaporadora_diagnostico_nombre || 'No especificado'}
+                                {aire.evaporadora_operativa === 'parcialmente_operativa' ? ' (Parcial)' : ''}
                               </span>
                             </OverlayTrigger>
                           ) : '-'}
@@ -105,10 +122,11 @@ const AiresTable = ({
                         <td>
                           {!aire.condensadora_operativa ? (
                              <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.condensadora_diagnostico_notas || 'Sin notas adicionales')}>
-                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>
+                              <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>                                
                                 {aire.condensadora_diagnostico_nombre || 'No especificado'}
+                                {aire.condensadora_operativa === 'parcialmente_operativa' ? ' (Parcial)' : ''}
                               </span>
-                            </OverlayTrigger>
+                            </OverlayTrigger>                            
                           ) : '-'}
                         </td>
                         
@@ -166,8 +184,8 @@ AiresTable.propTypes = {
         ubicacion: PropTypes.string.isRequired,
         tipo: PropTypes.string,
         toneladas: PropTypes.number,
-        evaporadora_operativa: PropTypes.bool,
-        condensadora_operativa: PropTypes.bool,
+        evaporadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa']),
+        condensadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa']),
         evaporadora_diagnostico_nombre: PropTypes.string,
         evaporadora_diagnostico_notas: PropTypes.string,
         condensadora_diagnostico_nombre: PropTypes.string,

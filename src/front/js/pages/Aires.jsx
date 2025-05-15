@@ -23,8 +23,7 @@ const Aires = () => {
     addAire,
     updateAire,
     deleteAire,
-    clearAiresError,
-    fetchDiagnosticoComponentes // <--- Añadir para pasar al modal
+    clearAiresError 
   } = actions;
 
 
@@ -82,7 +81,6 @@ const Aires = () => {
   useEffect(() => {
     fetchAires();
     // Cleanup function
-    // Opcional: Cargar diagnósticos aquí si siempre se necesitan en el modal, o hacerlo dentro del modal
     return () => {
       if (clearAiresError) clearAiresError();
     };
@@ -111,15 +109,11 @@ const Aires = () => {
     setFormData({ // Reset form
       nombre: '', ubicacion: '',
       fecha_instalacion: formatDate(new Date().toISOString(), true),
-      tipo: '', toneladas: null,
-      evaporadora_operativa: true, evaporadora_marca: '', evaporadora_modelo: '',
+      tipo: '', toneladas: null, // toneladas as null for empty number
+      evaporadora_operativa: 'operativa', evaporadora_marca: '', evaporadora_modelo: '',
       evaporadora_serial: '', evaporadora_codigo_inventario: '', evaporadora_ubicacion_instalacion: '',
-      condensadora_operativa: true, condensadora_marca: '', condensadora_modelo: '',
+      condensadora_operativa: 'operativa', condensadora_marca: '', condensadora_modelo: '',
       condensadora_serial: '', condensadora_codigo_inventario: '', condensadora_ubicacion_instalacion: '',
-      evaporadora_diagnostico_id: null, evaporadora_diagnostico_notas: '', 
-      evaporadora_fecha_diagnostico: formatDate(new Date().toISOString(), true), evaporadora_hora_diagnostico: new Date().toTimeString().slice(0,5), // Fecha y hora actual por defecto
-      condensadora_diagnostico_id: null, condensadora_diagnostico_notas: '',
-      condensadora_fecha_diagnostico: formatDate(new Date().toISOString(), true), condensadora_hora_diagnostico: new Date().toTimeString().slice(0,5) // Fecha y hora actual por defecto
     });
     setModalTitle('Agregar Aire Acondicionado');
     setFormMode('add');
@@ -147,17 +141,8 @@ const Aires = () => {
           ...fullDetails,
           fecha_instalacion: formatDate(fullDetails.fecha_instalacion, true),
           toneladas: (typeof fullDetails.toneladas === 'number' && !isNaN(fullDetails.toneladas)) ? fullDetails.toneladas : null,
-          evaporadora_operativa: !!fullDetails.evaporadora_operativa,
-          condensadora_operativa: !!fullDetails.condensadora_operativa,
-          // Cargar datos de diagnóstico existentes
-          evaporadora_diagnostico_id: fullDetails.evaporadora_diagnostico_id || null,
-          evaporadora_diagnostico_notas: fullDetails.evaporadora_diagnostico_notas || '',
-          evaporadora_fecha_diagnostico: fullDetails.evaporadora_fecha_hora_diagnostico ? formatDate(fullDetails.evaporadora_fecha_hora_diagnostico, true) : formatDate(new Date().toISOString(), true),
-          evaporadora_hora_diagnostico: fullDetails.evaporadora_fecha_hora_diagnostico ? new Date(fullDetails.evaporadora_fecha_hora_diagnostico).toTimeString().slice(0,5) : new Date().toTimeString().slice(0,5),
-          condensadora_diagnostico_id: fullDetails.condensadora_diagnostico_id || null,
-          condensadora_diagnostico_notas: fullDetails.condensadora_diagnostico_notas || '',
-          condensadora_fecha_diagnostico: fullDetails.condensadora_fecha_hora_diagnostico ? formatDate(fullDetails.condensadora_fecha_hora_diagnostico, true) : formatDate(new Date().toISOString(), true),
-          condensadora_hora_diagnostico: fullDetails.condensadora_fecha_hora_diagnostico ? new Date(fullDetails.condensadora_fecha_hora_diagnostico).toTimeString().slice(0,5) : new Date().toTimeString().slice(0,5),
+          evaporadora_operativa: fullDetails.evaporadora_operativa || 'no_operativa', // Default if null/undefined
+          condensadora_operativa: fullDetails.condensadora_operativa || 'no_operativa', // Default if null/undefined
         });
       } else {
         throw new Error("Formato de respuesta inválido al cargar detalles para editar.");
@@ -219,29 +204,13 @@ const Aires = () => {
     }
     // --- End Validation ---
 
-    // Combinar fecha y hora para diagnóstico
-    let evaporadora_fecha_hora_diagnostico_iso = null;
-    if (!formData.evaporadora_operativa && formData.evaporadora_fecha_diagnostico && formData.evaporadora_hora_diagnostico) {
-        evaporadora_fecha_hora_diagnostico_iso = `${formData.evaporadora_fecha_diagnostico}T${formData.evaporadora_hora_diagnostico}:00`;
-    }
-    let condensadora_fecha_hora_diagnostico_iso = null;
-    if (!formData.condensadora_operativa && formData.condensadora_fecha_diagnostico && formData.condensadora_hora_diagnostico) {
-        condensadora_fecha_hora_diagnostico_iso = `${formData.condensadora_fecha_diagnostico}T${formData.condensadora_hora_diagnostico}:00`;
-    }
-
     // Prepare payload
     const payload = {
       ...formData,
       fecha_instalacion: formData.fecha_instalacion ? formData.fecha_instalacion.split('T')[0] : null, // Ensure YYYY-MM-DD or null
       toneladas: (formData.toneladas !== null && formData.toneladas !== undefined && !isNaN(Number(formData.toneladas))) ? Number(formData.toneladas) : null,
-      evaporadora_operativa: !!formData.evaporadora_operativa,
-      evaporadora_diagnostico_id: !formData.evaporadora_operativa ? formData.evaporadora_diagnostico_id : null,
-      evaporadora_diagnostico_notas: !formData.evaporadora_operativa ? formData.evaporadora_diagnostico_notas : '',
-      evaporadora_fecha_hora_diagnostico: evaporadora_fecha_hora_diagnostico_iso,
-      condensadora_operativa: !!formData.condensadora_operativa,
-      condensadora_diagnostico_id: !formData.condensadora_operativa ? formData.condensadora_diagnostico_id : null,
-      condensadora_diagnostico_notas: !formData.condensadora_operativa ? formData.condensadora_diagnostico_notas : '',
-      condensadora_fecha_hora_diagnostico: condensadora_fecha_hora_diagnostico_iso,
+      evaporadora_operativa: formData.evaporadora_operativa, // Send as string
+      condensadora_operativa: formData.condensadora_operativa, // Send as string
     };
     if (formMode === 'add') { delete payload.id; }
 
@@ -345,9 +314,6 @@ const Aires = () => {
         editError={editError} // Pass modal-specific error
         onSubmit={handleSubmit}
         onChange={handleChange}
-        // Pasar diagnósticos y acción de carga al modal
-        diagnosticosDisponibles={store.diagnosticoComponentes}
-        fetchDiagnosticos={actions.fetchDiagnosticoComponentes}
         isSubmitting={isSubmitting} // Pass submitting state
       />
 

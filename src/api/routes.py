@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, AuditLog, DiagnosticoComponente, ParteACEnum, TipoAireRelevanteEnum # <-- Añadido DiagnosticoComponente y Enums
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,8 +26,6 @@ api = Blueprint('api', __name__)
 
 # Allow CORS requests to this API
 CORS(api)
-
-
 # Para formulario 
 #manejo de usuarios que usan el formulario
 @api.route('/addUser', methods=['POST'])
@@ -682,39 +680,6 @@ def delete_tracker_user(user_id):
         traceback.print_exc()
         return jsonify({"msg": "Error deleting tracker user", "error": str(error)}), 500
 
-def registrar_auditoria(user_db_id, action, entity_type=None, entity_id=None, entity_description=None, details=None):
-    """
-    Registra una acción en el log de auditoría.
-    Esta función añade la entrada a la sesión de DB; el commit debe hacerse externamente.
-    """
-    try:
-        usuario = db.session.get(TrackerUsuario, user_db_id)
-        if not usuario:
-            print(f"AUDIT_ERROR: Usuario con ID {user_db_id} no encontrado para auditoría.", file=sys.stderr)
-            # Considera si quieres lanzar una excepción o solo loggear el error.
-            # Por ahora, solo imprimimos y continuamos para no detener la operación principal.
-            return
-
-        log_entry = AuditLog(
-            user_id=user_db_id,
-            username=usuario.username, # Guardamos el username para fácil visualización
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            entity_description=entity_description,
-            details=details # Podría ser un json.dumps(dict_detalles) si guardas estructuras complejas
-        )
-        db.session.add(log_entry)
-        # El commit se hará junto con la acción principal o en un paso separado.
-        print(f"AUDIT_LOG: User '{usuario.username}' performed action '{action}' on {entity_type or 'N/A'}:{entity_id or 'N/A'}", file=sys.stderr)
-
-    except Exception as e:
-        print(f"AUDIT_ERROR: Error al registrar auditoría: {e}", file=sys.stderr)
-        # No hacer rollback aquí, ya que podría interferir con la transacción principal.
-        # El error de auditoría no debería detener la operación principal si es posible.
-
-
-
 # --- Rutas para AireAcondicionado ---
 
 @api.route('/aires', methods=['POST'])
@@ -761,19 +726,30 @@ def agregar_aire_route():
              except (ValueError, TypeError):
                  return jsonify({"msg": "Valor de toneladas inválido. Debe ser numérico."}), 400
 
+        # Validar y convertir estados operativos
+        try:
+            evaporadora_operativa_enum = OperativaStateEnum(data['evaporadora_operativa'])
+            condensadora_operativa_enum = OperativaStateEnum(data['condensadora_operativa'])
+        except ValueError:
+            valid_states = [s.value for s in OperativaStateEnum]
+            return jsonify({"msg": f"Valores inválidos para estados operativos. Usar: {', '.join(valid_states)}"}), 400
+        except KeyError:
+            return jsonify({"msg": "Faltan campos 'evaporadora_operativa' o 'condensadora_operativa'."}), 400
+
+
         nuevo_aire = AireAcondicionado(
             nombre=data['nombre'],
             ubicacion=data['ubicacion'],
             fecha_instalacion=fecha_instalacion_dt,
             tipo=data['tipo'],
             toneladas=toneladas_float,
-            evaporadora_operativa=bool(data['evaporadora_operativa']),
+            evaporadora_operativa=evaporadora_operativa_enum,
             evaporadora_marca=data['evaporadora_marca'],
             evaporadora_modelo=data['evaporadora_modelo'],
             evaporadora_serial=data['evaporadora_serial'],
             evaporadora_codigo_inventario=data['evaporadora_codigo_inventario'],
             evaporadora_ubicacion_instalacion=data['evaporadora_ubicacion_instalacion'],
-            condensadora_operativa=bool(data['condensadora_operativa']),
+            condensadora_operativa=condensadora_operativa_enum,
             condensadora_marca=data['condensadora_marca'],
             condensadora_modelo=data['condensadora_modelo'],
             condensadora_serial=data['condensadora_serial'],
@@ -892,52 +868,33 @@ def actualizar_aire_route(aire_id):
             else:
                  aire.toneladas = None
 
-        aire.evaporadora_operativa = bool(data.get('evaporadora_operativa', aire.evaporadora_operativa))
+        if 'evaporadora_operativa' in data:
+            try:
+                aire.evaporadora_operativa = OperativaStateEnum(data['evaporadora_operativa'])
+            except ValueError:
+                valid_states = [s.value for s in OperativaStateEnum]
+                return jsonify({"msg": f"Valor inválido para evaporadora_operativa. Usar: {', '.join(valid_states)}"}), 400
+        
         aire.evaporadora_marca = data.get('evaporadora_marca', aire.evaporadora_marca)
         aire.evaporadora_modelo = data.get('evaporadora_modelo', aire.evaporadora_modelo)
         aire.evaporadora_serial = data.get('evaporadora_serial', aire.evaporadora_serial)
         aire.evaporadora_codigo_inventario = data.get('evaporadora_codigo_inventario', aire.evaporadora_codigo_inventario)
         aire.evaporadora_ubicacion_instalacion = data.get('evaporadora_ubicacion_instalacion', aire.evaporadora_ubicacion_instalacion)
 
-        aire.condensadora_operativa = bool(data.get('condensadora_operativa', aire.condensadora_operativa))
+        if 'condensadora_operativa' in data:
+            try:
+                aire.condensadora_operativa = OperativaStateEnum(data['condensadora_operativa'])
+            except ValueError:
+                valid_states = [s.value for s in OperativaStateEnum]
+                return jsonify({"msg": f"Valor inválido para condensadora_operativa. Usar: {', '.join(valid_states)}"}), 400
+
+        # aire.condensadora_operativa = bool(data.get('condensadora_operativa', aire.condensadora_operativa)) # Old boolean logic
+
         aire.condensadora_marca = data.get('condensadora_marca', aire.condensadora_marca)
         aire.condensadora_modelo = data.get('condensadora_modelo', aire.condensadora_modelo)
         aire.condensadora_serial = data.get('condensadora_serial', aire.condensadora_serial)
         aire.condensadora_codigo_inventario = data.get('condensadora_codigo_inventario', aire.condensadora_codigo_inventario)
         aire.condensadora_ubicacion_instalacion = data.get('condensadora_ubicacion_instalacion', aire.condensadora_ubicacion_instalacion)
-
-        # --- Actualizar diagnósticos ---
-        if 'evaporadora_operativa' in data:
-            if not bool(data['evaporadora_operativa']):
-                aire.evaporadora_diagnostico_id = data.get('evaporadora_diagnostico_id')
-                aire.evaporadora_diagnostico_notas = data.get('evaporadora_diagnostico_notas')
-                if data.get('evaporadora_fecha_hora_diagnostico'):
-                    try:
-                        aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(data['evaporadora_fecha_hora_diagnostico'])
-                    except (ValueError, TypeError):
-                        aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
-            else: # Si se marca como operativa, limpiar diagnóstico y fecha
-                aire.evaporadora_diagnostico_id = None
-                aire.evaporadora_diagnostico_notas = None
-                aire.evaporadora_fecha_hora_diagnostico = None
-            updated = True
-
-        if 'condensadora_operativa' in data:
-            if not bool(data['condensadora_operativa']):
-                aire.condensadora_diagnostico_id = data.get('condensadora_diagnostico_id')
-                aire.condensadora_diagnostico_notas = data.get('condensadora_diagnostico_notas')
-                if data.get('condensadora_fecha_hora_diagnostico'):
-                    try:
-                        aire.condensadora_fecha_hora_diagnostico = datetime.fromisoformat(data['condensadora_fecha_hora_diagnostico'])
-                    except (ValueError, TypeError):
-                        aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
-            else: # Si se marca como operativa, limpiar diagnóstico y fecha
-                aire.condensadora_diagnostico_id = None
-                aire.condensadora_diagnostico_notas = None
-                aire.condensadora_fecha_hora_diagnostico = None
-            updated = True
-        # --- Fin Actualizar diagnósticos ---
-
 
         db.session.commit()
         return jsonify(aire.serialize()), 200
@@ -1993,17 +1950,6 @@ def agregar_mantenimiento_aire_route(aire_id):
     tipo_mantenimiento = request.form['tipo_mantenimiento']
     descripcion = request.form['descripcion']
     tecnico = request.form['tecnico']
-    alertas_resueltas_info_str = request.form.get('alertas_resueltas_info') # Se espera un string JSON
-    # --- NUEVO: Obtener si el mantenimiento resuelve la operatividad ---
-    resuelve_operatividad_evaporadora = request.form.get('resuelve_operatividad_evaporadora', 'false').lower() == 'true'
-    resuelve_operatividad_condensadora = request.form.get('resuelve_operatividad_condensadora', 'false').lower() == 'true'
-    # --- NUEVO: Obtener datos de diagnóstico si el componente NO queda operativo ---
-    evap_diag_id = request.form.get('evaporadora_diagnostico_id')
-    evap_diag_notas = request.form.get('evaporadora_diagnostico_notas')
-    evap_diag_fecha_hora_str = request.form.get('evaporadora_fecha_hora_diagnostico') # Espera ISO string
-    cond_diag_id = request.form.get('condensadora_diagnostico_id')
-    cond_diag_notas = request.form.get('condensadora_diagnostico_notas')
-    cond_diag_fecha_hora_str = request.form.get('condensadora_fecha_hora_diagnostico') # Espera ISO string
 
     imagen_datos = None
     imagen_nombre = None
@@ -2029,50 +1975,10 @@ def agregar_mantenimiento_aire_route(aire_id):
             tecnico=tecnico,
             imagen_nombre=imagen_nombre,
             imagen_tipo=imagen_tipo,
-            imagen_datos=imagen_datos,
-            alertas_resueltas_info=alertas_resueltas_info_str 
+            imagen_datos=imagen_datos
         )
         db.session.add(nuevo_mantenimiento)
         db.session.commit()
-
-        # --- NUEVO: Actualizar estado operativo del aire si es necesario ---
-        if resuelve_operatividad_evaporadora:
-            aire.evaporadora_operativa = True
-            aire.evaporadora_diagnostico_id = None
-            aire.evaporadora_diagnostico_notas = None
-            aire.evaporadora_fecha_hora_diagnostico = None
-        elif not aire.evaporadora_operativa: # Si NO resuelve y ya estaba no operativa (o se mantiene no operativa)
-            aire.evaporadora_operativa = False # Asegurar que sigue no operativa
-            if evap_diag_id: # Solo actualizar si se proporciona un nuevo diagnóstico
-                aire.evaporadora_diagnostico_id = int(evap_diag_id) if evap_diag_id.isdigit() else None
-                aire.evaporadora_diagnostico_notas = evap_diag_notas
-                if evap_diag_fecha_hora_str:
-                    try:
-                        aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(evap_diag_fecha_hora_str)
-                    except (ValueError, TypeError):
-                        aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc) # Fallback
-                else: # Si no se especifica fecha para el nuevo diagnóstico, usar la del mantenimiento
-                    aire.evaporadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
-
-        if resuelve_operatividad_condensadora:
-            aire.condensadora_operativa = True
-            aire.condensadora_diagnostico_id = None
-            aire.condensadora_diagnostico_notas = None
-            aire.condensadora_fecha_hora_diagnostico = None
-        elif not aire.condensadora_operativa: # Si NO resuelve y ya estaba no operativa
-            aire.condensadora_operativa = False
-            if cond_diag_id:
-                aire.condensadora_diagnostico_id = int(cond_diag_id) if cond_diag_id.isdigit() else None
-                aire.condensadora_diagnostico_notas = cond_diag_notas
-                if cond_diag_fecha_hora_str:
-                    try:
-                        aire.condensadora_fecha_hora_diagnostico = datetime.fromisoformat(cond_diag_fecha_hora_str)
-                    except (ValueError, TypeError):
-                        aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
-                else:
-                    aire.condensadora_fecha_hora_diagnostico = datetime.now(timezone.utc)
-        
-        db.session.commit() # Guardar cambios en el aire
         return jsonify(nuevo_mantenimiento.serialize()), 201 # Usar serialize_with_details
 
     except SQLAlchemyError as e:
@@ -2398,37 +2304,20 @@ def crear_umbral_configuracion_route():
         hum_max = float(data['hum_max'])
         aire_id = data.get('aire_id')
         notificar_activo = bool(data.get('notificar_activo', True))
-        
+
         if temp_min >= temp_max:
             return jsonify({"msg": "temp_min debe ser menor que temp_max"}), 400
         if hum_min >= hum_max:
             return jsonify({"msg": "hum_min debe ser menor que hum_max"}), 400
-
-        # --- Proactive checks for uniqueness ---
-        existing_by_name = UmbralConfiguracion.query.filter_by(nombre=nombre).first()
-        if existing_by_name:
-            return jsonify({"msg": f"Ya existe una configuración de umbral con el nombre '{nombre}'."}), 409
-
+        if not es_global and aire_id is None:
+            return jsonify({"msg": "Se requiere aire_id si el umbral no es global (es_global=false)"}), 400
         if es_global:
-            existing_global = UmbralConfiguracion.query.filter_by(es_global=True).first()
-            if existing_global:
-                return jsonify({"msg": "Ya existe una configuración de umbral global. Solo se permite una."}), 409
-            aire_id = None # Ensure aire_id is None for global DB storage
-        elif aire_id is not None: # Umbral específico
+            aire_id = None
+
+        if aire_id is not None:
             aire = db.session.get(AireAcondicionado, aire_id)
             if not aire:
                  return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
-            existing_specific = UmbralConfiguracion.query.filter_by(es_global=False, aire_id=aire_id).first()
-            if existing_specific:
-                # Intenta obtener el nombre del aire para un mensaje más amigable
-                aire_nombre_msg = f"el aire con ID {aire_id}"
-                if hasattr(aire, 'nombre') and aire.nombre:
-                    aire_nombre_msg = f"el aire '{aire.nombre}'"
-                return jsonify({"msg": f"Ya existe una configuración de umbral específica para {aire_nombre_msg}. Solo se permite una por aire."}), 409
-        else: # not es_global and aire_id is None
-            return jsonify({"msg": "Se requiere seleccionar un aire acondicionado para un umbral específico."}), 400
-        # --- End proactive checks ---
-
 
         nuevo_umbral = UmbralConfiguracion(
             nombre=nombre,
@@ -2451,9 +2340,8 @@ def crear_umbral_configuracion_route():
         return jsonify({"msg": f"Error en el tipo de dato: {ve}. Asegúrate que los umbrales sean números."}), 400
     except IntegrityError as e:
         db.session.rollback()
-        # This catch is now a fallback for other unexpected integrity errors
-        print(f"Error de integridad (inesperado) al crear umbral: {e}", file=sys.stderr)
-        return jsonify({"msg": "Error de base de datos al crear el umbral. Verifique los datos o contacte al administrador."}), 500
+        print(f"Error de integridad al crear umbral: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de integridad al crear el umbral."}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
         print(f"!!! ERROR SQLAlchemy en crear_umbral_configuracion_route: {e}", file=sys.stderr)
@@ -2643,32 +2531,29 @@ def obtener_detalles_alertas_activas_helper():
 
     # 2. Verificar estado operativo para todos los aires
     for aire_id, aire_obj in aires_map.items():
-        if not aire_obj.evaporadora_operativa:
+        if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             alertas_detalladas.append({
-                "aire_id": aire_obj.id, 
-                "aire_nombre": aire_obj.nombre, 
-                "aire_ubicacion": aire_obj.ubicacion, 
-                "componente": "Evaporadora",
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.",
-                "diagnostico_nombre": aire_obj.evaporadora_diagnostico_componente.nombre if aire_obj.evaporadora_diagnostico_componente else "No especificado",
-                "diagnostico_notas": aire_obj.evaporadora_diagnostico_notas,
-                "valor_actual": "No Operativa",
-                "limite_violado": "Debe estar Operativa",
-                "fecha_lectura": aire_obj.evaporadora_fecha_hora_diagnostico.isoformat() if aire_obj.evaporadora_fecha_hora_diagnostico else now_iso
+                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
             })
-            
-        if not aire_obj.condensadora_operativa:
+        elif aire_obj.evaporadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
             alertas_detalladas.append({
-                "aire_id": aire_obj.id, 
-                "aire_nombre": aire_obj.nombre, 
-                "aire_ubicacion": aire_obj.ubicacion, 
-                "componente": "Condensadora",
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "alerta_tipo": "Operatividad", "mensaje": "Evaporadora parcialmente operativa.",
+                "valor_actual": "Parcialmente Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+            })
+        if aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
+            alertas_detalladas.append({
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
-                "diagnostico_nombre": aire_obj.condensadora_diagnostico_componente.nombre if aire_obj.condensadora_diagnostico_componente else "No especificado",
-                "diagnostico_notas": aire_obj.condensadora_diagnostico_notas,
-                "valor_actual": "No Operativa",
-                "limite_violado": "Debe estar Operativa",
-                "fecha_lectura": aire_obj.condensadora_fecha_hora_diagnostico.isoformat() if aire_obj.condensadora_fecha_hora_diagnostico else now_iso
+                "valor_actual": "No Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
+            })
+        elif aire_obj.condensadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
+            alertas_detalladas.append({
+                "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
+                "alerta_tipo": "Operatividad", "mensaje": "Condensadora parcialmente operativa.",
+                "valor_actual": "Parcialmente Operativa", "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso
             })
 
     # 3. Obtener la última lectura de cada aire
@@ -2703,8 +2588,9 @@ def obtener_detalles_alertas_activas_helper():
         aire_obj = aires_map.get(lectura.aire_id)
         if not aire_obj: 
              continue
-        
-        if not aire_obj.evaporadora_operativa or not aire_obj.condensadora_operativa:
+        # Solo alertas ambientales para aires que no estén completamente NO_OPERATIVOS
+        # Es decir, si está OPERATIVA o PARCIALMENTE_OPERATIVA, se verifican umbrales.
+        if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA or aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
             continue # Solo alertas ambientales para aires operativos
 
         umbrales_specific_para_aire = specific_umbrales_dict.get(lectura.aire_id, [])
@@ -2900,29 +2786,13 @@ def contar_alertas_activas_helper():
     """
     print("\n--- [DEBUG] Iniciando contar_alertas_activas_helper (Optimizado) ---")
     try:
-        aires_con_alerta = set()
-
-        # 1. Verificar operatividad de todos los aires
-        print("[DEBUG] Verificando operatividad de los aires...")
-        todos_los_aires = AireAcondicionado.query.all()
-        if not todos_los_aires:
-            print("[DEBUG] No hay aires registrados. Devolviendo 0 alertas.")
-            return 0
-
-        for aire_obj in todos_los_aires:
-            if not aire_obj.evaporadora_operativa or not aire_obj.condensadora_operativa:
-                if aire_obj.id not in aires_con_alerta:
-                    print(f"[DEBUG] Aire ID {aire_obj.id} ({aire_obj.nombre}) NO OPERATIVO. Añadiendo a alertas.")
-                    aires_con_alerta.add(aire_obj.id)
-            else:
-                print(f"[DEBUG] Aire ID {aire_obj.id} ({aire_obj.nombre}) OPERATIVO.")
-
-        # 2. Obtener la última lectura de cada aire (para los que están operativos y podrían tener alertas de umbral)
+        # 1. Obtener la última lectura de cada aire (sin cambios)
         print("[DEBUG] Obteniendo últimas lecturas...")
         subquery = db.session.query(
             Lectura.aire_id,
             func.max(Lectura.fecha).label('max_fecha')
         ).group_by(Lectura.aire_id).subquery()
+
         ultimas_lecturas = db.session.query(Lectura).join(
             subquery,
             (Lectura.aire_id == subquery.c.aire_id) & (Lectura.fecha == subquery.c.max_fecha)
@@ -2930,7 +2800,7 @@ def contar_alertas_activas_helper():
         print(f"[DEBUG] Últimas lecturas encontradas: {len(ultimas_lecturas)}")
 
         # --- OPTIMIZACIÓN: Pre-cargar y organizar umbrales ---
-        print("[DEBUG] Pre-cargando y organizando umbrales activos (para alertas de sensor)...")
+        print("[DEBUG] Pre-cargando y organizando umbrales activos...")
 
         # Pre-fetch global thresholds once
         global_umbrales = db.session.query(UmbralConfiguracion).filter(
@@ -2953,23 +2823,17 @@ def contar_alertas_activas_helper():
         print(f"[DEBUG] Specific umbrales ACTIVOS encontrados: {len(specific_umbrales_raw)} (organizados por aire_id)")
         # --- FIN OPTIMIZACIÓN ---
 
-        # Si no hay ningún umbral activo (ni global ni específico), no puede haber más alertas de umbrales
+        # Si no hay ningún umbral activo (ni global ni específico), no puede haber alertas
         if not global_umbrales and not specific_umbrales_dict:
-             print("[DEBUG] No hay umbrales activos (globales ni específicos) para alertas de sensor.")
-             # No retornamos aquí, porque ya podríamos tener alertas de operatividad
+             print("[DEBUG] No hay umbrales activos (globales ni específicos). Devolviendo 0.")
+             return 0
 
-        print("[DEBUG] Iniciando verificación de lecturas vs umbrales pre-cargados (solo para aires operativos)...")
+        # 3. Verificar cada última lectura contra los umbrales aplicables (usando los pre-cargados)
+        alertas_count = 0
+        aires_con_alerta = set()
+        print("[DEBUG] Iniciando verificación de lecturas vs umbrales pre-cargados...")
 
         for lectura in ultimas_lecturas:
-            # Solo procesar lecturas de aires que están operativos
-            aire_actual = next((a for a in todos_los_aires if a.id == lectura.aire_id), None)
-            if not aire_actual or not aire_actual.evaporadora_operativa or not aire_actual.condensadora_operativa:
-                print(f"[DEBUG] Aire ID {lectura.aire_id} no está operativo o no encontrado, saltando verificación de umbrales para su lectura.")
-                continue
-            
-            # Si el aire ya tiene una alerta (por ejemplo, de operatividad), no necesitamos re-evaluarlo para el conteo.
-            # Sin embargo, la lógica de `obtener_detalles_alertas_activas_helper` sí mostraría ambas.
-            # Para el conteo simple, una vez que un aire está en `aires_con_alerta`, ya cuenta.
             print(f"\n[DEBUG] Verificando Aire ID: {lectura.aire_id} (T:{lectura.temperatura}, H:{lectura.humedad})")
             alerta_encontrada_para_este_aire = False
 
@@ -3004,7 +2868,8 @@ def contar_alertas_activas_helper():
                         print(f"[DEBUG]       ¡VIOLACIÓN DETECTADA por umbral {umbral.id}!")
                         alerta_encontrada_para_este_aire = True
                         if lectura.aire_id not in aires_con_alerta:
-                            print(f"[DEBUG]       Añadiendo Aire ID {lectura.aire_id} a alertas (por umbral).")
+                            print(f"[DEBUG]       Añadiendo Aire ID {lectura.aire_id} a alertas. Incrementando contador.")
+                            alertas_count += 1
                             aires_con_alerta.add(lectura.aire_id)
                         else:
                             print(f"[DEBUG]       Aire ID {lectura.aire_id} ya estaba en alertas.")
@@ -3017,8 +2882,8 @@ def contar_alertas_activas_helper():
             if not alerta_encontrada_para_este_aire:
                  print(f"[DEBUG]   Lectura DENTRO de todos los umbrales aplicables para Aire ID {lectura.aire_id}.")
 
-        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper (Optimizado). Total aires con alguna alerta: {len(aires_con_alerta)} ---")
-        return len(aires_con_alerta)
+        print(f"\n--- [DEBUG] Fin contar_alertas_activas_helper (Optimizado). Total alertas contadas: {alertas_count} ---")
+        return alertas_count
 
     except Exception as e:
         print(f"!!! ERROR GENERAL en contar_alertas_activas_helper (Optimizado): {e}", file=sys.stderr)
@@ -3183,18 +3048,9 @@ def crear_proveedor_route():
     if not data or not data.get('nombre'):
         return jsonify({"msg": "El campo 'nombre' es requerido."}), 400
 
-    nombre_proveedor = data['nombre'].strip() # Normalizar: quitar espacios al inicio/final
-    if not nombre_proveedor: # Verificar que después de quitar espacios, el nombre no esté vacío
-        return jsonify({"msg": "El campo 'nombre' no puede estar vacío."}), 400
-
-    # Verificación proactiva de existencia
-    existing_proveedor = Proveedor.query.filter(func.lower(Proveedor.nombre) == func.lower(nombre_proveedor)).first()
-    if existing_proveedor:
-        return jsonify({"msg": f"Ya existe un proveedor con el nombre '{nombre_proveedor}' (o una variación)."}), 409
-
     try:
         nuevo_proveedor = Proveedor(
-            nombre=nombre_proveedor, # Usar el nombre normalizado
+            nombre=data['nombre'],
             email_proveedor=data.get('email_proveedor')
         )
         db.session.add(nuevo_proveedor)
@@ -3205,8 +3061,7 @@ def crear_proveedor_route():
         return jsonify({"msg": str(ve)}), 400
     except IntegrityError: # Captura violación de unicidad (nombre)
         db.session.rollback()
-        # Este mensaje ahora es un fallback, la verificación proactiva debería atrapar la mayoría de los casos.
-        return jsonify({"msg": f"Error de integridad: Ya existe un proveedor con el nombre '{nombre_proveedor}'."}), 409
+        return jsonify({"msg": f"Ya existe un proveedor con el nombre '{data['nombre']}'."}), 409
     except SQLAlchemyError as e:
         db.session.rollback()
         print(f"Error DB creando proveedor: {e}", file=sys.stderr)
@@ -3337,7 +3192,6 @@ def crear_contacto_route(proveedor_id):
         nuevo_contacto = ContactoProveedor(
             proveedor_id=proveedor_id,
             nombre_contacto=data['nombre_contacto'],
-            cargo=data.get('cargo'), # <-- Añadido para tomar el cargo
             telefono_contacto=data.get('telefono_contacto'),
             email_contacto=data.get('email_contacto')
         )
@@ -3412,10 +3266,6 @@ def actualizar_contacto_route(contacto_id):
             updated = True
         if 'email_contacto' in data and data['email_contacto'] != contacto.email_contacto:
             contacto.email_contacto = data['email_contacto'] if data['email_contacto'] else None
-            updated = True
-        # --- Añadido para actualizar el cargo ---
-        if 'cargo' in data and data['cargo'] != contacto.cargo:
-            contacto.cargo = data['cargo'] if data['cargo'] else None
             updated = True
 
         if updated:
@@ -3856,116 +3706,3 @@ def get_alertas_activas_detalladas_route():
     except Exception as e:
         print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
         return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
-
-# --- Rutas para DiagnosticoComponente ---
-@api.route('/diagnostico_componentes', methods=['POST'])
-@jwt_required()
-def crear_diagnostico_componente():
-    current_user_id = get_jwt_identity()
-    # Aquí puedes añadir lógica de permisos si es necesario
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin']:
-    #     return jsonify({"msg": "Acceso no autorizado"}), 403
-
-    data = request.get_json()
-    if not data or not data.get('nombre') or not data.get('parte_ac'):
-        return jsonify({"msg": "Nombre y parte_ac son requeridos."}), 400
-
-    try:
-        parte_ac_enum = ParteACEnum(data['parte_ac'])
-        tipo_aire_sugerido_enum = TipoAireRelevanteEnum(data.get('tipo_aire_sugerido', TipoAireRelevanteEnum.AMBOS.value))
-    except ValueError as e:
-        return jsonify({"msg": f"Valor inválido para parte_ac o tipo_aire_sugerido: {e}"}), 400
-
-    nuevo_diagnostico = DiagnosticoComponente(
-        nombre=data['nombre'],
-        parte_ac=parte_ac_enum,
-        tipo_aire_sugerido=tipo_aire_sugerido_enum,
-        descripcion_ayuda=data.get('descripcion_ayuda'),
-        activo=data.get('activo', True)
-    )
-    db.session.add(nuevo_diagnostico)
-    try:
-        db.session.commit()
-        return jsonify(nuevo_diagnostico.serialize()), 201
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"msg": f"Ya existe un diagnóstico con el nombre '{data['nombre']}'."}), 409
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500
-
-@api.route('/diagnostico_componentes', methods=['GET'])
-@jwt_required()
-def obtener_diagnostico_componentes():
-    query = DiagnosticoComponente.query
-
-    # Filtros opcionales
-    if 'activo' in request.args:
-        query = query.filter_by(activo=request.args.get('activo').lower() == 'true')
-    if 'parte_ac' in request.args:
-        try:
-            parte_ac_enum = ParteACEnum(request.args['parte_ac'])
-            query = query.filter_by(parte_ac=parte_ac_enum)
-        except ValueError:
-            return jsonify({"msg": "Valor de 'parte_ac' inválido para filtrar."}), 400
-    if 'tipo_aire_sugerido' in request.args:
-        try:
-            tipo_aire_enum = TipoAireRelevanteEnum(request.args['tipo_aire_sugerido'])
-            query = query.filter_by(tipo_aire_sugerido=tipo_aire_enum)
-        except ValueError:
-            return jsonify({"msg": "Valor de 'tipo_aire_sugerido' inválido para filtrar."}), 400
-            
-    diagnosticos = query.order_by(DiagnosticoComponente.nombre).all()
-    return jsonify([d.serialize() for d in diagnosticos]), 200
-
-@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['PUT'])
-@jwt_required()
-def actualizar_diagnostico_componente(diagnostico_id):
-    # Permisos
-    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
-    if not diagnostico:
-        return jsonify({"msg": "Diagnóstico no encontrado."}), 404
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"msg": "No se recibieron datos."}), 400
-
-    try:
-        if 'nombre' in data:
-            diagnostico.nombre = data['nombre']
-        if 'parte_ac' in data:
-            diagnostico.parte_ac = ParteACEnum(data['parte_ac'])
-        if 'tipo_aire_sugerido' in data:
-            diagnostico.tipo_aire_sugerido = TipoAireRelevanteEnum(data['tipo_aire_sugerido'])
-        if 'descripcion_ayuda' in data:
-            diagnostico.descripcion_ayuda = data['descripcion_ayuda']
-        if 'activo' in data:
-            diagnostico.activo = bool(data['activo'])
-        
-        db.session.commit()
-        return jsonify(diagnostico.serialize()), 200
-    except ValueError as e: # Error en conversión de Enum
-        db.session.rollback()
-        return jsonify({"msg": f"Valor inválido para campo Enum: {e}"}), 400
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"msg": f"Ya existe un diagnóstico con el nombre '{data.get('nombre')}'."}), 409
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500
-
-@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['DELETE'])
-@jwt_required()
-def eliminar_diagnostico_componente(diagnostico_id):
-    # Permisos
-    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
-    if not diagnostico:
-        return jsonify({"msg": "Diagnóstico no encontrado."}), 404
-    try:
-        db.session.delete(diagnostico)
-        db.session.commit()
-        return '', 204
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({"msg": "Error de base de datos.", "error": str(e)}), 500

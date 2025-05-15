@@ -1111,10 +1111,10 @@ diagnosticoComponentesError: null,
             // Note: Backend might not allow changing es_global or aire_id on PUT
             es_global: formData.es_global,
             aire_id: formData.es_global ? null : formData.aire_id,
-            temp_min: parseFloat(formData.temp_min),
-            temp_max: parseFloat(formData.temp_max),
-            hum_min: parseFloat(formData.hum_min),
-            hum_max: parseFloat(formData.hum_max),
+            temp_min: formData.temp_min, // Keep as string, backend will parse
+            temp_max: formData.temp_max,
+            hum_min: formData.hum_min,
+            hum_max: formData.hum_max,
             notificar_activo: formData.notificar_activo,
           };
           const response = await fetch(

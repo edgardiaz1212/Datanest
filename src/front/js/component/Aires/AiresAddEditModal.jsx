@@ -47,11 +47,6 @@ const AiresAddEditModal = ({
         );
     }, [diagnosticosDisponibles, formData.tipo]);
 
-    // Helper para manejar cambios en checkboxes (llama al onChange general)
-    const handleCheckboxChange = (e) => {
-        onChange(e); // Forward the event to the parent's onChange handler
-    };
-
     return (
         // Componente Modal de react-bootstrap
         // Prevent closing during submit
@@ -204,19 +199,22 @@ const AiresAddEditModal = ({
                                             </Form.Group>
                                         </Col>
                                     </Row>
-                                     <Form.Group className="mb-3" controlId="formEvapOperativa">
-                                        <Form.Check
-                                            type="switch"
-                                            id="evaporadora_operativa_switch"
-                                            label="¿Evaporadora Operativa?"
+                                     <Form.Group className="mb-3" controlId="formEvapOperativaSelect">
+                                        <Form.Label>Estado Evaporadora</Form.Label>
+                                        <Form.Select
                                             name="evaporadora_operativa"
-                                            checked={!!formData.evaporadora_operativa} // Asegura que sea booleano
-                                            onChange={handleCheckboxChange}
+                                            value={formData.evaporadora_operativa || 'no_operativa'}
+                                            onChange={onChange}
                                             disabled={isSubmitting}
-                                        />
+                                            aria-label="Seleccione el estado de la evaporadora"
+                                        >
+                                            <option value="operativa">Operativa</option>
+                                            <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                            <option value="no_operativa">No Operativa</option>
+                                        </Form.Select>
                                     </Form.Group>
                                     {/* --- Campos de Fecha/Hora Diagnóstico Evaporadora (Condicional) --- */}
-                                    {!formData.evaporadora_operativa && (
+                                    {(formData.evaporadora_operativa === 'no_operativa' || formData.evaporadora_operativa === 'parcialmente_operativa') && (
                                         <Row>
                                             <Col md={6}>
                                                 <Form.Group className="mb-3" controlId="formEvapFechaDiagnostico">
@@ -246,7 +244,7 @@ const AiresAddEditModal = ({
                                     )}
                                     {/* --- Fin Campos Fecha/Hora Diagnóstico Evaporadora --- */}
                                     {/* --- Campos de Diagnóstico para Evaporadora (Condicional) --- */}
-                                    {!formData.evaporadora_operativa && (
+                                    {(formData.evaporadora_operativa === 'no_operativa' || formData.evaporadora_operativa === 'parcialmente_operativa') && (
                                         <>
                                             <Form.Group className="mb-3" controlId="formEvapDiagnosticoId">
                                                 <Form.Label>Diagnóstico Evaporadora</Form.Label>
@@ -319,19 +317,22 @@ const AiresAddEditModal = ({
                                             </Form.Group>
                                         </Col>
                                     </Row>
-                                     <Form.Group className="mb-3" controlId="formCondOperativa">
-                                        <Form.Check
-                                            type="switch"
-                                            id="condensadora_operativa_switch"
-                                            label="¿Condensadora Operativa?"
+                                     <Form.Group className="mb-3" controlId="formCondOperativaSelect">
+                                        <Form.Label>Estado Condensadora</Form.Label>
+                                        <Form.Select
                                             name="condensadora_operativa"
-                                            checked={!!formData.condensadora_operativa} // Asegura que sea booleano
-                                            onChange={handleCheckboxChange}
+                                            value={formData.condensadora_operativa || 'no_operativa'}
+                                            onChange={onChange}
                                             disabled={isSubmitting}
-                                        />
+                                            aria-label="Seleccione el estado de la condensadora"
+                                        >
+                                            <option value="operativa">Operativa</option>
+                                            <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                            <option value="no_operativa">No Operativa</option>
+                                        </Form.Select>
                                     </Form.Group>
                                     {/* --- Campos de Fecha/Hora Diagnóstico Condensadora (Condicional) --- */}
-                                    {!formData.condensadora_operativa && (
+                                    {(formData.condensadora_operativa === 'no_operativa' || formData.condensadora_operativa === 'parcialmente_operativa') && (
                                         <Row>
                                             <Col md={6}>
                                                 <Form.Group className="mb-3" controlId="formCondFechaDiagnostico">
@@ -361,7 +362,7 @@ const AiresAddEditModal = ({
                                     )}
                                     {/* --- Fin Campos Fecha/Hora Diagnóstico Condensadora --- */}
                                     {/* --- Campos de Diagnóstico para Condensadora (Condicional) --- */}
-                                    {!formData.condensadora_operativa && (
+                                    {(formData.condensadora_operativa === 'no_operativa' || formData.condensadora_operativa === 'parcialmente_operativa') && (
                                         <>
                                             <Form.Group className="mb-3" controlId="formCondDiagnosticoId">
                                                 <Form.Label>Diagnóstico Condensadora</Form.Label>

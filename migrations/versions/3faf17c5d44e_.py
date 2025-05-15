@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: ee9517a66754
+Revision ID: 3faf17c5d44e
 Revises: 
-Create Date: 2025-05-13 11:36:59.211017
+Create Date: 2025-05-15 10:34:40.297897
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'ee9517a66754'
+revision = '3faf17c5d44e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -110,20 +110,22 @@ def upgrade():
     sa.Column('fecha_instalacion', sa.Date(), nullable=True),
     sa.Column('tipo', sa.String(length=50), nullable=True, comment='Tipo de aire (confort, precision, etc.)'),
     sa.Column('toneladas', sa.Float(), nullable=True, comment='Capacidad en toneladas de refrigeración'),
-    sa.Column('evaporadora_operativa', sa.Boolean(), nullable=False, comment='Estado operativo de la evaporadora'),
+    sa.Column('evaporadora_operativa', sa.Enum('OPERATIVA', 'PARCIALMENTE_OPERATIVA', 'NO_OPERATIVA', name='operativastateenum'), nullable=False, comment='Estado operativo de la evaporadora'),
     sa.Column('evaporadora_marca', sa.String(length=100), nullable=True),
     sa.Column('evaporadora_modelo', sa.String(length=100), nullable=True),
     sa.Column('evaporadora_serial', sa.String(length=100), nullable=True),
     sa.Column('evaporadora_codigo_inventario', sa.String(length=100), nullable=True),
     sa.Column('evaporadora_ubicacion_instalacion', sa.String(length=200), nullable=True, comment='Ubicación específica de la evaporadora'),
+    sa.Column('evaporadora_fecha_hora_diagnostico', sa.DateTime(timezone=True), nullable=True, comment='Fecha y hora en que se registró el diagnóstico de la evaporadora'),
     sa.Column('evaporadora_diagnostico_id', sa.Integer(), nullable=True),
     sa.Column('evaporadora_diagnostico_notas', sa.Text(), nullable=True),
-    sa.Column('condensadora_operativa', sa.Boolean(), nullable=False, comment='Estado operativo de la condensadora'),
+    sa.Column('condensadora_operativa', sa.Enum('OPERATIVA', 'PARCIALMENTE_OPERATIVA', 'NO_OPERATIVA', name='operativastateenum'), nullable=False, comment='Estado operativo de la condensadora'),
     sa.Column('condensadora_marca', sa.String(length=100), nullable=True),
     sa.Column('condensadora_modelo', sa.String(length=100), nullable=True),
     sa.Column('condensadora_serial', sa.String(length=100), nullable=True),
     sa.Column('condensadora_codigo_inventario', sa.String(length=100), nullable=True),
     sa.Column('condensadora_ubicacion_instalacion', sa.String(length=200), nullable=True, comment='Ubicación específica de la condensadora'),
+    sa.Column('condensadora_fecha_hora_diagnostico', sa.DateTime(timezone=True), nullable=True, comment='Fecha y hora en que se registró el diagnóstico de la condensadora'),
     sa.Column('condensadora_diagnostico_id', sa.Integer(), nullable=True),
     sa.Column('condensadora_diagnostico_notas', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['condensadora_diagnostico_id'], ['diagnostico_componente.id'], ),
@@ -254,6 +256,7 @@ def upgrade():
     sa.Column('imagen_nombre', sa.String(length=255), nullable=True),
     sa.Column('imagen_tipo', sa.String(length=50), nullable=True),
     sa.Column('imagen_datos', sa.LargeBinary(), nullable=True),
+    sa.Column('alertas_resueltas_info', sa.Text(), nullable=True, comment='Información sobre las alertas que este mantenimiento resolvió'),
     sa.CheckConstraint('(aire_id IS NOT NULL AND otro_equipo_id IS NULL) OR (aire_id IS NULL AND otro_equipo_id IS NOT NULL)', name='chk_mantenimiento_target'),
     sa.ForeignKeyConstraint(['aire_id'], ['aires_acondicionados.id'], ),
     sa.ForeignKeyConstraint(['otro_equipo_id'], ['otros_equipos.id'], ),

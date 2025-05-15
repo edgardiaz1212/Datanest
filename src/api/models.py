@@ -236,6 +236,12 @@ class TipoAireRelevanteEnum(enum.Enum):
     AMBOS = "ambos"
 # --- Fin Enums ---
 
+# --- Enum for Operative State ---
+class OperativaStateEnum(enum.Enum):
+    OPERATIVA = "operativa"
+    PARCIALMENTE_OPERATIVA = "parcialmente_operativa"
+    NO_OPERATIVA = "no_operativa"
+
 class DiagnosticoComponente(db.Model):
     __tablename__ = 'diagnostico_componente'
 
@@ -273,13 +279,12 @@ class AireAcondicionado(db.Model):
     toneladas = db.Column(db.Float, nullable=True, comment="Capacidad en toneladas de refrigeración")
 
     # --- Detalles Evaporadora ---
-    evaporadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la evaporadora")
+    evaporadora_operativa = db.Column(SQLAlchemyEnum(OperativaStateEnum), nullable=False, default=OperativaStateEnum.OPERATIVA, comment="Estado operativo de la evaporadora")
     evaporadora_marca = db.Column(db.String(100), nullable=True)
     evaporadora_modelo = db.Column(db.String(100), nullable=True)
     evaporadora_serial = db.Column(db.String(100), nullable=True)
     evaporadora_codigo_inventario = db.Column(db.String(100), nullable=True,)
     evaporadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la evaporadora")
-    # evaporadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la evaporadora no está operativa") # REMOVIDO
     evaporadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la evaporadora")
 
     evaporadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
@@ -288,13 +293,12 @@ class AireAcondicionado(db.Model):
 
 
     # --- Detalles Condensadora ---
-    condensadora_operativa = db.Column(db.Boolean, nullable=False, default=True, comment="Estado operativo de la condensadora")
+    condensadora_operativa = db.Column(SQLAlchemyEnum(OperativaStateEnum), nullable=False, default=OperativaStateEnum.OPERATIVA, comment="Estado operativo de la condensadora")
     condensadora_marca = db.Column(db.String(100), nullable=True)
     condensadora_modelo = db.Column(db.String(100), nullable=True)
     condensadora_serial = db.Column(db.String(100), nullable=True)
     condensadora_codigo_inventario = db.Column(db.String(100), nullable=True)
     condensadora_ubicacion_instalacion = db.Column(db.String(200), nullable=True, comment="Ubicación específica de la condensadora")
-    # condensadora_razon_no_operativa = db.Column(db.Text, nullable=True, comment="Razón por la que la condensadora no está operativa") # REMOVIDO
     condensadora_fecha_hora_diagnostico = db.Column(db.DateTime(timezone=True), nullable=True, comment="Fecha y hora en que se registró el diagnóstico de la condensadora")
 
     condensadora_diagnostico_id = db.Column(db.Integer, db.ForeignKey('diagnostico_componente.id'), nullable=True)
@@ -319,7 +323,7 @@ class AireAcondicionado(db.Model):
             'tipo': self.tipo,
             'toneladas': self.toneladas,
             
-            'evaporadora_operativa': self.evaporadora_operativa,
+            'evaporadora_operativa': self.evaporadora_operativa.value if self.evaporadora_operativa else None,
             'evaporadora_marca': self.evaporadora_marca,
             'evaporadora_modelo': self.evaporadora_modelo,
             'evaporadora_serial': self.evaporadora_serial,
@@ -330,7 +334,7 @@ class AireAcondicionado(db.Model):
             'evaporadora_diagnostico_nombre': self.evaporadora_diagnostico_componente.nombre if self.evaporadora_diagnostico_componente else None,
             'evaporadora_diagnostico_notas': self.evaporadora_diagnostico_notas,
             
-            'condensadora_operativa': self.condensadora_operativa,
+            'condensadora_operativa': self.condensadora_operativa.value if self.condensadora_operativa else None,
             'condensadora_marca': self.condensadora_marca,
             'condensadora_modelo': self.condensadora_modelo,
             'condensadora_serial': self.condensadora_serial,

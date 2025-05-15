@@ -16,16 +16,27 @@ const AiresViewModal = ({
     // Helper para renderizar un par etiqueta-valor
     const renderDetail = (label, value, isTextArea = false) => {
         let displayValue = '-'; // Default value if null, undefined, or empty
+        let badgeClass = '';
 
         // Format the value for display
         if (value !== null && value !== undefined && value !== '') {
-            if (typeof value === 'boolean') {
-                // Show as badge Yes/No for booleans
-                displayValue = (
-                    <span className={`badge ${value ? 'bg-success' : 'bg-danger'}`}>
-                        {value ? 'Sí' : 'No'}
-                    </span>
-                );
+            if (label.includes('Operativa')) { // Specific handling for operative states
+                switch (value) {
+                    case 'operativa':
+                        displayValue = 'Operativa';
+                        badgeClass = 'bg-success';
+                        break;
+                    case 'parcialmente_operativa':
+                        displayValue = 'Parcialmente Operativa';
+                        badgeClass = 'bg-warning text-dark'; // text-dark for better contrast on warning
+                        break;
+                    case 'no_operativa':
+                        displayValue = 'No Operativa';
+                        badgeClass = 'bg-danger';
+                        break;
+                    default: displayValue = value.toString();
+                }
+                displayValue = <span className={`badge ${badgeClass}`}>{displayValue}</span>;
             } else if (typeof value === 'number' && isNaN(value)) {
                 // Handle NaN specifically if needed (e.g., toneladas)
                 displayValue = '-';
@@ -88,7 +99,7 @@ const AiresViewModal = ({
                         <Col xs={12}><h6 className="text-primary mb-2">Unidad Evaporadora</h6></Col>
                         {renderDetail('Evaporadora - Operativa', selectedAireDetails.evaporadora_operativa)}
                         {renderDetail('Evaporadora - Marca', selectedAireDetails.evaporadora_marca)}
-                        {renderDetail('Evaporadora - Modelo', selectedAireDetails.evaporadora_modelo)}
+                        {renderDetail('Evaporadora - Modelo', selectedAireDetails.evaporadora_modelo)}                        
                         {renderDetail('Evaporadora - Serial', selectedAireDetails.evaporadora_serial)}
                         {renderDetail('Evaporadora - Cód. Inventario', selectedAireDetails.evaporadora_codigo_inventario)}
                         {renderDetail('Evaporadora - Ubic. Específica', selectedAireDetails.evaporadora_ubicacion_instalacion)}
@@ -112,7 +123,7 @@ const AiresViewModal = ({
                         {renderDetail('Condensadora - Serial', selectedAireDetails.condensadora_serial)}
                         {renderDetail('Condensadora - Cód. Inventario', selectedAireDetails.condensadora_codigo_inventario)}
                         {renderDetail('Condensadora - Ubic. Específica', selectedAireDetails.condensadora_ubicacion_instalacion)}
-                        {/* Mostrar diagnóstico de condensadora si no está operativa */}
+                        {/* Mostrar diagnóstico de condensadora si no está 'operativa' */}
                         {!selectedAireDetails.condensadora_operativa && (
                             <>
                                 {renderDetail('Condensadora - Diagnóstico', selectedAireDetails.condensadora_diagnostico_nombre)}
@@ -147,7 +158,7 @@ AiresViewModal.propTypes = {
         fecha_instalacion: PropTypes.string,
         tipo: PropTypes.string,
         toneladas: PropTypes.number,
-        evaporadora_operativa: PropTypes.bool,
+        evaporadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa', null]),
         evaporadora_marca: PropTypes.string,
         evaporadora_modelo: PropTypes.string,
         evaporadora_serial: PropTypes.string,
@@ -156,7 +167,7 @@ AiresViewModal.propTypes = {
         evaporadora_diagnostico_id: PropTypes.number, // Puede ser null
         evaporadora_diagnostico_nombre: PropTypes.string, // Puede ser null
         evaporadora_diagnostico_notas: PropTypes.string, // Puede ser null o ''
-        condensadora_operativa: PropTypes.bool,
+        condensadora_operativa: PropTypes.oneOf(['operativa', 'parcialmente_operativa', 'no_operativa', null]),
         condensadora_marca: PropTypes.string,
         condensadora_modelo: PropTypes.string,
         condensadora_serial: PropTypes.string,
