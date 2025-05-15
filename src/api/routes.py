@@ -3044,11 +3044,14 @@ def obtener_detalles_alertas_activas_helper():
                 "valor_actual": "No Operativa", # Estado del componente
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso, # Fecha de detección del estado
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
-                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas"),
+                "requiere_proveedor_energia": energia_provider is None # Nueva bandera
              }
             alertas_detalladas.append(alert_data)
             if energia_provider:
                 create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+            # else:
+                # Si no hay proveedor energía, la bandera 'requiere_proveedor_energia' lo indicará al frontend
         elif aire_obj.evaporadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
             alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
@@ -3056,11 +3059,14 @@ def obtener_detalles_alertas_activas_helper():
                 "valor_actual": "Parcialmente Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
-                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas"),
+                "requiere_proveedor_energia": energia_provider is None # Nueva bandera
             }
             alertas_detalladas.append(alert_data)
             if energia_provider:
                 create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+            # else:
+                # Si no hay proveedor energía, la bandera 'requiere_proveedor_energia' lo indicará al frontend
 
 
         if aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
@@ -3070,11 +3076,14 @@ def obtener_detalles_alertas_activas_helper():
                 "valor_actual": "No Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
-                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas"),
+                "requiere_proveedor_energia": energia_provider is None # Nueva bandera
             }
             alertas_detalladas.append(alert_data)
             if energia_provider:
                 create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+            # else:
+                # Si no hay proveedor energía, la bandera 'requiere_proveedor_energia' lo indicará al frontend
         elif aire_obj.condensadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
             alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
@@ -3082,11 +3091,14 @@ def obtener_detalles_alertas_activas_helper():
                 "valor_actual": "Parcialmente Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
-                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
+                "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas"),
+                "requiere_proveedor_energia": energia_provider is None # Nueva bandera
             }
             alertas_detalladas.append(alert_data)
             if energia_provider:
                 create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+            # else:
+                # Si no hay proveedor energía, la bandera 'requiere_proveedor_energia' lo indicará al frontend
 
 
     # 3. Obtener la última lectura de cada aire

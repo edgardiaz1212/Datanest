@@ -871,8 +871,9 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       // --- Aires Actions ---
       fetchAires: async () => {
+                const actions = getActions(); // For logoutTrackerUser
+
         // Ruta protegida, necesita token
-        setStore({ selectedAireDetails: null, selectedAireDiagnosticRecords: [] });
         setStore({ airesLoading: true, airesError: null });
         try {
           const response = await fetch(`${process.env.BACKEND_URL}/aires`, {
@@ -883,36 +884,47 @@ const getState = ({ getStore, getActions, setStore }) => {
             // Intenta parsear el errorData, pero maneja el caso de que no sea JSON
             let errorData = { msg: `Error fetching aires: ${response.status}` }; // Default error
             try {
-              errorData = await response.json();
+               const contentType = response.headers.get("content-type");
+              if (contentType && contentType.includes("application/json")) {
+                  errorData = await response.json();
+              } else {
+                  errorData.msg = await response.text() || errorData.msg; // Get text if not JSON
+              }
             } catch (e) {
               console.warn(
                 "Could not parse error response as JSON in fetchAires"
               );
             }
 
-            if (response.status === 401) getActions().logoutTrackerUser();
+            if (response.status === 401) actions.logoutTrackerUser();
             setStore({
               airesError:
                 errorData.msg || `Error fetching aires: ${response.status}`,
               airesLoading: false,
-            }); // <--- CORREGIDO: usar errorData.msg
-            return null;
+              // NO establecer aires: [] aquí. Mantener datos obsoletos en caso de error.
+            }); 
+            return null; // Indicar fallo
           }
           const data = await response.json();
           if (Array.isArray(data)) {
-            setStore({ aires: data, airesLoading: false });
-            return data;
+            setStore({ aires: data, airesLoading: false, airesError: null }); // Limpiar error en éxito
+            return data; // Devolver datos para posible encadenamiento
+ 
           } else {
-            throw new Error(
-              "Formato de respuesta inesperado del servidor al listar aires." // Esto es un error diferente a 401
-            );
+            // Este caso debería ser idealmente capturado por response.ok o ser un código de error específico del servidor
+            setStore({
+                airesError: "Formato de respuesta inesperado del servidor al listar aires.",
+                airesLoading: false,
+                // NO establecer aires: [] aquí.
+            });
+            return null; // Indicar fallo
           }
         } catch (error) {
           console.error("Error in fetchAires:", error);
           setStore({
             airesError: error.message || "Error cargando la lista de aires.",
             airesLoading: false,
-            aires: [],
+            
           });
           return null;
         }
@@ -1013,10 +1025,10 @@ const getState = ({ getStore, getActions, setStore }) => {
       deleteAire: async (aireId) => {
         // Ruta protegida, necesita token
         const store = getStore();
+        const actions = getActions();
         if (store.selectedAireDetails?.id === aireId) setStore({ selectedAireDetails: null, selectedAireDiagnosticRecords: [] });
-        const originalList = [...store.aires];
-        const updatedList = originalList.filter((a) => a.id !== aireId);
-        setStore({ aires: updatedList, airesError: null });
+        
+        setStore({ airesError: null, airesLoading: true }); 
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/aires/${aireId}`,
@@ -1026,21 +1038,27 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           if (!response.ok) {
-            setStore({ aires: originalList });
-            const errorData = await response.json().catch(() => ({}));
-            if (response.status === 401) getActions().logoutTrackerUser();
-            throw new Error(
-              errorData.msg || `Error deleting aire: ${response.status}`
-            );
+            const errorData = await response.json().catch(() => ({ msg: `Error ${response.status}` }));
+            if (response.status === 401) actions.logoutTrackerUser();
+            const errorMessage = errorData.msg || `Error deleting aire: ${response.status}`;
+            setStore({ airesError: errorMessage, airesLoading: false }); // Set loading false
+            throw new Error(errorMessage); // Propagate error
           }
           console.log(`Aire ${aireId} deleted successfully.`);
+           // After successful deletion, refetch the aires list.
+          // fetchAires will handle its own loading states and update the aires list.
+          await actions.fetchAires(); 
+          // fetchAires should set airesLoading to false upon completion.
           return true;
         } catch (error) {
           console.error("Error in deleteAire:", error);
-          setStore({
-            aires: originalList,
+           // This catch handles network errors for the DELETE request,
+          // or errors propagated from the !response.ok block,
+          // or errors from fetchAires if it throws.
+          setStore({ 
             airesError:
               error.message || "Error al eliminar el aire acondicionado.",
+           airesLoading: false, // Crucial: ensure loading is false
           });
           return false;
         }

@@ -150,18 +150,21 @@ const Aires = () => {
   }, [formatDate, fetchAireDetails, clearAiresError]); // Dependencies
 
   // Delete AC (calls Flux action)
-  const handleDelete = useCallback(async (id) => { 
+ const handleDelete = useCallback(async (id) => {
     if (window.confirm('¿Está seguro de eliminar este aire acondicionado? Esta acción no se puede deshacer.')) {
-      if (clearAiresError) clearAiresError();
-      setIsSubmitting(true); // Indicate activity
-      const success = await deleteAire(id);
+      if (clearAiresError) clearAiresError(); // Limpia error global antes de intentar
+      setIsSubmitting(true); // Estado local para el botón
+      const success = await deleteAire(id); // deleteAire es la acción de flux
       setIsSubmitting(false);
       if (!success) {
-        // Error is handled globally
-         alert("Error al eliminar"); 
+        // El error ya debería estar en store.airesError y mostrarse por el Alert global.
+        // Puedes añadir un console.error o un toast si quieres un feedback adicional aquí.
+        console.error("Fallo al eliminar el aire. El error debería mostrarse a través del store.airesError.");
       }
+      // No es necesario llamar a fetchAires() aquí explícitamente,
+      // ya que la acción deleteAire ahora lo hace internamente si tiene éxito.
     }
-  }, [deleteAire, clearAiresError]); // Dependencies
+  }, [deleteAire, clearAiresError]); 
 
   // Submit Add/Edit Form (calls Flux action)
   const handleSubmit = useCallback(async (e) => {
