@@ -1469,6 +1469,10 @@ const getState = ({ getStore, getActions, setStore }) => {
             throw new Error("No equipment ID provided.");
           }
 
+          // formData ya es un objeto FormData y debería contener 'resolucion_alertas_data'
+          // si fue añadido por Mantenimientos.jsx
+          // console.log("Enviando a addMantenimiento (Flux):", Object.fromEntries(formData.entries()));
+
           const response = await fetch(url, {
             method: "POST",
             headers: getAuthHeaders(false), // <--- Usa cabeceras con token (sin Content-Type para FormData)
@@ -1483,6 +1487,8 @@ const getState = ({ getStore, getActions, setStore }) => {
             );
           }
           // La recarga de datos se manejará en el componente después de una adición exitosa.
+          // Es importante que el backend actualice los estados de los aires y los diagnósticos.
+          // Podríamos necesitar refetch de aires y alertas aquí si el backend no lo hace implícitamente.
           setStore({ mantenimientosLoading: false }); // Indicar que la operación de 'add' ha terminado.
           return true;
         } catch (error) {

@@ -192,7 +192,7 @@ const Mantenimientos = () => { // Remove : React.FC
   }, [fetchMantenimientoImagenBase64, clearMantenimientosError]);
 
   // Modificar handleSubmit para recibir las alertas seleccionadas del modal
-  const handleSubmit = useCallback(async (e, datosResolucion) => { // datosResolucion ahora es un objeto
+  const handleSubmit = useCallback(async (e, datosParaEnviar) => { // datosParaEnviar es el objeto del modal
     e.preventDefault();
     if (clearMantenimientosError) clearMantenimientosError();
     setLoadingSubmit(true);
@@ -200,15 +200,15 @@ const Mantenimientos = () => { // Remove : React.FC
     // --- Validation ---
     if (!formData.tipo_mantenimiento || !formData.descripcion || !formData.tecnico) {
       actions.setMantenimientosError("Tipo, Descripción y Técnico son requeridos."); // Use action if exists
-      // Or set local error: setError("Tipo, Descripción y Técnico son requeridos.");
       setLoadingSubmit(false);
       return;
     }
-    const aireSeleccionado = formData.aire_id && formData.aire_id !== "";
-    const otroSeleccionado = formData.otro_equipo_id && formData.otro_equipo_id !== "";
+    // Usar datosParaEnviar.mantenimientoData para la validación del equipo
+    const aireSeleccionado = datosParaEnviar.mantenimientoData.aire_id && datosParaEnviar.mantenimientoData.aire_id !== "";
+    const otroSeleccionado = datosParaEnviar.mantenimientoData.otro_equipo_id && datosParaEnviar.mantenimientoData.otro_equipo_id !== "";
+
     if ((aireSeleccionado && otroSeleccionado) || (!aireSeleccionado && !otroSeleccionado)) {
       actions.setMantenimientosError("Debe seleccionar exactamente un equipo (Aire u Otro)."); // Use action if exists
-      // Or set local error: setError("Debe seleccionar exactamente un equipo (Aire u Otro).");
       setLoadingSubmit(false);
       return;
     }
@@ -216,55 +216,25 @@ const Mantenimientos = () => { // Remove : React.FC
 
     // Create FormData object for multipart request
     const formDataObj = new FormData();
+    // Añadir datos del mantenimiento
     if (aireSeleccionado) {
-      formDataObj.append("aire_id", formData.aire_id);
+      formDataObj.append("aire_id", datosParaEnviar.mantenimientoData.aire_id);
     } else if (otroSeleccionado) {
-      formDataObj.append("otro_equipo_id", formData.otro_equipo_id);
+      formDataObj.append("otro_equipo_id", datosParaEnviar.mantenimientoData.otro_equipo_id);
     }
-    formDataObj.append("tipo_mantenimiento", formData.tipo_mantenimiento);
-    formDataObj.append("descripcion", formData.descripcion);
-    formDataObj.append("tecnico", formData.tecnico);
+    formDataObj.append("tipo_mantenimiento", datosParaEnviar.mantenimientoData.tipo_mantenimiento);
+    formDataObj.append("descripcion", datosParaEnviar.mantenimientoData.descripcion);
+    formDataObj.append("tecnico", datosParaEnviar.mantenimientoData.tecnico);
     if (fileInputRef.current?.files?.[0]) {
       formDataObj.append("imagen_file", fileInputRef.current.files[0]);
     }
     
-    // --- USAR LAS ALERTAS PASADAS DESDE EL MODAL ---
-    // Necesitamos 'alertasDelAireSeleccionado' del modal también, o reconstruirlo aquí si es más fácil.
-    // Por simplicidad, asumamos que el modal nos da la información ya procesada o que podemos
-    // obtener 'alertasDelAireSeleccionado' del store si el 'formData.aire_id' está actualizado.
-    const aireIdSeleccionadoEnForm = formData.aire_id ? parseInt(formData.aire_id) : null;
-    const alertasOriginalesDelAire = aireIdSeleccionadoEnForm ? store.detailedAlertsList.filter(a => a.aire_id === aireIdSeleccionadoEnForm && a.alerta_tipo === "Operatividad") : [];
-
-    const alertasResueltasParaEnviar = alertasOriginalesDelAire
-        .filter(alerta => datosResolucion.alertasResueltas[`${alerta.componente}-${alerta.mensaje}-${alerta.diagnostico_nombre || alertasOriginalesDelAire.indexOf(alerta)}`])
-        .map(alerta => ({ componente: alerta.componente, diagnostico: alerta.diagnostico_nombre, mensaje: alerta.mensaje, notas_diagnostico: alerta.diagnostico_notas, fecha_lectura_original: alerta.fecha_lectura }));
-
-    formDataObj.append("alertas_resueltas_info", JSON.stringify(alertasResueltasParaEnviar));
-    // ---------------------------------------------
-    // --- AÑADIR DATOS DE RESOLUCIÓN DE OPERATIVIDAD ---
-    if (datosResolucion.resuelveEvaporadora !== undefined) {
-        formDataObj.append("resuelve_operatividad_evaporadora", datosResolucion.resuelveEvaporadora.toString());
+    // Añadir datos de resolución de alertas y nuevos diagnósticos
+    // El backend esperará un JSON stringificado para 'resolucion_alertas_data'
+    // que contenga la estructura de alertasResolucion del modal.
+    if (datosParaEnviar.resolucionAlertasData) {
+        formDataObj.append("resolucion_alertas_data", JSON.stringify(datosParaEnviar.resolucionAlertasData));
     }
-    if (datosResolucion.resuelveCondensadora !== undefined) {
-        formDataObj.append("resuelve_operatividad_condensadora", datosResolucion.resuelveCondensadora.toString());
-    }
-
-    // Si un componente NO queda operativo, enviar los datos de su (nuevo) diagnóstico
-    if (!datosResolucion.resuelveEvaporadora && formData.aire_id) { // formData aquí es el del modal
-        if (formData.evaporadora_diagnostico_id) formDataObj.append("evaporadora_diagnostico_id", formData.evaporadora_diagnostico_id);
-        if (formData.evaporadora_diagnostico_notas) formDataObj.append("evaporadora_diagnostico_notas", formData.evaporadora_diagnostico_notas);
-        if (formData.evaporadora_fecha_diagnostico && formData.evaporadora_hora_diagnostico) {
-            formDataObj.append("evaporadora_fecha_hora_diagnostico", `${formData.evaporadora_fecha_diagnostico}T${formData.evaporadora_hora_diagnostico}:00`);
-        }
-    }
-    if (!datosResolucion.resuelveCondensadora && formData.aire_id) {
-        if (formData.condensadora_diagnostico_id) formDataObj.append("condensadora_diagnostico_id", formData.condensadora_diagnostico_id);
-        if (formData.condensadora_diagnostico_notas) formDataObj.append("condensadora_diagnostico_notas", formData.condensadora_diagnostico_notas);
-        if (formData.condensadora_fecha_diagnostico && formData.condensadora_hora_diagnostico) {
-            formDataObj.append("condensadora_fecha_hora_diagnostico", `${formData.condensadora_fecha_diagnostico}T${formData.condensadora_hora_diagnostico}:00`);
-        }
-    }
-    // --------------------------------------------------
 
     // Call Flux action
     const success = await addMantenimiento(formDataObj);
@@ -289,8 +259,8 @@ const Mantenimientos = () => { // Remove : React.FC
     fetchMantenimientos, // Added fetchMantenimientos to dependencies
     filtroAire,
     currentPage,
-    itemsPerPage,
-    store.detailedAlertsList // Depender de la lista de alertas del store para reconstruir
+    itemsPerPage
+    // store.detailedAlertsList ya no es necesario aquí directamente, se pasa al modal
   ]); // Dependencies
 
   // --- Formatting Helpers (remain the same, remove types) ---

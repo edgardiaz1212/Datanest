@@ -21,7 +21,7 @@ from api.models import RegistroDiagnosticoAire, ParteACEnum # Importar el nuevo 
 from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
-
+import json
 
 api = Blueprint('api', __name__)
 
@@ -2360,18 +2360,13 @@ def eliminar_otro_equipo_route(equipo_id):
 
 # Ruta para agregar mantenimiento a un Aire Acondicionado
 @api.route('/aires/<int:aire_id>/mantenimientos', methods=['POST'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def agregar_mantenimiento_aire_route(aire_id):
-    """
-    Endpoint para agregar un registro de mantenimiento a un Aire Acondicionado específico.
-    Requiere autenticación. Recibe datos como multipart/form-data.
-    """
-    current_user_id = get_jwt_identity()
-    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    current_user_id = get_jwt_identity() # Asegúrate que esto esté definido y funcione
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id) # Usar db.session.get
     if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
         return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
 
-    # Verificar que el aire existe
     aire = db.session.get(AireAcondicionado, aire_id)
     if not aire:
         return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
@@ -2382,6 +2377,17 @@ def agregar_mantenimiento_aire_route(aire_id):
     tipo_mantenimiento = request.form['tipo_mantenimiento']
     descripcion = request.form['descripcion']
     tecnico = request.form['tecnico']
+    alertas_resueltas_info_str = request.form.get('alertas_resueltas_info') # Este es el campo antiguo, lo mantendremos por ahora
+    
+    # --- NUEVO: Procesar datos de resolución de alertas ---
+    resolucion_alertas_data_str = request.form.get('resolucion_alertas_data')
+    resolucion_alertas_data = {}
+    if resolucion_alertas_data_str:
+        try:
+            resolucion_alertas_data = json.loads(resolucion_alertas_data_str)
+        except json.JSONDecodeError:
+            return jsonify({"msg": "Error al decodificar datos de resolución de alertas."}), 400
+    # --- FIN NUEVO ---
 
     imagen_datos = None
     imagen_nombre = None
@@ -2394,24 +2400,67 @@ def agregar_mantenimiento_aire_route(aire_id):
             imagen_tipo = imagen_file.mimetype
             imagen_datos = imagen_file.read()
         except Exception as e:
-             print(f"Error leyendo archivo de imagen: {e}", file=sys.stderr)
-             return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
+            print(f"Error leyendo archivo de imagen: {e}", file=sys.stderr)
+            return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
 
     try:
         nuevo_mantenimiento = Mantenimiento(
             aire_id=aire_id,
             otro_equipo_id=None,
-            fecha=datetime.utcnow(),
+            fecha=datetime.now(timezone.utc), # Usar timezone.utc
             tipo_mantenimiento=tipo_mantenimiento,
             descripcion=descripcion,
             tecnico=tecnico,
             imagen_nombre=imagen_nombre,
             imagen_tipo=imagen_tipo,
-            imagen_datos=imagen_datos
+            imagen_datos=imagen_datos,
+            alertas_resueltas_info=alertas_resueltas_info_str # Mantener el campo antiguo por si acaso
         )
         db.session.add(nuevo_mantenimiento)
+
+        # --- LÓGICA PARA ACTUALIZAR ESTADOS Y DIAGNÓSTICOS ---
+        if resolucion_alertas_data:
+            for alert_key, resolucion_info in resolucion_alertas_data.items():
+                componente_afectado_str = resolucion_info.get('componenteOriginal') # 'evaporadora' o 'condensadora'
+                
+                if resolucion_info.get('resuelta'):
+                    nuevo_estado_str = resolucion_info.get('nuevoEstado')
+                    if componente_afectado_str and nuevo_estado_str:
+                        try:
+                            nuevo_estado_enum = OperativaStateEnum(nuevo_estado_str)
+                            if componente_afectado_str == 'evaporadora':
+                                aire.evaporadora_operativa = nuevo_estado_enum
+                            elif componente_afectado_str == 'condensadora':
+                                aire.condensadora_operativa = nuevo_estado_enum
+                        except ValueError:
+                            print(f"Valor de estado inválido '{nuevo_estado_str}' para {componente_afectado_str}", file=sys.stderr)
+                
+                # Si se registró un nuevo diagnóstico (porque no se resolvió o quedó parcialmente/no operativo)
+                if resolucion_info.get('nuevoDiagnosticoId'):
+                    try:
+                        parte_ac_enum_nuevo_diag = ParteACEnum(componente_afectado_str) # Usar el componente original de la alerta
+                        diagnostico_obj = db.session.get(DiagnosticoComponente, int(resolucion_info['nuevoDiagnosticoId']))
+                        
+                        if diagnostico_obj: # Asegurarse que el diagnóstico exista
+                            nuevo_registro_diag = RegistroDiagnosticoAire(
+                                aire_id=aire_id,
+                                parte_ac=parte_ac_enum_nuevo_diag,
+                                diagnostico_id=int(resolucion_info['nuevoDiagnosticoId']),
+                                fecha_hora=datetime.now(timezone.utc), # Usar fecha actual para el nuevo diagnóstico
+                                notas=resolucion_info.get('nuevasNotas'),
+                                registrado_por_usuario_id=current_user_id
+                            )
+                            db.session.add(nuevo_registro_diag)
+                        else:
+                            print(f"No se encontró el DiagnosticoComponente con ID {resolucion_info['nuevoDiagnosticoId']}", file=sys.stderr)
+                    except ValueError as ve:
+                        print(f"Error al procesar nuevo diagnóstico para {componente_afectado_str}: {ve}", file=sys.stderr)
+                    except Exception as e_diag:
+                         print(f"Error inesperado al crear nuevo registro de diagnóstico: {e_diag}", file=sys.stderr)
+        # --- FIN LÓGICA ---
+
         db.session.commit()
-        return jsonify(nuevo_mantenimiento.serialize()), 201 # Usar serialize_with_details
+        return jsonify(nuevo_mantenimiento.serialize()), 201
 
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -2423,7 +2472,6 @@ def agregar_mantenimiento_aire_route(aire_id):
         print(f"!!! ERROR inesperado al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
-
 
 # Ruta para agregar mantenimiento a un OtroEquipo
 @api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['POST'])
