@@ -2950,6 +2950,56 @@ def eliminar_umbral_configuracion_route(umbral_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el umbral."}), 500
 
+def find_energia_provider():
+    """
+    Busca un proveedor con el nombre 'Energía'.
+    Retorna el objeto Proveedor o None si no se encuentra.
+    """
+    try:
+        # Usar ilike para búsqueda insensible a mayúsculas/minúsculas si es necesario
+        energia_provider = db.session.query(Proveedor).filter(func.lower(Proveedor.nombre) == 'energía').first()
+        if not energia_provider:
+             energia_provider = db.session.query(Proveedor).filter(func.lower(Proveedor.nombre) == 'energia').first() # Sin tilde
+        return energia_provider
+    except Exception as e:
+        print(f"Error buscando proveedor 'Energía': {e}", file=sys.stderr)
+        return None
+
+def create_operatividad_activity_if_needed(alert_data, proveedor_energia_id):
+    """
+    Crea una actividad para el proveedor 'Energía' si una alerta de operatividad
+    no tiene una actividad 'Pendiente' o 'En Progreso' asociada.
+    """
+    try:
+        # Verificar si ya existe una actividad abierta para esta alerta específica
+        # Usaremos el mensaje de la alerta para identificarla (podría mejorarse con un ID de alerta único si se implementa)
+        existing_activity = db.session.query(ActividadProveedor).filter(
+            ActividadProveedor.proveedor_id == proveedor_energia_id,
+            ActividadProveedor.descripcion.like(f"%{alert_data['mensaje']}%Aire: {alert_data['aire_nombre']}%"), # Buscar por mensaje y nombre del aire
+            ActividadProveedor.estatus.in_([EstatusActividad.PENDIENTE, EstatusActividad.EN_PROGRESO])
+        ).first()
+
+        if not existing_activity:
+            descripcion_actividad = (
+                f"Alerta de Operatividad: {alert_data['mensaje']} "
+                f"Aire: {alert_data['aire_nombre']} (ID: {alert_data['aire_id']}) "
+                f"Ubicación: {alert_data['aire_ubicacion']}. "
+                f"Estado detectado: {alert_data['valor_actual']}."
+            )
+            nueva_actividad = ActividadProveedor(
+                proveedor_id=proveedor_energia_id,
+                descripcion=descripcion_actividad,
+                fecha_ocurrencia=datetime.fromisoformat(alert_data['fecha_lectura']), # Usar la fecha de la alerta
+                fecha_reporte=datetime.now(timezone.utc), # Fecha actual del reporte
+                estatus=EstatusActividad.PENDIENTE
+            )
+            db.session.add(nueva_actividad)
+            db.session.commit()
+            print(f"Actividad de operatividad creada para proveedor Energía, aire {alert_data['aire_nombre']}.", file=sys.stderr)
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creando actividad de operatividad para proveedor Energía: {e}", file=sys.stderr)
+
 def obtener_detalles_alertas_activas_helper():
     alertas_detalladas = []
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -2958,6 +3008,8 @@ def obtener_detalles_alertas_activas_helper():
     aires = AireAcondicionado.query.all()
     if not aires:
         return []
+    # Buscar proveedor "Energía" una vez
+    energia_provider = find_energia_provider()
 
     # Pre-fetch latest diagnostic records for all aires and relevant parts
     all_latest_diagnostics_subquery = db.session.query(
@@ -2986,42 +3038,56 @@ def obtener_detalles_alertas_activas_helper():
     # 2. Verificar estado operativo para todos los aires
     for aire_id, aire_obj in aires_map.items(): # Iterar sobre el mapa para acceso rápido
         if aire_obj.evaporadora_operativa == OperativaStateEnum.NO_OPERATIVA:
-            alertas_detalladas.append({
+            alert_data = {
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.", # Mensaje principal
                 "valor_actual": "No Operativa", # Estado del componente
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso, # Fecha de detección del estado
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
-            })
+             }
+            alertas_detalladas.append(alert_data)
+            if energia_provider:
+                create_operatividad_activity_if_needed(alert_data, energia_provider.id)
         elif aire_obj.evaporadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
-            alertas_detalladas.append({
+            alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora parcialmente operativa.",
                 "valor_actual": "Parcialmente Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas")
-            })
+            }
+            alertas_detalladas.append(alert_data)
+            if energia_provider:
+                create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+
 
         if aire_obj.condensadora_operativa == OperativaStateEnum.NO_OPERATIVA:
-            alertas_detalladas.append({
+            alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
                 "valor_actual": "No Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
-            })
+            }
+            alertas_detalladas.append(alert_data)
+            if energia_provider:
+                create_operatividad_activity_if_needed(alert_data, energia_provider.id)
         elif aire_obj.condensadora_operativa == OperativaStateEnum.PARCIALMENTE_OPERATIVA:
-            alertas_detalladas.append({
+            alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora parcialmente operativa.",
                 "valor_actual": "Parcialmente Operativa",
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas")
-            })
+            }
+            alertas_detalladas.append(alert_data)
+            if energia_provider:
+                create_operatividad_activity_if_needed(alert_data, energia_provider.id)
+
 
     # 3. Obtener la última lectura de cada aire
     subquery_ultimas_fechas = db.session.query(
@@ -3053,7 +3119,7 @@ def obtener_detalles_alertas_activas_helper():
     # 5. Verificar cada última lectura contra los umbrales aplicables
     for lectura in ultimas_lecturas_records:
         aire_obj = aires_map.get(lectura.aire_id)
-        if not aire_obj: 
+        if not aire_obj:
              continue
         # Solo alertas ambientales para aires que no estén completamente NO_OPERATIVOS en AMBAS unidades.
         # Si al menos una unidad está OPERATIVA o PARCIALMENTE_OPERATIVA, se verifican umbrales.
