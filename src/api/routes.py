@@ -1080,6 +1080,215 @@ def obtener_diagnostico_componente_por_id_route(diagnostico_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al obtener el diagnóstico."}), 500
 
+# --- Rutas para RegistroDiagnosticoAire ---
+
+@api.route('/aires/<int:aire_id>/registros_diagnostico', methods=['POST'])
+@jwt_required()
+def crear_registro_diagnostico_aire_route(aire_id):
+    """
+    Endpoint para agregar un nuevo registro de diagnóstico histórico para un aire acondicionado.
+    Requiere autenticación (Admin/Supervisor/Tecnico).
+    Recibe los datos en formato JSON.
+    """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+        return jsonify({"msg": "Acceso no autorizado para crear registros de diagnóstico"}), 403
+
+    aire = db.session.get(AireAcondicionado, aire_id)
+    if not aire:
+        return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    required_fields = ['parte_ac', 'diagnostico_id', 'fecha_hora']
+    if not all(field in data for field in required_fields):
+        missing = [field for field in required_fields if field not in data]
+        return jsonify({"msg": f"Faltan campos requeridos: {', '.join(missing)}"}), 400
+
+    try:
+        # Validar y convertir enums
+        try:
+            parte_ac_enum = ParteACEnum(data['parte_ac'])
+        except ValueError:
+            valid_parts = [p.value for p in ParteACEnum]
+            return jsonify({"msg": f"Valor inválido para 'parte_ac'. Usar: {', '.join(valid_parts)}"}), 400
+
+        # Validar que el diagnostico_id exista
+        diagnostico = db.session.get(DiagnosticoComponente, data['diagnostico_id'])
+        if not diagnostico:
+            return jsonify({"msg": f"Diagnóstico predefinido con ID {data['diagnostico_id']} no encontrado."}), 404
+
+        # Convertir fecha_hora de string a datetime
+        fecha_hora_dt = None
+        try:
+            fecha_hora_dt = datetime.fromisoformat(data['fecha_hora'])
+        except (ValueError, TypeError):
+            return jsonify({"msg": "Formato de fecha_hora inválido. Usar formato ISO 8601 (YYYY-MM-DDTHH:MM:SS)."}), 400
+
+        nuevo_registro = RegistroDiagnosticoAire(
+            aire_id=aire_id,
+            parte_ac=parte_ac_enum,
+            diagnostico_id=data['diagnostico_id'],
+            fecha_hora=fecha_hora_dt,
+            notas=data.get('notas'),
+            registrado_por_usuario_id=current_user_id # Registrar quién creó el registro
+        )
+
+        db.session.add(nuevo_registro)
+        db.session.commit()
+
+        return jsonify(nuevo_registro.serialize()), 201
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy en crear_registro_diagnostico_aire_route para aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al agregar el registro de diagnóstico."}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado en crear_registro_diagnostico_aire_route para aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/aires/<int:aire_id>/registros_diagnostico', methods=['GET'])
+@jwt_required()
+def obtener_registros_diagnostico_por_aire_route(aire_id):
+    """
+    Endpoint para obtener todos los registros de diagnóstico histórico de un aire acondicionado específico.
+    Requiere autenticación.
+    """
+    # Verificar que el aire acondicionado existe (opcional, la query ya lo filtra)
+    # aire = db.session.get(AireAcondicionado, aire_id)
+    # if not aire:
+    #     return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+
+    try:
+        # Obtener registros ordenados por fecha descendente
+        registros = db.session.query(RegistroDiagnosticoAire)\
+            .filter_by(aire_id=aire_id)\
+            .order_by(RegistroDiagnosticoAire.fecha_hora.desc())\
+            .all()
+
+        results = [r.serialize() for r in registros]
+        return jsonify(results), 200
+
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_registros_diagnostico_por_aire_route para aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener registros de diagnóstico."}), 500
+
+@api.route('/registros_diagnostico/<int:registro_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_registro_diagnostico_aire_route(registro_id):
+    """
+    Endpoint para actualizar un registro de diagnóstico histórico existente.
+    Requiere autenticación (Admin/Supervisor/Tecnico).
+    Recibe los datos en formato JSON.
+    """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar registros de diagnóstico"}), 403
+
+    registro = db.session.get(RegistroDiagnosticoAire, registro_id)
+    if not registro:
+        return jsonify({"msg": f"Registro de diagnóstico con ID {registro_id} no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    updated = False
+    try:
+        # Solo permitir actualizar campos específicos
+        if 'parte_ac' in data and data['parte_ac'] != registro.parte_ac.value:
+            try:
+                registro.parte_ac = ParteACEnum(data['parte_ac'])
+                updated = True
+            except ValueError:
+                valid_parts = [p.value for p in ParteACEnum]
+                return jsonify({"msg": f"Valor inválido para 'parte_ac'. Usar: {', '.join(valid_parts)}"}), 400
+
+        if 'diagnostico_id' in data and data['diagnostico_id'] != registro.diagnostico_id:
+            # Validar que el nuevo diagnostico_id exista
+            diagnostico = db.session.get(DiagnosticoComponente, data['diagnostico_id'])
+            if not diagnostico:
+                return jsonify({"msg": f"Diagnóstico predefinido con ID {data['diagnostico_id']} no encontrado."}), 404
+            registro.diagnostico_id = data['diagnostico_id']
+            updated = True
+
+        if 'fecha_hora' in data and data['fecha_hora']:
+            try:
+                new_fecha_hora = datetime.fromisoformat(data['fecha_hora'])
+                if new_fecha_hora != registro.fecha_hora:
+                    registro.fecha_hora = new_fecha_hora
+                    updated = True
+            except (ValueError, TypeError):
+                return jsonify({"msg": "Formato de fecha_hora inválido. Usar formato ISO 8601 (YYYY-MM-DDTHH:MM:SS)."}), 400
+        elif 'fecha_hora' in data and not data['fecha_hora']: # Permitir poner fecha_hora a null si se envía explícitamente null/vacío
+             # Aunque el modelo lo define como nullable=False, si la lógica de negocio lo permite,
+             # podrías cambiar el modelo o manejarlo aquí. Mantendremos nullable=False por ahora.
+             return jsonify({"msg": "El campo 'fecha_hora' no puede ser nulo."}), 400
+
+        if 'notas' in data and data['notas'] != registro.notas:
+            registro.notas = data['notas'] # Puede ser null
+            updated = True
+
+        # No permitir cambiar aire_id ni registrado_por_usuario_id
+
+        if updated:
+            db.session.commit()
+            return jsonify(registro.serialize()), 200
+        else:
+            return jsonify(registro.serialize()), 200 # O 304 Not Modified
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al actualizar registro de diagnóstico ID {registro_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al actualizar el registro de diagnóstico."}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al actualizar registro de diagnóstico ID {registro_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/registros_diagnostico/<int:registro_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_registro_diagnostico_aire_route(registro_id):
+    """
+    Endpoint para eliminar un registro de diagnóstico histórico específico.
+    Requiere autenticación (Admin/Supervisor/Tecnico).
+    """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+        return jsonify({"msg": "Acceso no autorizado para eliminar registros de diagnóstico"}), 403
+
+    registro = db.session.get(RegistroDiagnosticoAire, registro_id)
+    if not registro:
+        return jsonify({"msg": f"Registro de diagnóstico con ID {registro_id} no encontrado."}), 404
+
+    try:
+        db.session.delete(registro)
+        db.session.commit()
+        return '', 204 # No Content
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al eliminar registro de diagnóstico ID {registro_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al eliminar el registro de diagnóstico."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al eliminar registro de diagnóstico ID {registro_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al eliminar el registro de diagnóstico."}), 500
 
 
 # --- Rutas para Lectura ---
@@ -3929,3 +4138,5 @@ def get_alertas_activas_detalladas_route():
     except Exception as e:
         print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
         return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
+
+

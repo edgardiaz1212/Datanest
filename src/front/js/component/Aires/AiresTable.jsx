@@ -10,7 +10,6 @@ const AiresTable = ({
     loading,
     error = null, 
     canManage,
-    onRowClick,
     onEdit,
     onDelete,
     onAdd,
@@ -172,7 +171,6 @@ AiresTable.propTypes = {
     loading: PropTypes.bool.isRequired,
     error: PropTypes.string, // Can be null
     canManage: PropTypes.bool.isRequired,
-    onRowClick: PropTypes.func.isRequired,
     onEdit: PropTypes.func.isRequired,
     onDelete: PropTypes.func.isRequired,
     onAdd: PropTypes.func.isRequired,

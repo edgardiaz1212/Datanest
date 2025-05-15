@@ -3043,9 +3043,20 @@ fetchDiagnosticRecordsByAire: async (aireId) => {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorMsg = `Error fetching diagnostic records for aire ${aireId}: ${response.status} ${response.statusText}`;
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMsg = errorData.msg || errorMsg;
+        } else {
+          // console.error("Non-JSON error response from server (fetchDiagnosticRecordsByAire), status:", response.status);
+        }
+      } catch (e) {
+        console.error("Failed to parse error response or get content-type (fetchDiagnosticRecordsByAire):", e);
+      }
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(errorData.msg || `Error fetching diagnostic records for aire ${aireId}: ${response.status}`);
+      throw new Error(errorMsg);
     }
     const data = await response.json();
     setStore({ selectedAireDiagnosticRecords: data || [], selectedAireDiagnosticRecordsLoading: false });
@@ -3072,7 +3083,11 @@ addDiagnosticRecord: async (aireId, recordData) => {
     const responseData = await response.json();
     if (!response.ok) {
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(responseData.msg || `Error adding diagnostic record: ${response.status}`);
+      let errorMsg = responseData.msg || `Error adding diagnostic record: ${response.status}`;
+      if (response.status === 405) {
+        errorMsg = `Método no permitido (405) para la URL. Verifique la configuración de la ruta en el backend. (${errorMsg})`;
+      }
+      throw new Error(errorMsg);
     }
     // Refetch the list for the current aire after adding
     await getActions().fetchDiagnosticRecordsByAire(aireId);
