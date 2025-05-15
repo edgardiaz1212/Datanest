@@ -61,7 +61,7 @@ const Layout = () => {
             '/dashboard', '/aires', '/lecturas', '/estadisticas',
             '/otros-equipos', '/mantenimientos', '/umbrales', '/usuarios', 
             '/perfil', '/reportes', '/proveedores','/actividades-proveedor',
-            '/servicios-externos','/documentos', '/alertas-activas', '/gestion-diagnosticos'
+            '/servicios-externos','/documentos', '/alertas-activas', '/gestion-diagnosticos', '/aires/:airesId'
             // Añade otras rutas de monitoreo aquí
         ];
 

@@ -36,10 +36,14 @@ const getState = ({ getStore, getActions, setStore }) => {
       airesLoading: false,
       airesError: null,
       selectedAireDetails: null, // To store details when editing
-// --- Diagnostico Componentes ---
-diagnosticoComponentes: [],
-diagnosticoComponentesLoading: false,
-diagnosticoComponentesError: null,
+      // --- Diagnostico Componentes ---
+      diagnosticoComponentes: [],
+      diagnosticoComponentesLoading: false,
+      // --- Registro Diagnostico Aire ---
+      selectedAireDiagnosticRecords: [], // New state for diagnostic records of a specific air
+      selectedAireDiagnosticRecordsLoading: false, // New loading state
+      selectedAireDiagnosticRecordsError: null, // New error state
+      diagnosticoComponentesError: null,
       // --- Umbrales ---
       umbrales: [],
       umbralesLoading: false,
@@ -115,6 +119,9 @@ diagnosticoComponentesError: null,
       uploadDocumentoSuccess: null,
       deletingDocumentoId: null, // Para saber qué doc se está borrando (opcional)
       deleteDocumentoError: null,
+      // --- Diagnostico Componentes ---
+      diagnosticoComponentes: [],
+      diagnosticoComponentesLoading: false,
       // --- Detailed Alerts State ---
       detailedAlertsList: [],
       detailedAlertsLoading: false,
@@ -566,7 +573,6 @@ diagnosticoComponentesError: null,
             token: null, // <--- Limpia token en error
             loading: false,
             trackerUser: null,
-            
           });
           localStorage.removeItem("trackerUser");
           localStorage.removeItem("token"); // <--- Limpia token en error
@@ -579,7 +585,7 @@ diagnosticoComponentesError: null,
           trackerUser: null,
           token: null, // <--- Limpia token
           isAuthenticated: false,
-           // Limpiar también otros estados que podrían depender del usuario
+          // Limpiar también otros estados que podrían depender del usuario
           aires: [],
           lecturas: [],
           umbrales: [],
@@ -589,12 +595,12 @@ diagnosticoComponentesError: null,
           estadisticasUbicacion: [],
           ubicaciones: [],
           _rawLecturasGenerales: [], // For general charts
-      _rawLecturasAire: [],
-      proveedores: [],
-      contactos: [],
-      actividadesProveedor: [],
-      detailedAlertsList: [],
-      documentos: [],
+          _rawLecturasAire: [],
+          proveedores: [],
+          contactos: [],
+          actividadesProveedor: [],
+          detailedAlertsList: [],
+          documentos: [],
           error: null,
         });
         localStorage.removeItem("trackerUser");
@@ -866,7 +872,7 @@ diagnosticoComponentesError: null,
       // --- Aires Actions ---
       fetchAires: async () => {
         // Ruta protegida, necesita token
-        setStore({ selectedAireDetails: null });
+        setStore({ selectedAireDetails: null, selectedAireDiagnosticRecords: [] });
         setStore({ airesLoading: true, airesError: null });
         try {
           const response = await fetch(`${process.env.BACKEND_URL}/aires`, {
@@ -879,11 +885,17 @@ diagnosticoComponentesError: null,
             try {
               errorData = await response.json();
             } catch (e) {
-              console.warn("Could not parse error response as JSON in fetchAires");
+              console.warn(
+                "Could not parse error response as JSON in fetchAires"
+              );
             }
-            
+
             if (response.status === 401) getActions().logoutTrackerUser();
-            setStore({ airesError: errorData.msg || `Error fetching aires: ${response.status}`, airesLoading: false }); // <--- CORREGIDO: usar errorData.msg
+            setStore({
+              airesError:
+                errorData.msg || `Error fetching aires: ${response.status}`,
+              airesLoading: false,
+            }); // <--- CORREGIDO: usar errorData.msg
             return null;
           }
           const data = await response.json();
@@ -894,8 +906,7 @@ diagnosticoComponentesError: null,
             throw new Error(
               "Formato de respuesta inesperado del servidor al listar aires." // Esto es un error diferente a 401
             );
-          } 
-          
+          }
         } catch (error) {
           console.error("Error in fetchAires:", error);
           setStore({
@@ -910,6 +921,7 @@ diagnosticoComponentesError: null,
       fetchAireDetails: async (aireId) => {
         // Ruta protegida, necesita token
         try {
+          setStore({ selectedAireDetails: null }); // Clear previous details
           const response = await fetch(
             `${process.env.BACKEND_URL}/aires/${aireId}`,
             {
@@ -966,8 +978,8 @@ diagnosticoComponentesError: null,
       updateAire: async (aireId, aireData) => {
         // Ruta protegida, necesita token
         setStore({ airesLoading: true, airesError: null });
-        setStore({ selectedAireDetails: null }); // Clear details after attempting update
-       
+        setStore({ selectedAireDetails: null, selectedAireDiagnosticRecords: [] });
+
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/aires/${aireId}`,
@@ -1000,6 +1012,7 @@ diagnosticoComponentesError: null,
       deleteAire: async (aireId) => {
         // Ruta protegida, necesita token
         const store = getStore();
+        if (store.selectedAireDetails?.id === aireId) setStore({ selectedAireDetails: null, selectedAireDiagnosticRecords: [] });
         const originalList = [...store.aires];
         const updatedList = originalList.filter((a) => a.id !== aireId);
         setStore({ aires: updatedList, airesError: null });
@@ -1056,7 +1069,12 @@ diagnosticoComponentesError: null,
             if (umbralesResponse.status === 401)
               getActions().logoutTrackerUser(); // Esto debería limpiar el token y redirigir
             // Similar a fetchAires, si es 401, el logout ya se encarga.
-            setStore({ umbralesError: errorData.msg || `Error fetching umbrales: ${umbralesResponse.status}`, umbralesLoading: false });
+            setStore({
+              umbralesError:
+                errorData.msg ||
+                `Error fetching umbrales: ${umbralesResponse.status}`,
+              umbralesLoading: false,
+            });
             return; // No continuar si hay error
             /* throw new Error(
               errorData.msg ||
@@ -1358,8 +1376,8 @@ diagnosticoComponentesError: null,
 
           let url = `${process.env.BACKEND_URL}/mantenimientos`;
           const queryParams = new URLSearchParams();
-          queryParams.append('page', page);
-          queryParams.append('per_page', perPage);
+          queryParams.append("page", page);
+          queryParams.append("per_page", perPage);
 
           if (filters.aire_id) queryParams.append("aire_id", filters.aire_id);
           if (filters.otro_equipo_id)
@@ -1401,7 +1419,14 @@ diagnosticoComponentesError: null,
               error.message || "Error cargando los registros de mantenimiento.",
             mantenimientosLoading: false,
             mantenimientos: [],
-            mantenimientosPaginationInfo: { total_items: 0, total_pages: 0, current_page: 1, per_page: perPage, has_next: false, has_prev: false },
+            mantenimientosPaginationInfo: {
+              total_items: 0,
+              total_pages: 0,
+              current_page: 1,
+              per_page: perPage,
+              has_next: false,
+              has_prev: false,
+            },
           });
         }
       },
@@ -1469,8 +1494,11 @@ diagnosticoComponentesError: null,
             // No es necesario revertir la actualización optimista si se eliminó.
             const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) getActions().logoutTrackerUser();
-            setStore({ // Establecer el error global
-              mantenimientosError: errorData.msg || `Error deleting mantenimiento: ${response.status}`
+            setStore({
+              // Establecer el error global
+              mantenimientosError:
+                errorData.msg ||
+                `Error deleting mantenimiento: ${response.status}`,
             });
             throw new Error(
               errorData.msg ||
@@ -1486,7 +1514,8 @@ diagnosticoComponentesError: null,
           // Esto es para errores de red u otros.
           if (!store.mantenimientosError) {
             setStore({
-              mantenimientosError: error.message || "Error al eliminar el mantenimiento.",
+              mantenimientosError:
+                error.message || "Error al eliminar el mantenimiento.",
             });
           }
           return false;
@@ -1531,18 +1560,20 @@ diagnosticoComponentesError: null,
           await getActions().fetchUmbrales();
           const currentAiresForMap = fetchedAiresList || getStore().aires;
 
-          if (!fetchedAiresList && !getStore().airesError) { 
-            console.warn("fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError.");
+          if (!fetchedAiresList && !getStore().airesError) {
+            console.warn(
+              "fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError."
+            );
           }
 
           let url;
           const queryParams = new URLSearchParams();
-          
+
           if (filters.aire_id) {
             url = `${process.env.BACKEND_URL}/aires/${filters.aire_id}/lecturas`;
             // Añadir parámetros de paginación para la ruta de un aire específico
-            queryParams.append('page', page);
-            queryParams.append('per_page', perPage);
+            queryParams.append("page", page);
+            queryParams.append("per_page", perPage);
             url = `${url}?${queryParams.toString()}`;
           } else {
             // Decide how to handle no filter - fetch all? Fetch first? Error?
@@ -1554,7 +1585,9 @@ diagnosticoComponentesError: null,
 
           // Si no hay aire_id, usamos la ruta global que actualmente no está paginada en el backend
           // de la misma manera. Para este ejemplo, la paginación completa se enfoca en la vista de un aire específico.
-          const finalUrl = filters.aire_id ? url : `${process.env.BACKEND_URL}/lecturas/ultimas?limite=${perPage}`;
+          const finalUrl = filters.aire_id
+            ? url
+            : `${process.env.BACKEND_URL}/lecturas/ultimas?limite=${perPage}`;
           const response = await fetch(finalUrl, {
             method: "GET",
             headers: getAuthHeaders(), // <--- Usa cabeceras con token
@@ -1568,20 +1601,26 @@ diagnosticoComponentesError: null,
           }
           const data = await response.json();
 
-          const airesMap = (Array.isArray(currentAiresForMap) ? currentAiresForMap : []).reduce((acc, aire) => {
-            if (aire && typeof aire.id !== 'undefined') { // Comprobación defensiva
-                acc[aire.id] = aire;
+          const airesMap = (
+            Array.isArray(currentAiresForMap) ? currentAiresForMap : []
+          ).reduce((acc, aire) => {
+            if (aire && typeof aire.id !== "undefined") {
+              // Comprobación defensiva
+              acc[aire.id] = aire;
             }
             return acc;
           }, {});
 
-          if (filters.aire_id && data.items) { // Respuesta paginada para un aire específico
+          if (filters.aire_id && data.items) {
+            // Respuesta paginada para un aire específico
             const processedLecturas = (data.items || []).map((lectura) => {
               const aire = airesMap[lectura.aire_id];
               return {
                 ...lectura,
-                aire_nombre: lectura.nombre_aire || aire?.nombre || "Desconocido",
-                ubicacion: lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
+                aire_nombre:
+                  lectura.nombre_aire || aire?.nombre || "Desconocido",
+                ubicacion:
+                  lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
               };
             });
             // El backend ya ordena por fecha desc.
@@ -1595,32 +1634,44 @@ diagnosticoComponentesError: null,
                 has_next: data.has_next,
                 has_prev: data.has_prev,
               },
-              lecturasLoading: false
+              lecturasLoading: false,
             });
-          } else if (!filters.aire_id && Array.isArray(data)) { // Respuesta no paginada (lista) para lecturas globales
-            const processedLecturas = (data || []).map((lectura) => {
+          } else if (!filters.aire_id && Array.isArray(data)) {
+            // Respuesta no paginada (lista) para lecturas globales
+            const processedLecturas = (data || [])
+              .map((lectura) => {
                 const aire = airesMap[lectura.aire_id];
                 return {
-                    ...lectura,
-                    aire_nombre: lectura.nombre_aire || aire?.nombre || "Desconocido",
-                    ubicacion: lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
+                  ...lectura,
+                  aire_nombre:
+                    lectura.nombre_aire || aire?.nombre || "Desconocido",
+                  ubicacion:
+                    lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
                 };
-            }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+              })
+              .sort(
+                (a, b) =>
+                  new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+              );
 
             setStore({
-                lecturas: processedLecturas,
-                lecturasPaginationInfo: { // Info de paginación simulada para la vista global limitada
-                    total_items: processedLecturas.length,
-                    total_pages: 1,
-                    current_page: 1,
-                    per_page: perPage,
-                    has_next: false,
-                    has_prev: false,
-                },
-                lecturasLoading: false
+              lecturas: processedLecturas,
+              lecturasPaginationInfo: {
+                // Info de paginación simulada para la vista global limitada
+                total_items: processedLecturas.length,
+                total_pages: 1,
+                current_page: 1,
+                per_page: perPage,
+                has_next: false,
+                has_prev: false,
+              },
+              lecturasLoading: false,
             });
           } else {
-            console.error("Unexpected data structure from fetchLecturas:", data);
+            console.error(
+              "Unexpected data structure from fetchLecturas:",
+              data
+            );
             throw new Error("Formato de datos de lecturas inesperado.");
           }
         } catch (error) {
@@ -1629,12 +1680,19 @@ diagnosticoComponentesError: null,
             lecturasError: error.message || "Error cargando las lecturas.",
             lecturasLoading: false,
             lecturas: [],
-            lecturasPaginationInfo: { total_items: 0, total_pages: 0, current_page: 1, per_page: perPage, has_next: false, has_prev: false },
+            lecturasPaginationInfo: {
+              total_items: 0,
+              total_pages: 0,
+              current_page: 1,
+              per_page: perPage,
+              has_next: false,
+              has_prev: false,
+            },
           });
           return false;
         }
       },
- addLectura: async (aireId, lecturaData) => {
+      addLectura: async (aireId, lecturaData) => {
         // Ruta protegida, necesita token
         // No se establece lecturasLoading aquí para no afectar la tabla principal
         // El modal manejará su propio estado de 'isSubmitting'
@@ -1644,7 +1702,8 @@ diagnosticoComponentesError: null,
           const response = await fetch(url, {
             method: "POST",
             headers: getAuthHeaders(), // Usa cabeceras con token
-            body: JSON.stringify({ // Asegúrate que el backend espera estos nombres
+            body: JSON.stringify({
+              // Asegúrate que el backend espera estos nombres
               fecha_hora: lecturaData.fecha_hora, // 'YYYY-MM-DDTHH:MM:SS'
               temperatura: lecturaData.temperatura,
               humedad: lecturaData.humedad, // Puede ser null
@@ -1654,7 +1713,9 @@ diagnosticoComponentesError: null,
           if (!response.ok) {
             if (response.status === 401) getActions().logoutTrackerUser();
             // Propagar el mensaje de error del backend
-            throw new Error(responseData.msg || `Error agregando lectura: ${response.status}`);
+            throw new Error(
+              responseData.msg || `Error agregando lectura: ${response.status}`
+            );
           }
           // No es necesario refetch aquí, Lecturas.jsx lo hará después de un add exitoso.
           return true; // Indica éxito
@@ -1665,7 +1726,6 @@ diagnosticoComponentesError: null,
           throw error; // Re-lanzar el error para que el componente lo capture
         }
       },
-
 
       deleteLectura: async (lecturaId) => {
         // Ruta protegida, necesita token
@@ -1695,7 +1755,8 @@ diagnosticoComponentesError: null,
           console.error("Error in deleteLectura:", error);
           // El error ya debería estar establecido si fue un error HTTP.
           // Esto es para errores de red u otros.
-          if (!store.lecturasError) { // Solo establece si no hay un error HTTP previo
+          if (!store.lecturasError) {
+            // Solo establece si no hay un error HTTP previo
             setStore({
               lecturasError: error.message || "Error al eliminar la lectura.",
             });
@@ -1706,42 +1767,56 @@ diagnosticoComponentesError: null,
 
       clearLecturasError: () => {
         setStore({ lecturasError: null });
-       },
+      },
 
-      setLecturasError: (errorMessage) => { // Nueva acción
+      setLecturasError: (errorMessage) => {
+        // Nueva acción
         setStore({ lecturasError: errorMessage });
- },
+      },
 
       uploadLecturasExcel: async (file, onProgress) => {
         // onProgress no se usa activamente aquí, pero se deja por si se implementa con Axios
         const actions = getActions();
         try {
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append("file", file);
 
-          const response = await fetch(`${process.env.BACKEND_URL}/api/lecturas/upload_excel`, { // Asegúrate que la ruta sea /api/...
-            method: 'POST',
-            headers: getAuthHeaders(false), // No 'Content-Type', FormData lo maneja
-            body: formData,
-            // onUploadProgress: onProgress, // Esto es más para Axios, fetch no lo soporta directamente
-          });
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/api/lecturas/upload_excel`,
+            {
+              // Asegúrate que la ruta sea /api/...
+              method: "POST",
+              headers: getAuthHeaders(false), // No 'Content-Type', FormData lo maneja
+              body: formData,
+              // onUploadProgress: onProgress, // Esto es más para Axios, fetch no lo soporta directamente
+            }
+          );
 
           const responseData = await response.json();
 
           if (!response.ok) {
             if (response.status === 401) actions.logoutTrackerUser();
             // Devuelve el objeto de error del backend
-            return { success: false, message: responseData.msg || `Error ${response.status}`, errors: responseData.errors || [] };
+            return {
+              success: false,
+              message: responseData.msg || `Error ${response.status}`,
+              errors: responseData.errors || [],
+            };
           }
           // Devuelve el objeto de éxito del backend
-          return { success: true, message: responseData.msg || "Archivo procesado.", details: responseData };
-
+          return {
+            success: true,
+            message: responseData.msg || "Archivo procesado.",
+            details: responseData,
+          };
         } catch (error) {
           console.error("Error in uploadLecturasExcel:", error);
-          return { 
-            success: false, 
-            message: error.message || "Error de red o del servidor al subir el archivo.",
-            errors: []
+          return {
+            success: false,
+            message:
+              error.message ||
+              "Error de red o del servidor al subir el archivo.",
+            errors: [],
           };
         }
       },
@@ -1843,7 +1918,11 @@ diagnosticoComponentesError: null,
               // Si es 401, logoutTrackerUser se encarga. No necesitamos propagar este error específico
               // para que el Promise.all falle de forma que impida el login.
               // Devolvemos un objeto que indique el error para que el Promise.all no falle catastróficamente.
-              return { _error: true, status: resp.status, msg: errorData.msg || `Error ${resp.status}` };
+              return {
+                _error: true,
+                status: resp.status,
+                msg: errorData.msg || `Error ${resp.status}`,
+              };
               /* throw new Error(
                 `Error cargando ${name}: ${errorData.msg || resp.status}`
               );*/
@@ -1859,7 +1938,6 @@ diagnosticoComponentesError: null,
           };
           // Helper para verificar si una respuesta de checkResp fue un error
           const isErrorResponse = (data) => data && data._error === true;
-
 
           // Parse JSON data safely
           const estGenData = await checkResp(
@@ -1887,14 +1965,22 @@ diagnosticoComponentesError: null,
             ubicacionesResponse,
             "ubicaciones"
           );
-  // Verificar si alguna de las llamadas falló (especialmente por 401 que no queremos que rompa el login)
-          if (isErrorResponse(estGenData) || isErrorResponse(estUbicData) || isErrorResponse(lecturasGenData) || 
-              isErrorResponse(contadoresData) || isErrorResponse(alertasCountData) || isErrorResponse(ubicacionesData)) {
-            console.warn("Una o más llamadas iniciales fallaron después del login, posiblemente por token. El logout ya debería haberse activado.");
+          // Verificar si alguna de las llamadas falló (especialmente por 401 que no queremos que rompa el login)
+          if (
+            isErrorResponse(estGenData) ||
+            isErrorResponse(estUbicData) ||
+            isErrorResponse(lecturasGenData) ||
+            isErrorResponse(contadoresData) ||
+            isErrorResponse(alertasCountData) ||
+            isErrorResponse(ubicacionesData)
+          ) {
+            console.warn(
+              "Una o más llamadas iniciales fallaron después del login, posiblemente por token. El logout ya debería haberse activado."
+            );
             // No actualizamos el store con datos parciales o erróneos. El logout se encargará.
-            return; 
+            return;
           }
-          
+
           setStore({
             // --- USAR DATOS DIRECTOS DE LA API ---
             ubicaciones: Array.isArray(ubicacionesData) ? ubicacionesData : [], // Asegura que sea un array
@@ -2074,8 +2160,6 @@ diagnosticoComponentesError: null,
         setStore({ statsError: null });
       },
 
-
-
       // --- Dashboard Action ---
       fetchDashboardResumen: async () => {
         // Esta acción combina llamadas a endpoints que ya tienen JWT
@@ -2161,21 +2245,28 @@ diagnosticoComponentesError: null,
           const newProvider = responseData; // El backend devuelve el proveedor creado
           const currentProveedores = getStore().proveedores;
           // Añadir el nuevo proveedor y re-ordenar la lista (asumiendo que se muestra ordenada por nombre)
-          const updatedProveedores = [...currentProveedores, newProvider].sort((a, b) => a.nombre.localeCompare(b.nombre));
-          
-          setStore({ 
-            proveedores: updatedProveedores, 
+          const updatedProveedores = [...currentProveedores, newProvider].sort(
+            (a, b) => a.nombre.localeCompare(b.nombre)
+          );
+
+          setStore({
+            proveedores: updatedProveedores,
             proveedoresError: null, // Limpiar error previo si el POST fue exitoso
-            proveedoresLoading: false // Terminar el loading del 'add' aquí
+            proveedoresLoading: false, // Terminar el loading del 'add' aquí
           });
 
           // Intentar una sincronización completa con el backend en segundo plano.
           // fetchProveedores manejará sus propios estados de carga/error.
-          getActions().fetchProveedores().catch(fetchErr => {
-            console.warn("AddProveedor: Background refresh via fetchProveedores failed after optimistic update.", fetchErr);
-            // El error de fetchProveedores ya se maneja en esa acción (no limpia la lista)
-            // y el store.proveedoresError se establecerá allí si es necesario.
-          });
+          getActions()
+            .fetchProveedores()
+            .catch((fetchErr) => {
+              console.warn(
+                "AddProveedor: Background refresh via fetchProveedores failed after optimistic update.",
+                fetchErr
+              );
+              // El error de fetchProveedores ya se maneja en esa acción (no limpia la lista)
+              // y el store.proveedoresError se establecerá allí si es necesario.
+            });
 
           return true;
         } catch (error) {
@@ -2737,148 +2828,288 @@ diagnosticoComponentesError: null,
       // --- Detailed Alerts Actions ---
       fetchDetailedAlerts: async () => {
         setStore({ detailedAlertsLoading: true, detailedAlertsError: null });
-         // Clear previous alerts list while loading
-         setStore({ detailedAlertsList: [] });
+        // Clear previous alerts list while loading
+        setStore({ detailedAlertsList: [] });
         try {
-            const response = await fetch(`${process.env.BACKEND_URL}/alertas_activas_detalladas`, {
-                method: "GET",
-                headers: getAuthHeaders(),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                if (response.status === 401) getActions().logoutTrackerUser();
-                throw new Error(errorData.msg || `Error fetching detailed alerts: ${response.status}`);
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/alertas_activas_detalladas`,
+            {
+              method: "GET",
+              headers: getAuthHeaders(),
             }
-            const data = await response.json();
-            setStore({ detailedAlertsList: data || [], detailedAlertsLoading: false }); // Ensure data is an array
-            return data;
+          );
+          if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(
+              errorData.msg ||
+                `Error fetching detailed alerts: ${response.status}`
+            );
+          }
+          const data = await response.json();
+          setStore({
+            detailedAlertsList: data || [],
+            detailedAlertsLoading: false,
+          }); // Ensure data is an array
+          return data;
         } catch (error) {
-            console.error("Error in fetchDetailedAlerts:", error);
-            setStore({
-                detailedAlertsError: error.message || "Error cargando la lista de alertas detalladas.",
-                detailedAlertsLoading: false,
-                detailedAlertsList: [],
-            });
-            return null;
+          console.error("Error in fetchDetailedAlerts:", error);
+          setStore({
+            detailedAlertsError:
+              error.message || "Error cargando la lista de alertas detalladas.",
+            detailedAlertsLoading: false,
+            detailedAlertsList: [],
+          });
+          return null;
         }
       },
       clearDetailedAlertsError: () => {
-          setStore({ detailedAlertsError: null });
+        setStore({ detailedAlertsError: null });
       },
-// --- DiagnosticoComponente Actions ---
-fetchDiagnosticoComponentes: async (filters = {}) => {
-  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+      // --- DiagnosticoComponente Actions ---
+      fetchDiagnosticoComponentes: async (filters = {}) => {
+        setStore({
+          diagnosticoComponentesLoading: true,
+          diagnosticoComponentesError: null,
+        });
+        try {
+          const queryParams = new URLSearchParams(filters);
+          const url = `${
+            process.env.BACKEND_URL
+          }/diagnostico_componentes?${queryParams.toString()}`;
+
+          const response = await fetch(url, {
+            method: "GET",
+            headers: getAuthHeaders(),
+          });
+          if (!response.ok) {
+            let errorMsg = `Error fetching diagnostico componentes: ${response.status} ${response.statusText}`;
+            try {
+              // Check content type before trying to parse as JSON
+              const contentType = response.headers.get("content-type");
+              if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                errorMsg = errorData.msg || errorMsg;
+              } else {
+                // If not JSON, it might be HTML. You could read response.text() here for debugging
+                // but for the error message, a generic one might be better.
+                // console.error("Non-JSON error response from server, status:", response.status);
+              }
+            } catch (e) {
+              console.error(
+                "Failed to parse error response or get content-type:",
+                e
+              );
+            }
+
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorMsg);
+          }
+          const data = await response.json();
+          setStore({
+            diagnosticoComponentes: data || [],
+            diagnosticoComponentesLoading: false,
+          });
+          return data;
+        } catch (error) {
+          console.error("Error in fetchDiagnosticoComponentes:", error);
+          setStore({
+            diagnosticoComponentesError:
+              error.message || "Error cargando lista de diagnósticos.",
+            diagnosticoComponentesLoading: false,
+            diagnosticoComponentes: [],
+          });
+          return null;
+        }
+      },
+
+      addDiagnosticoComponente: async (diagnosticoData) => {
+        setStore({
+          diagnosticoComponentesLoading: true,
+          diagnosticoComponentesError: null,
+        });
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/diagnostico_componentes`,
+            {
+              method: "POST",
+              headers: getAuthHeaders(),
+              body: JSON.stringify(diagnosticoData),
+            }
+          );
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(
+              responseData.msg || `Error adding diagnostico: ${response.status}`
+            );
+          }
+          await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+          return true;
+        } catch (error) {
+          console.error("Error in addDiagnosticoComponente:", error);
+          setStore({
+            diagnosticoComponentesError:
+              error.message || "Error al agregar diagnóstico.",
+            diagnosticoComponentesLoading: false,
+          });
+          return false;
+        }
+      },
+
+      updateDiagnosticoComponente: async (id, diagnosticoData) => {
+        setStore({
+          diagnosticoComponentesLoading: true,
+          diagnosticoComponentesError: null,
+        });
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/diagnostico_componentes/${id}`,
+            {
+              method: "PUT",
+              headers: getAuthHeaders(),
+              body: JSON.stringify(diagnosticoData),
+            }
+          );
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(
+              responseData.msg ||
+                `Error updating diagnostico: ${response.status}`
+            );
+          }
+          await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+          return true;
+        } catch (error) {
+          console.error("Error in updateDiagnosticoComponente:", error);
+          setStore({
+            diagnosticoComponentesError:
+              error.message || "Error al actualizar diagnóstico.",
+            diagnosticoComponentesLoading: false,
+          });
+          return false;
+        }
+      },
+
+      deleteDiagnosticoComponente: async (id) => {
+        // Optimistic update or refetch after delete
+        setStore({
+          diagnosticoComponentesLoading: true,
+          diagnosticoComponentesError: null,
+        });
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/diagnostico_componentes/${id}`,
+            {
+              method: "DELETE",
+              headers: getAuthHeaders(false), // No content-type for DELETE
+            }
+          );
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(
+              errorData.msg || `Error deleting diagnostico: ${response.status}`
+            );
+          }
+          await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+          return true;
+        } catch (error) {
+          console.error("Error in deleteDiagnosticoComponente:", error);
+          setStore({
+            diagnosticoComponentesError:
+              error.message || "Error al eliminar diagnóstico.",
+            diagnosticoComponentesLoading: false,
+          });
+          return false;
+        }
+      },
+
+      clearDiagnosticoComponentesError: () => {
+        setStore({ diagnosticoComponentesError: null });
+      },
+
+// --- RegistroDiagnosticoAire Actions ---
+fetchDiagnosticRecordsByAire: async (aireId) => {
+  if (!aireId) {
+    setStore({ selectedAireDiagnosticRecords: [], selectedAireDiagnosticRecordsLoading: false, selectedAireDiagnosticRecordsError: null });
+    return;
+  }
+  setStore({ selectedAireDiagnosticRecordsLoading: true, selectedAireDiagnosticRecordsError: null });
   try {
-    const queryParams = new URLSearchParams(filters);
-    const url = `${process.env.BACKEND_URL}/diagnostico_componentes?${queryParams.toString()}`;
-    
-    const response = await fetch(url, {
+    const response = await fetch(`${process.env.BACKEND_URL}/aires/${aireId}/registros_diagnostico`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      let errorMsg = `Error fetching diagnostico componentes: ${response.status} ${response.statusText}`;
-      try {
-        // Check content type before trying to parse as JSON
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
-          errorMsg = errorData.msg || errorMsg;
-        } else {
-          // If not JSON, it might be HTML. You could read response.text() here for debugging
-          // but for the error message, a generic one might be better.
-          // console.error("Non-JSON error response from server, status:", response.status);
-        }
-      } catch (e) {
-        console.error("Failed to parse error response or get content-type:", e);
-      }
-      
+      const errorData = await response.json();
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(errorMsg);
+      throw new Error(errorData.msg || `Error fetching diagnostic records for aire ${aireId}: ${response.status}`);
     }
     const data = await response.json();
-    setStore({ diagnosticoComponentes: data || [], diagnosticoComponentesLoading: false });
+    setStore({ selectedAireDiagnosticRecords: data || [], selectedAireDiagnosticRecordsLoading: false });
     return data;
   } catch (error) {
-    console.error("Error in fetchDiagnosticoComponentes:", error);
+    console.error(`Error in fetchDiagnosticRecordsByAire for aire ${aireId}:`, error);
     setStore({
-      diagnosticoComponentesError: error.message || "Error cargando lista de diagnósticos.",
-      diagnosticoComponentesLoading: false,
-      diagnosticoComponentes: [],
+      selectedAireDiagnosticRecordsError: error.message || "Error cargando registros de diagnóstico.",
+      selectedAireDiagnosticRecordsLoading: false,
+      selectedAireDiagnosticRecords: [],
     });
     return null;
   }
 },
 
-addDiagnosticoComponente: async (diagnosticoData) => {
-  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+addDiagnosticRecord: async (aireId, recordData) => {
+  setStore({ selectedAireDiagnosticRecordsLoading: true, selectedAireDiagnosticRecordsError: null }); // Use specific loading state
   try {
-    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/aires/${aireId}/registros_diagnostico`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify(diagnosticoData),
+      body: JSON.stringify(recordData),
     });
     const responseData = await response.json();
     if (!response.ok) {
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(responseData.msg || `Error adding diagnostico: ${response.status}`);
+      throw new Error(responseData.msg || `Error adding diagnostic record: ${response.status}`);
     }
-    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+    // Refetch the list for the current aire after adding
+    await getActions().fetchDiagnosticRecordsByAire(aireId);
     return true;
   } catch (error) {
-    console.error("Error in addDiagnosticoComponente:", error);
-    setStore({ diagnosticoComponentesError: error.message || "Error al agregar diagnóstico.", diagnosticoComponentesLoading: false });
-    return false;
+    console.error("Error in addDiagnosticRecord:", error);
+    setStore({ selectedAireDiagnosticRecordsError: error.message || "Error al agregar registro de diagnóstico.", selectedAireDiagnosticRecordsLoading: false });
+    throw error; // Re-throw for component handling
   }
 },
 
-updateDiagnosticoComponente: async (id, diagnosticoData) => {
-  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
-  try {
-    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes/${id}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(diagnosticoData),
-    });
-    const responseData = await response.json();
-    if (!response.ok) {
-      if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(responseData.msg || `Error updating diagnostico: ${response.status}`);
-    }
-    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
-    return true;
-  } catch (error) {
-    console.error("Error in updateDiagnosticoComponente:", error);
-    setStore({ diagnosticoComponentesError: error.message || "Error al actualizar diagnóstico.", diagnosticoComponentesLoading: false });
-    return false;
-  }
-},
-
-deleteDiagnosticoComponente: async (id) => {
+deleteDiagnosticRecord: async (recordId, aireId) => {
   // Optimistic update or refetch after delete
-  setStore({ diagnosticoComponentesLoading: true, diagnosticoComponentesError: null });
+  setStore({ selectedAireDiagnosticRecordsLoading: true, selectedAireDiagnosticRecordsError: null }); // Use specific loading state
   try {
-    const response = await fetch(`${process.env.BACKEND_URL}/diagnostico_componentes/${id}`, {
+    const response = await fetch(`${process.env.BACKEND_URL}/registros_diagnostico/${recordId}`, {
       method: "DELETE",
       headers: getAuthHeaders(false), // No content-type for DELETE
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(errorData.msg || `Error deleting diagnostico: ${response.status}`);
+      throw new Error(errorData.msg || `Error deleting diagnostic record: ${response.status}`);
     }
-    await getActions().fetchDiagnosticoComponentes(); // Refrescar lista
+    // Refetch the list for the current aire after deleting
+    await getActions().fetchDiagnosticRecordsByAire(aireId);
     return true;
   } catch (error) {
-    console.error("Error in deleteDiagnosticoComponente:", error);
-    setStore({ diagnosticoComponentesError: error.message || "Error al eliminar diagnóstico.", diagnosticoComponentesLoading: false });
-    return false;
+    console.error("Error in deleteDiagnosticRecord:", error);
+    setStore({ selectedAireDiagnosticRecordsError: error.message || "Error al eliminar registro de diagnóstico.", selectedAireDiagnosticRecordsLoading: false });
+    throw error; // Re-throw for component handling
   }
 },
 
-clearDiagnosticoComponentesError: () => {
-  setStore({ diagnosticoComponentesError: null });
-}
+clearSelectedAireDiagnosticRecordsError: () => {
+  setStore({ selectedAireDiagnosticRecordsError: null });
+},
 
     },
   };

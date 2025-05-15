@@ -3,9 +3,8 @@ import PropTypes from 'prop-types'; // Import PropTypes
 import { Card, Button, Alert, Spinner } from 'react-bootstrap'; // Added Spinner
 import { FiPlus } from 'react-icons/fi';
 import { Context } from '../store/appContext';
-import AiresTable from '../component/Aires/AiresTable.jsx';
+import AiresTable from '../component/Aires/AiresTable.jsx'; // AiresViewModal ya no se usa aquí
 import AiresAddEditModal from '../component/Aires/AiresAddEditModal.jsx';
-import AiresViewModal from '../component/Aires/AiresViewModal.jsx';
 
 
 const Aires = () => { 
@@ -35,11 +34,6 @@ const Aires = () => {
   const [formMode, setFormMode] = useState('add'); // 'add' or 'edit'
   const [loadingEditDetails, setLoadingEditDetails] = useState(false); // Loading state for fetching details for edit
   const [editError, setEditError] = useState(null); // Error specific to the Add/Edit modal
-
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedAireDetails, setSelectedAireDetails] = useState(null); 
-  const [loadingDetails, setLoadingDetails] = useState(false); 
-  const [viewError, setViewError] = useState(null); 
 
   const [isSubmitting, setIsSubmitting] = useState(false); 
 
@@ -121,8 +115,7 @@ const Aires = () => {
     setFormMode('add');
     setEditError(null); // Clear modal error
     if (clearAiresError) clearAiresError(); // Clear global error
-    setShowEditModal(true);
-    setShowViewModal(false);
+    setShowEditModal(true); // Solo mostrar el modal de edición/agregado
   }, [formatDate, clearAiresError]);
 
   // Open Edit Modal (fetches details via Flux action)
@@ -131,7 +124,6 @@ const Aires = () => {
     setModalTitle('Editar Aire Acondicionado');
     setEditError(null);
     if (clearAiresError) clearAiresError();
-    setShowViewModal(false);
     setLoadingEditDetails(true);
     setShowEditModal(true);
 
@@ -241,29 +233,6 @@ const Aires = () => {
     }
   }, [formData, formMode, addAire, actions.updateAire, clearAiresError]); // Dependencies: include updateAire from actions
 
-  // Open View Details Modal (fetches details via Flux action)
-  const handleRowClick = useCallback(async (id) => { // Remove type
-    setShowViewModal(true);
-    setLoadingDetails(true);
-    setViewError(null);
-    setSelectedAireDetails(null);
-    if (clearAiresError) clearAiresError();
-
-    try {
-      // Use Flux action to fetch details
-      const details = await fetchAireDetails(id);
-      if (details && typeof details === 'object' && details.id) {
-        setSelectedAireDetails(details);
-      } else {
-        throw new Error("Formato de respuesta inválido al cargar detalles.");
-      }
-    } catch (error) {
-      console.error(`Error loading details for aire ${id}:`, error);
-      setViewError(error.message || `Error al cargar detalles.`);
-    } finally {
-      setLoadingDetails(false);
-    }
-  }, [fetchAireDetails, clearAiresError]); // Dependencies
 
   // --- Render ---
   return (
@@ -294,7 +263,7 @@ const Aires = () => {
             loading={loading} // Pass global loading state
             // error={error} // Error handled globally above
             canManage={canManage}
-            onRowClick={handleRowClick}
+            // onRowClick is now handled by navigate in AiresTable
             onEdit={handleEdit}
             onDelete={handleDelete}
             onAdd={handleAdd} // For empty state button
@@ -318,16 +287,6 @@ const Aires = () => {
         onChange={handleChange}
         isSubmitting={isSubmitting} // Pass submitting state (for form submission)
         // Note: Diagnostic props are NOT passed to this modal anymore
-      />
-
-      {/* View Details Modal */}
-      <AiresViewModal
-        show={showViewModal}
-        onHide={() => setShowViewModal(false)}
-        selectedAireDetails={selectedAireDetails}
-        loadingDetails={loadingDetails}
-        viewError={viewError} // Pass view-modal-specific error
-        formatDate={formatDate}
       />
     </div>
   );

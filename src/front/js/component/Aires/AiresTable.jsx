@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
+import { useNavigate } from 'react-router-dom'; // <--- Importar useNavigate
 import { Table, Spinner, Badge, Button, OverlayTrigger, Tooltip, Stack } from 'react-bootstrap'; // Added Stack
 import { FiEdit, FiTrash2, FiWind, FiPlus, FiInfo } from 'react-icons/fi';
 
@@ -15,6 +16,7 @@ const AiresTable = ({
     onAdd,
     formatDate
 }) => {
+    const navigate = useNavigate(); // <--- Hook para navegación
 
     // Muestra spinner mientras carga
     if (loading) {
@@ -88,8 +90,8 @@ const AiresTable = ({
                     }
                     return (
                       <tr
-                        key={aire.id}
-                        onClick={() => onRowClick(aire.id)}
+                        key={aire.id} // Navegar a la página de detalles al hacer clic
+                        onClick={() => navigate(`/aires/${aire.id}`)}
                         style={{ cursor: 'pointer' }}
                         title="Ver detalles del aire"
                       >
@@ -116,7 +118,7 @@ const AiresTable = ({
                                 variant="outline-secondary"
                                 size="sm"
                                 className="me-2"
-                                onClick={(e) => { e.stopPropagation(); onRowClick(aire.id); }}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/aires/${aire.id}`); }} // Navegar en clic del botón también
                               >
                                 <FiInfo />
                               </Button>
