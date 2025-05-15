@@ -15,7 +15,10 @@ const Aires = () => {
     trackerUser: user, 
     aires: airesList,  
     airesLoading: loading, 
-    airesError: error,     
+    airesError: error,
+    // ---> AÑADIR ESTOS PARA OBTENER DEL STORE:
+    diagnosticoComponentes: diagnosticosDisponiblesDelStore,
+    // <---
   } = store;
   const {
     fetchAires,
@@ -23,7 +26,10 @@ const Aires = () => {
     addAire,
     updateAire,
     deleteAire,
-    clearAiresError 
+    clearAiresError,
+    // ---> AÑADIR ESTA ACCIÓN:
+    fetchDiagnosticoComponentes,
+    // <---
   } = actions;
 
 
@@ -315,6 +321,9 @@ const Aires = () => {
         onSubmit={handleSubmit}
         onChange={handleChange}
         isSubmitting={isSubmitting} // Pass submitting state
+        // ---> PASAR LAS PROPS NECESARIAS AL MODAL:
+        diagnosticosDisponibles={diagnosticosDisponiblesDelStore || []} // Asegurar que siempre sea un array
+        fetchDiagnosticos={fetchDiagnosticoComponentes} // Pasar la acción
       />
 
       {/* View Details Modal */}

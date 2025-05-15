@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -953,6 +953,108 @@ def eliminar_aire_route(aire_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el aire."}), 500
 
+# --- Rutas para DiagnosticoComponente ---
+
+@api.route('/diagnostico_componentes', methods=['POST'])
+@jwt_required()
+def crear_diagnostico_componente_route():
+    """
+    Endpoint para crear un nuevo diagnóstico predefinido. Requiere autenticación (Admin/Supervisor).
+    Recibe los datos en formato JSON.
+    """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para crear diagnósticos"}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    required_fields = ['nombre', 'parte_ac', 'tipo_aire_sugerido']
+    if not all(field in data for field in required_fields):
+        missing = [field for field in required_fields if field not in data]
+        return jsonify({"msg": f"Faltan campos requeridos: {', '.join(missing)}"}), 400
+
+    try:
+        # Validar y convertir enums
+        try:
+            parte_ac_enum = ParteACEnum(data['parte_ac'])
+            tipo_aire_sugerido_enum = TipoAireRelevanteEnum(data['tipo_aire_sugerido'])
+        except ValueError:
+            return jsonify({"msg": "Valores inválidos para 'parte_ac' o 'tipo_aire_sugerido'."}), 400
+
+        nuevo_diagnostico = DiagnosticoComponente(
+            nombre=data['nombre'],
+            parte_ac=parte_ac_enum,
+            tipo_aire_sugerido=tipo_aire_sugerido_enum,
+            descripcion_ayuda=data.get('descripcion_ayuda'),
+            activo=bool(data.get('activo', True)) # Default a True si no se especifica
+        )
+
+        db.session.add(nuevo_diagnostico)
+        db.session.commit()
+
+        return jsonify(nuevo_diagnostico.serialize()), 201
+
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un diagnóstico con el nombre '{data['nombre']}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy en crear_diagnostico_componente_route: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al crear el diagnóstico."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado en crear_diagnostico_componente_route: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/diagnostico_componentes', methods=['GET'])
+@jwt_required()
+def obtener_diagnosticos_componentes_route():
+    """
+    Endpoint para obtener la lista de diagnósticos predefinidos. Requiere autenticación.
+    Opcionalmente filtra por ?activo=true/false.
+    """
+    try:
+        query = db.session.query(DiagnosticoComponente)
+
+        activo_filter = request.args.get('activo')
+        if activo_filter is not None:
+            try:
+                activo_bool = activo_filter.lower() == 'true'
+                query = query.filter(DiagnosticoComponente.activo == activo_bool)
+            except ValueError:
+                 return jsonify({"msg": "Valor inválido para el filtro 'activo'. Usar 'true' o 'false'."}), 400
+
+        diagnosticos = query.order_by(DiagnosticoComponente.nombre).all()
+        results = [d.serialize() for d in diagnosticos]
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_diagnosticos_componentes_route: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener diagnósticos."}), 500
+
+@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['GET'])
+@jwt_required()
+def obtener_diagnostico_componente_por_id_route(diagnostico_id):
+    """Obtiene un diagnóstico predefinido específico por su ID. Requiere autenticación."""
+    try:
+        diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
+        if not diagnostico:
+            return jsonify({"msg": f"Diagnóstico con ID {diagnostico_id} no encontrado."}), 404
+        return jsonify(diagnostico.serialize()), 200
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_diagnostico_componente_por_id_route para ID {diagnostico_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener el diagnóstico."}), 500
+
+
+
 # --- Rutas para Lectura ---
 @api.route('/aires/<int:aire_id>/lecturas', methods=['POST'])
 @jwt_required() # <--- Añadido aquí
@@ -1080,7 +1182,101 @@ def obtener_lecturas_por_aire_route(aire_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al obtener lecturas."}), 500
 
+@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_diagnostico_componente_route(diagnostico_id):
+    """
+    Endpoint para actualizar un diagnóstico predefinido existente. Requiere autenticación (Admin/Supervisor).
+    Recibe los datos en formato JSON.
+    """
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar diagnósticos"}), 403
 
+    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
+    if not diagnostico:
+        return jsonify({"msg": f"Diagnóstico con ID {diagnostico_id} no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    updated = False
+    try:
+        if 'nombre' in data and data['nombre'] != diagnostico.nombre:
+            diagnostico.nombre = data['nombre']
+            updated = True
+        if 'parte_ac' in data and data['parte_ac'] != diagnostico.parte_ac.value:
+            try:
+                diagnostico.parte_ac = ParteACEnum(data['parte_ac'])
+                updated = True
+            except ValueError:
+                return jsonify({"msg": f"Valor inválido para 'parte_ac': {data['parte_ac']}"}), 400
+        if 'tipo_aire_sugerido' in data and data['tipo_aire_sugerido'] != diagnostico.tipo_aire_sugerido.value:
+            try:
+                diagnostico.tipo_aire_sugerido = TipoAireRelevanteEnum(data['tipo_aire_sugerido'])
+                updated = True
+            except ValueError:
+                return jsonify({"msg": f"Valor inválido para 'tipo_aire_sugerido': {data['tipo_aire_sugerido']}"}), 400
+        if 'descripcion_ayuda' in data and data['descripcion_ayuda'] != diagnostico.descripcion_ayuda:
+            diagnostico.descripcion_ayuda = data['descripcion_ayuda']
+            updated = True
+        if 'activo' in data and isinstance(data['activo'], bool) and data['activo'] != diagnostico.activo:
+            diagnostico.activo = data['activo']
+            updated = True
+
+        if updated:
+            db.session.commit()
+            return jsonify(diagnostico.serialize()), 200
+        else:
+            return jsonify(diagnostico.serialize()), 200 # O 304 Not Modified
+
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe otro diagnóstico con el nombre '{data.get('nombre')}'."}), 409
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al actualizar diagnóstico ID {diagnostico_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al actualizar el diagnóstico."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al actualizar diagnóstico ID {diagnostico_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_diagnostico_componente_route(diagnostico_id):
+    """Elimina un diagnóstico predefinido por su ID. Requiere autenticación (Admin/Supervisor)."""
+    # --- ¡IMPORTANTE: Añadir verificación de permisos! ---
+    # Solo un admin o supervisor debería poder eliminar
+    current_user_id = get_jwt_identity()
+    logged_in_user = TrackerUsuario.query.get(current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+         return jsonify({"msg": "Acceso no autorizado para eliminar diagnósticos"}), 403
+    # --- Fin verificación de permisos ---
+
+    diagnostico = db.session.get(DiagnosticoComponente, diagnostico_id)
+    if not diagnostico:
+        return jsonify({"msg": f"Diagnóstico con ID {diagnostico_id} no encontrado."}), 404
+
+    try:
+        db.session.delete(diagnostico)
+        db.session.commit()
+        return '', 204 # No Content
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al eliminar diagnóstico ID {diagnostico_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error de base de datos al eliminar el diagnóstico."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al eliminar diagnóstico ID {diagnostico_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+   
 @api.route('/lecturas/<int:lectura_id>', methods=['DELETE'])
 @jwt_required() # <--- Añadido aquí
 def eliminar_lectura_route(lectura_id):

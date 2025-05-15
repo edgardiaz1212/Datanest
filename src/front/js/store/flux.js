@@ -2777,9 +2777,24 @@ fetchDiagnosticoComponentes: async (filters = {}) => {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorMsg = `Error fetching diagnostico componentes: ${response.status} ${response.statusText}`;
+      try {
+        // Check content type before trying to parse as JSON
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMsg = errorData.msg || errorMsg;
+        } else {
+          // If not JSON, it might be HTML. You could read response.text() here for debugging
+          // but for the error message, a generic one might be better.
+          // console.error("Non-JSON error response from server, status:", response.status);
+        }
+      } catch (e) {
+        console.error("Failed to parse error response or get content-type:", e);
+      }
+      
       if (response.status === 401) getActions().logoutTrackerUser();
-      throw new Error(errorData.msg || `Error fetching diagnostico componentes: ${response.status}`);
+      throw new Error(errorMsg);
     }
     const data = await response.json();
     setStore({ diagnosticoComponentes: data || [], diagnosticoComponentesLoading: false });

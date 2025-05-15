@@ -120,7 +120,7 @@ const AiresTable = ({
                           ) : '-'}
                         </td>
                         <td>
-                          {!aire.condensadora_operativa ? (
+                          {aire.condensadora_operativa !== 'operativa' ? (
                              <OverlayTrigger placement="top" overlay={(props) => renderTooltip(props, aire.condensadora_diagnostico_notas || 'Sin notas adicionales')}>
                               <span className="d-inline-block text-truncate" style={{ maxWidth: "150px" }}>                                
                                 {aire.condensadora_diagnostico_nombre || 'No especificado'}
