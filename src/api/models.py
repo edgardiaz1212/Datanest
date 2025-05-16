@@ -341,6 +341,9 @@ class RegistroDiagnosticoAire(db.Model):
     fecha_hora = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now()) # Fecha y hora del registro
     notas = db.Column(db.Text, nullable=True) # Notas específicas para este registro
     registrado_por_usuario_id = db.Column(db.Integer, db.ForeignKey('tracker_usuarios.id'), nullable=True) # Quién registró (opcional)
+    # --- Nuevos campos para marcar como solucionado ---
+    solucionado = db.Column(db.Boolean, default=False, nullable=False)
+    fecha_solucion = db.Column(db.DateTime(timezone=True), nullable=True)
 
     # Relaciones
     aire = db.relationship("AireAcondicionado", back_populates="registros_diagnostico")
@@ -362,6 +365,8 @@ class RegistroDiagnosticoAire(db.Model):
             # Incluir nombre del diagnóstico y usuario para conveniencia
             'diagnostico_nombre': self.diagnostico.nombre if self.diagnostico else None,
             'registrado_por_username': self.registrado_por.username if self.registrado_por else None,
+            'solucionado': self.solucionado,
+            'fecha_solucion': self.fecha_solucion.isoformat() if self.fecha_solucion else None,
         }
         
 class Lectura(db.Model):
