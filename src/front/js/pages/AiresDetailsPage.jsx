@@ -263,6 +263,7 @@ const AiresDetailsPage = () => {
                                     <th>Parte Afectada</th>
                                     <th>Diagnóstico</th>
                                     <th>Notas</th>
+                                    <th>Estado</th> {/* <--- NUEVA COLUMNA --- */}
                                     <th>Registrado Por</th>
                                     {canManageDiagnostics && <th>Acciones</th>}
                                 </tr>
@@ -274,6 +275,13 @@ const AiresDetailsPage = () => {
                                         <td><Badge bg="info">{record.parte_ac}</Badge></td>
                                         <td>{record.diagnostico_nombre || 'N/A'}</td>
                                         <td>{record.notas || '-'}</td>
+                                        {/* --- MOSTRAR ESTADO DE SOLUCIÓN --- */}
+                                        <td>
+                                            <Badge bg={record.solucionado ? "success" : "warning"}>
+                                                {record.solucionado ? "Solucionado" : "Pendiente"}
+                                            </Badge>
+                                            {record.solucionado && record.fecha_solucion && <div className="small text-muted">({formatDate(record.fecha_solucion)})</div>}
+                                        </td>
                                         <td>{record.registrado_por_username || 'Sistema'}</td>
                                         {canManageDiagnostics && (
                                             <td>
