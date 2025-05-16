@@ -2361,117 +2361,178 @@ def eliminar_otro_equipo_route(equipo_id):
 # Ruta para agregar mantenimiento a un Aire Acondicionado
 @api.route('/aires/<int:aire_id>/mantenimientos', methods=['POST'])
 @jwt_required()
-def agregar_mantenimiento_aire_route(aire_id):
-    current_user_id = get_jwt_identity() # Asegúrate que esto esté definido y funcione
-    logged_in_user = db.session.get(TrackerUsuario, current_user_id) # Usar db.session.get
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
-        return jsonify({"msg": "Acceso no autorizado para agregar mantenimientos"}), 403
+def add_mantenimiento_aire(aire_id):
+    current_user_id = get_jwt_identity()
+    tracker_user = TrackerUsuario.query.get(current_user_id) # Asegurarse de importar TrackerUsuario
+    if not tracker_user:
+        return jsonify({"msg": "Usuario no encontrado"}), 404
 
-    aire = db.session.get(AireAcondicionado, aire_id)
+    aire = AireAcondicionado.query.get(aire_id)
     if not aire:
-        return jsonify({"msg": f"Aire acondicionado con ID {aire_id} no encontrado."}), 404
+        return jsonify({"msg": "Aire Acondicionado no encontrado"}), 404
 
-    if 'tipo_mantenimiento' not in request.form or 'descripcion' not in request.form or 'tecnico' not in request.form:
-        return jsonify({"msg": "Faltan campos requeridos en el formulario: tipo_mantenimiento, descripcion, tecnico"}), 400
+    print(f"DEBUG: Recibida petición POST para mantenimiento en aire {aire_id}", file=sys.stderr)
+    print(f"DEBUG: request.form: {request.form}", file=sys.stderr)
+    print(f"DEBUG: request.files: {request.files}", file=sys.stderr)
 
-    tipo_mantenimiento = request.form['tipo_mantenimiento']
-    descripcion = request.form['descripcion']
-    tecnico = request.form['tecnico']
-    alertas_resueltas_info_str = request.form.get('alertas_resueltas_info') # Este es el campo antiguo, lo mantendremos por ahora
-    
-    # --- NUEVO: Procesar datos de resolución de alertas ---
-    resolucion_alertas_data_str = request.form.get('resolucion_alertas_data')
-    resolucion_alertas_data = {}
-    if resolucion_alertas_data_str:
-        try:
-            resolucion_alertas_data = json.loads(resolucion_alertas_data_str)
-        except json.JSONDecodeError:
-            return jsonify({"msg": "Error al decodificar datos de resolución de alertas."}), 400
-    # --- FIN NUEVO ---
 
-    imagen_datos = None
-    imagen_nombre = None
-    imagen_tipo = None
-    imagen_file = request.files.get('imagen_file')
+    # Start transaction
+    try:
+        # Extract form data
+        tipo_mantenimiento = request.form.get('tipo_mantenimiento')
+        descripcion = request.form.get('descripcion')
+        tecnico = request.form.get('tecnico')
 
-    if imagen_file and imagen_file.filename != '':
-        try:
+        # --- Get and process resolution data ---
+        resolucion_alertas_data_str = request.form.get('resolucion_alertas_data')
+        resolucion_alertas_data = {}
+        if resolucion_alertas_data_str:
+            print(f"DEBUG: resolucion_alertas_data_str recibida: {resolucion_alertas_data_str}", file=sys.stderr)
+            try:
+                resolucion_alertas_data = json.loads(resolucion_alertas_data_str)
+                print(f"DEBUG: resolucion_alertas_data decodificada: {resolucion_alertas_data}", file=sys.stderr)
+            except json.JSONDecodeError:
+                print(f"ERROR: json.JSONDecodeError al decodificar resolucion_alertas_data_str", file=sys.stderr)
+                db.session.rollback()
+                return jsonify({"msg": "Formato de datos de resolución de alertas inválido."}), 400
+            except Exception as e:
+                 print(f"ERROR: Error inesperado al decodificar resolucion_alertas_data: {e}", file=sys.stderr)
+                 traceback.print_exc(file=sys.stderr)
+                 db.session.rollback()
+                 return jsonify({"msg": "Error interno al procesar datos de resolución de alertas."}), 500
+        else:
+             print("DEBUG: No se recibieron datos de resolución de alertas.", file=sys.stderr)
+
+
+        # Handle file upload
+        imagen_file = request.files.get('imagen_file')
+        imagen_datos = None
+        imagen_nombre = None
+        imagen_tipo = None
+        if imagen_file:
+            imagen_datos = imagen_file.read()
             imagen_nombre = secure_filename(imagen_file.filename)
             imagen_tipo = imagen_file.mimetype
-            imagen_datos = imagen_file.read()
-        except Exception as e:
-            print(f"Error leyendo archivo de imagen: {e}", file=sys.stderr)
-            return jsonify({"msg": "Error al procesar el archivo de imagen."}), 400
+            print(f"DEBUG: Imagen recibida: {imagen_nombre} ({imagen_tipo})", file=sys.stderr)
 
-    try:
+
+        # Create new Mantenimiento record
         nuevo_mantenimiento = Mantenimiento(
             aire_id=aire_id,
-            otro_equipo_id=None,
-            fecha=datetime.now(timezone.utc), # Usar timezone.utc
+            fecha=datetime.now(timezone.utc),
             tipo_mantenimiento=tipo_mantenimiento,
             descripcion=descripcion,
             tecnico=tecnico,
+            imagen_datos=imagen_datos,
             imagen_nombre=imagen_nombre,
             imagen_tipo=imagen_tipo,
-            imagen_datos=imagen_datos,
-            alertas_resueltas_info=alertas_resueltas_info_str # Mantener el campo antiguo por si acaso
+            alertas_resueltas_info=resolucion_alertas_data_str # Guardar el string JSON original
         )
         db.session.add(nuevo_mantenimiento)
+        print(f"DEBUG: Objeto Mantenimiento creado y añadido a la sesión.", file=sys.stderr)
 
-        # --- LÓGICA PARA ACTUALIZAR ESTADOS Y DIAGNÓSTICOS ---
+
+        # --- Process resolution data and update AireAcondicionado state ---
         if resolucion_alertas_data:
+            print("DEBUG: Procesando datos de resolución de alertas...", file=sys.stderr)
             for alert_key, resolucion_info in resolucion_alertas_data.items():
-                componente_afectado_str = resolucion_info.get('componenteOriginal') # 'evaporadora' o 'condensadora'
-                
-                if resolucion_info.get('resuelta'):
+                print(f"DEBUG: Procesando alerta key: {alert_key}, info: {resolucion_info}", file=sys.stderr)
+                # Ensure resuelta is explicitly True, not just truthy
+                if resolucion_info.get('resuelta') is True:
+                    print(f"DEBUG: Alerta marcada como resuelta.", file=sys.stderr)
+                    componente_afectado_str = resolucion_info.get('componenteOriginal')
                     nuevo_estado_str = resolucion_info.get('nuevoEstado')
+                    nuevo_diagnostico_id = resolucion_info.get('nuevoDiagnosticoId')
+                    nuevas_notas = resolucion_info.get('nuevasNotas')
+                    mensaje_original = resolucion_info.get('mensajeOriginal')
+                    fecha_lectura_original_str = resolucion_info.get('fechaLecturaOriginal')
+
+                    # Validate component and state
                     if componente_afectado_str and nuevo_estado_str:
                         try:
                             nuevo_estado_enum = OperativaStateEnum(nuevo_estado_str)
+                            print(f"DEBUG: Componente: {componente_afectado_str}, Nuevo Estado String: '{nuevo_estado_str}', Nuevo Estado Enum: {nuevo_estado_enum}", file=sys.stderr)
+
+                            # Update the AireAcondicionado instance
                             if componente_afectado_str == 'evaporadora':
+                                print(f"DEBUG: Actualizando aire {aire_id} evaporadora_operativa de {aire.evaporadora_operativa.value} a {nuevo_estado_enum.value}", file=sys.stderr)
                                 aire.evaporadora_operativa = nuevo_estado_enum
                             elif componente_afectado_str == 'condensadora':
+                                print(f"DEBUG: Actualizando aire {aire_id} condensadora_operativa de {aire.condensadora_operativa.value} a {nuevo_estado_enum.value}", file=sys.stderr)
                                 aire.condensadora_operativa = nuevo_estado_enum
-                        except ValueError:
-                            print(f"Valor de estado inválido '{nuevo_estado_str}' para {componente_afectado_str}", file=sys.stderr)
-                
-                # Si se registró un nuevo diagnóstico (porque no se resolvió o quedó parcialmente/no operativo)
-                if resolucion_info.get('nuevoDiagnosticoId'):
-                    try:
-                        parte_ac_enum_nuevo_diag = ParteACEnum(componente_afectado_str) # Usar el componente original de la alerta
-                        diagnostico_obj = db.session.get(DiagnosticoComponente, int(resolucion_info['nuevoDiagnosticoId']))
-                        
-                        if diagnostico_obj: # Asegurarse que el diagnóstico exista
-                            nuevo_registro_diag = RegistroDiagnosticoAire(
-                                aire_id=aire_id,
-                                parte_ac=parte_ac_enum_nuevo_diag,
-                                diagnostico_id=int(resolucion_info['nuevoDiagnosticoId']),
-                                fecha_hora=datetime.now(timezone.utc), # Usar fecha actual para el nuevo diagnóstico
-                                notas=resolucion_info.get('nuevasNotas'),
-                                registrado_por_usuario_id=current_user_id
-                            )
-                            db.session.add(nuevo_registro_diag)
-                        else:
-                            print(f"No se encontró el DiagnosticoComponente con ID {resolucion_info['nuevoDiagnosticoId']}", file=sys.stderr)
-                    except ValueError as ve:
-                        print(f"Error al procesar nuevo diagnóstico para {componente_afectado_str}: {ve}", file=sys.stderr)
-                    except Exception as e_diag:
-                         print(f"Error inesperado al crear nuevo registro de diagnóstico: {e_diag}", file=sys.stderr)
-        # --- FIN LÓGICA ---
+                            else:
+                                print(f"WARNING: componente_afectado_str desconocido '{componente_afectado_str}' para la clave de alerta '{alert_key}'", file=sys.stderr)
 
+                            # --- Create new RegistroDiagnosticoAire if a new diagnosis was selected ---
+                            if nuevo_diagnostico_id:
+                                print(f"DEBUG: Nuevo diagnóstico ID seleccionado: {nuevo_diagnostico_id}", file=sys.stderr)
+                                diagnostico_existente = DiagnosticoComponente.query.get(nuevo_diagnostico_id)
+                                if diagnostico_existente:
+                                    print(f"DEBUG: Diagnóstico existente encontrado: {diagnostico_existente.nombre}", file=sys.stderr)
+                                    # Determine the part for the new diagnostic record
+                                    parte_para_registro = ParteACEnum(componente_afectado_str) if componente_afectado_str in ['evaporadora', 'condensadora', 'general'] else diagnostico_existente.parte_ac
+
+                                    # Attempt to parse the original alert date if available
+                                    fecha_registro_diag = datetime.now(timezone.utc)
+                                    if fecha_lectura_original_str:
+                                        try:
+                                            # Assuming ISO format from frontend
+                                            fecha_registro_diag = datetime.fromisoformat(fecha_lectura_original_str.replace('Z', '+00:00'))
+                                            print(f"DEBUG: Usando fecha original de alerta para diagnóstico: {fecha_registro_diag}", file=sys.stderr)
+                                        except ValueError:
+                                            print(f"WARNING: No se pudo parsear fechaLecturaOriginal '{fecha_lectura_original_str}' para el registro de diagnóstico. Usando fecha actual.", file=sys.stderr)
+                                            # Fallback to now() if parsing fails
+
+                                    nuevo_registro_diagnostico = RegistroDiagnosticoAire(
+                                        aire_id=aire_id,
+                                        parte_ac=parte_para_registro,
+                                        diagnostico_id=nuevo_diagnostico_id,
+                                        fecha_hora=fecha_registro_diag,
+                                        notas=nuevas_notas,
+                                        registrado_por_usuario_id=current_user_id,
+                                    )
+                                    db.session.add(nuevo_registro_diagnostico)
+                                    print(f"DEBUG: Objeto RegistroDiagnosticoAire creado y añadido a la sesión para aire {aire_id}, diag_id {nuevo_diagnostico_id}", file=sys.stderr)
+                                else:
+                                    print(f"WARNING: DiagnosticoComponente con ID {nuevo_diagnostico_id} no encontrado. No se creará RegistroDiagnosticoAire.", file=sys.stderr)
+                            else:
+                                print("DEBUG: No se seleccionó un nuevo diagnóstico ID.", file=sys.stderr)
+
+
+                        except ValueError as ve:
+                            # Specific error for invalid Enum value string
+                            print(f"ERROR: ValueError al convertir estado '{nuevo_estado_str}' a Enum para {componente_afectado_str} (clave '{alert_key}'): {ve}", file=sys.stderr)
+                            # Log and continue processing other resolutions.
+                        except Exception as e:
+                            # Catch any other unexpected errors during processing a single resolution
+                            print(f"ERROR: Error inesperado al procesar resolución para la clave de alerta '{alert_key}': {e}", file=sys.stderr)
+                            traceback.print_exc(file=sys.stderr)
+                            # Log and continue processing other resolutions.
+                else:
+                    print(f"DEBUG: Alerta key '{alert_key}' no marcada como resuelta.", file=sys.stderr)
+
+
+        # --- End processing resolution data ---
+
+        print("DEBUG: Intentando db.session.commit()...", file=sys.stderr)
+        # Commit the transaction
         db.session.commit()
+        print(f"DEBUG: db.session.commit() exitoso para mantenimiento en aire {aire_id}.", file=sys.stderr)
+
+
+        # Refetch related data after successful commit
+        # The frontend Mantenimientos.jsx already calls fetchMantenimientos, fetchAireDetails, fetchDiagnosticRecordsByAire, fetchDetailedAlerts
+        # after a successful addMantenimiento, which is the correct place to trigger UI updates.
+
         return jsonify(nuevo_mantenimiento.serialize()), 201
 
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"!!! ERROR SQLAlchemy al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error de base de datos al guardar el mantenimiento."}), 500
     except Exception as e:
-        db.session.rollback()
-        print(f"!!! ERROR inesperado al agregar mantenimiento para aire {aire_id}: {e}", file=sys.stderr)
-        traceback.print_exc()
-        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+        # This catches errors that happen *after* the specific JSON/Enum errors
+        # but before the commit, or during the commit itself.
+        print(f"FATAL ERROR: Excepción capturada en el bloque principal para mantenimiento en aire {aire_id}: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        db.session.rollback() # Rollback changes on error
+        return jsonify({"msg": "Error interno del servidor al guardar el mantenimiento."}), 500
 
 # Ruta para agregar mantenimiento a un OtroEquipo
 @api.route('/otros_equipos/<int:equipo_id>/mantenimientos', methods=['POST'])
@@ -3089,12 +3150,12 @@ def obtener_detalles_alertas_activas_helper():
             alert_data = {
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora no operativa.", # Mensaje principal
-                "valor_actual": "No Operativa", # Estado del componente
+                "valor_actual": OperativaStateEnum.NO_OPERATIVA.value, # Estado del componente
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso, # Fecha de detección del estado
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas"),
                 "requiere_proveedor_energia": energia_provider is None # Nueva bandera
-             }
+            }
             alertas_detalladas.append(alert_data)
             if energia_provider:
                 create_operatividad_activity_if_needed(alert_data, energia_provider.id)
@@ -3104,7 +3165,7 @@ def obtener_detalles_alertas_activas_helper():
             alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Evaporadora parcialmente operativa.",
-                "valor_actual": "Parcialmente Operativa",
+                "valor_actual": OperativaStateEnum.PARCIALMENTE_OPERATIVA.value,
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.EVAPORADORA), {}).get("notas"),
@@ -3121,7 +3182,7 @@ def obtener_detalles_alertas_activas_helper():
             alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora no operativa.",
-                "valor_actual": "No Operativa",
+                "valor_actual": OperativaStateEnum.NO_OPERATIVA.value,
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas"),
@@ -3136,7 +3197,7 @@ def obtener_detalles_alertas_activas_helper():
             alert_data = { # Definir alert_data también aquí
                 "aire_id": aire_obj.id, "aire_nombre": aire_obj.nombre, "aire_ubicacion": aire_obj.ubicacion,
                 "alerta_tipo": "Operatividad", "mensaje": "Condensadora parcialmente operativa.",
-                "valor_actual": "Parcialmente Operativa",
+                "valor_actual": OperativaStateEnum.PARCIALMENTE_OPERATIVA.value,
                 "limite_violado": "Debe estar Operativa", "fecha_lectura": now_iso,
                 "diagnostico_nombre": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("nombre"),
                 "diagnostico_notas": latest_diagnostics_map.get((aire_obj.id, ParteACEnum.CONDENSADORA), {}).get("notas"),

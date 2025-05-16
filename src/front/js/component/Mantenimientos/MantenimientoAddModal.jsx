@@ -55,12 +55,14 @@ const MantenimientoAddModal = ({
     useEffect(() => {
         // Cuando el modal se muestra o cambia el aire seleccionado, reseteamos el estado local
         setLocalFormData(initialFormData);
+        console.log("MantenimientoAddModal: detailedAlertsList recibida:", detailedAlertsList); // <--- LOG 1
         const initialAlertasResolucion = {};
         if (selectedEquipoType === 'aire' && initialFormData.aire_id && detailedAlertsList) {
             detailedAlertsList
                 .filter(alerta => alerta.aire_id === parseInt(initialFormData.aire_id) && alerta.alerta_tipo === "Operatividad")
                 .forEach((alerta, index) => { // Añadir index para clave única
                     // Crear una clave única para cada alerta de operatividad
+                    console.log(`MantenimientoAddModal: Inicializando alerta - valor_actual: '${alerta.valor_actual}'`, alerta); // <--- LOG 2
                     const alertKey = `${getParteFromMensaje(alerta.mensaje)}-${alerta.diagnostico_nombre || 'sin_diagnostico'}-${index}`;
                     initialAlertasResolucion[alertKey] = {
                         resuelta: false,
@@ -108,11 +110,13 @@ const MantenimientoAddModal = ({
 
     const handleSubmitInterno = (e) => {
         e.preventDefault();
+        console.log("MantenimientoAddModal: Estado de alertasResolucion ANTES de enviar:", alertasResolucion); // <--- LOG 3
         // Aquí pasamos tanto los datos del mantenimiento como los datos de resolución de alertas
         const datosParaEnviar = {
             mantenimientoData: localFormData, // Datos del formulario de mantenimiento
             resolucionAlertasData: alertasResolucion // Datos de cómo se resolvieron las alertas
         };
+        console.log("MantenimientoAddModal: datosParaEnviar completos:", datosParaEnviar); // <--- LOG 4
         handleMainSubmit(e, datosParaEnviar); // Llamar al onSubmit del padre con todos los datos
     };
 

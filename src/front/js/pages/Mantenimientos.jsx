@@ -1,5 +1,3 @@
-// src/front/js/pages/Mantenimientos.jsx
-
 import React, { useState, useEffect, useRef, useCallback, useContext, useMemo } from "react";
 import PropTypes from 'prop-types'; // Import PropTypes
 import {
@@ -144,20 +142,28 @@ const Mantenimientos = () => { // Remove : React.FC
     setShowViewModal(false);
   }, [aires, clearMantenimientosError]); // Dependency on aires
 
-  const handleDelete = useCallback(async (id) => { // Remove type number
+  const handleDelete = useCallback(async (mantenimientoId, mantenimientoAireId) => { // Se añade mantenimientoAireId
     if (window.confirm("¿Está seguro de eliminar este registro de mantenimiento?")) {
       if (clearMantenimientosError) clearMantenimientosError();
       setLoadingSubmit(true); // Indicate activity
-      const success = await deleteMantenimiento(id);
+      const success = await deleteMantenimiento(mantenimientoId);
       setLoadingSubmit(false);
 
       if (success) {
         // Después de una eliminación exitosa, recargar la lista de mantenimientos.
         const currentFilters = {};
         if (filtroAire) {
-          currentFilters.aire_id = filtroAire;
+          currentFilters.aire_id = filtroAire; // Mantener el filtro actual si existe
         }
-        
+
+        // Si el mantenimiento eliminado estaba asociado a un aire,
+        // actualiza los detalles de ese aire y sus diagnósticos.
+        if (mantenimientoAireId) {
+            actions.fetchAireDetails(mantenimientoAireId);
+            actions.fetchDiagnosticRecordsByAire(mantenimientoAireId);
+        }
+        actions.fetchDetailedAlerts(); // Actualiza la lista de alertas activas
+      
         // Ajustar la página si se eliminó el último elemento de la página actual (y no es la primera página)
         let pageToFetch = currentPage;
         if (mantenimientos.length === 1 && currentPage > 1) {
@@ -171,8 +177,10 @@ const Mantenimientos = () => { // Remove : React.FC
     }
   }, [
     deleteMantenimiento, clearMantenimientosError, filtroAire, 
-    currentPage, itemsPerPage, fetchMantenimientos, mantenimientos.length 
+    currentPage, itemsPerPage, fetchMantenimientos, mantenimientos.length,
+    actions // Añadir actions como dependencia para fetchAireDetails, etc.
   ]);
+
 
   const handleShowImagen = useCallback(async (id) => { // Remove type number
     if (clearMantenimientosError) clearMantenimientosError();
