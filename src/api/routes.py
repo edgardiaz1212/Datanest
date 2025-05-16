@@ -847,6 +847,9 @@ def actualizar_aire_route(aire_id):
     data = request.get_json()
     if not data:
         return jsonify({"msg": "No se recibieron datos JSON"}), 400
+    # Guardar estados anteriores ANTES de modificar el objeto 'aire'
+    estado_anterior_evap = aire.evaporadora_operativa
+    estado_anterior_cond = aire.condensadora_operativa
 
     # (Resto del código de la función sin cambios...)
     try:
@@ -876,7 +879,11 @@ def actualizar_aire_route(aire_id):
 
         if 'evaporadora_operativa' in data:
             try:
-                aire.evaporadora_operativa = OperativaStateEnum(data['evaporadora_operativa'])
+                nuevo_estado_evap_enum = OperativaStateEnum(data['evaporadora_operativa'])
+                aire.evaporadora_operativa = nuevo_estado_evap_enum # Aplicar el cambio
+                # Si cambió A operativa DESDE un estado no operativo
+                if nuevo_estado_evap_enum == OperativaStateEnum.OPERATIVA and estado_anterior_evap != OperativaStateEnum.OPERATIVA:
+                    marcar_diagnosticos_como_solucionados(aire_id, ParteACEnum.EVAPORADORA, db.session)
             except ValueError:
                 valid_states = [s.value for s in OperativaStateEnum]
                 return jsonify({"msg": f"Valor inválido para evaporadora_operativa. Usar: {', '.join(valid_states)}"}), 400
@@ -887,32 +894,12 @@ def actualizar_aire_route(aire_id):
         aire.evaporadora_codigo_inventario = data.get('evaporadora_codigo_inventario', aire.evaporadora_codigo_inventario)
         aire.evaporadora_ubicacion_instalacion = data.get('evaporadora_ubicacion_instalacion', aire.evaporadora_ubicacion_instalacion)
 
-        # Los campos de diagnóstico ya NO se actualizan directamente aquí
-        # if 'evaporadora_diagnostico_id' in data:
-        #     aire.evaporadora_diagnostico_id = data['evaporadora_diagnostico_id']
-        # if 'evaporadora_diagnostico_notas' in data:
-        #     aire.evaporadora_diagnostico_notas = data['evaporadora_diagnostico_notas']
-        # if 'evaporadora_fecha_hora_diagnostico' in data:
-        #     fecha_hora_str = data['evaporadora_fecha_hora_diagnostico']
-        #     if fecha_hora_str:
-        #         try:
-        #             aire.evaporadora_fecha_hora_diagnostico = datetime.fromisoformat(fecha_hora_str)
-        #         except (ValueError, TypeError):
-        #             return jsonify({"msg": "Formato de fecha_hora_diagnostico (evap) inválido. Usar ISO 8601."}), 400
-        #     else:
-        #          aire.evaporadora_fecha_hora_diagnostico = None
-
-
-        # if 'condensadora_operativa' in data: # Old boolean logic
-        #     aire.condensadora_operativa = bool(data['condensadora_operativa'])
-
-        # if 'condensadora_diagnostico_id' in data:
-        #     aire.condensadora_diagnostico_id = data['condensadora_diagnostico_id']
-        # if 'condensadora_diagnostico_notas' in data:
-        #     aire.condensadora_diagnostico_notas = data['condensadora_diagnostico_notas']
         if 'condensadora_operativa' in data:
             try:
-                aire.condensadora_operativa = OperativaStateEnum(data['condensadora_operativa'])
+                nuevo_estado_cond_enum = OperativaStateEnum(data['condensadora_operativa'])
+                aire.condensadora_operativa = nuevo_estado_cond_enum # Aplicar el cambio
+                if nuevo_estado_cond_enum == OperativaStateEnum.OPERATIVA and estado_anterior_cond != OperativaStateEnum.OPERATIVA:
+                    marcar_diagnosticos_como_solucionados(aire_id, ParteACEnum.CONDENSADORA, db.session)
             except ValueError:
                 valid_states = [s.value for s in OperativaStateEnum]
                 return jsonify({"msg": f"Valor inválido para condensadora_operativa. Usar: {', '.join(valid_states)}"}), 400
@@ -981,7 +968,35 @@ def eliminar_aire_route(aire_id):
         return jsonify({"msg": "Error inesperado en el servidor al eliminar el aire."}), 500
 
 # --- Rutas para DiagnosticoComponente ---
+def marcar_diagnosticos_como_solucionados(aire_id, parte_afectada_enum, session):
+    """
+    Marca los registros de diagnóstico no solucionados para una parte específica de un aire como solucionados.
+    'session' es la sesión de SQLAlchemy (db.session).
+    """
+    try:
+        registros_a_solucionar = session.query(RegistroDiagnosticoAire).filter(
+            RegistroDiagnosticoAire.aire_id == aire_id,
+            RegistroDiagnosticoAire.parte_ac == parte_afectada_enum,
+            RegistroDiagnosticoAire.solucionado == False  # Solo los no solucionados
+        ).all()
 
+        if registros_a_solucionar:
+            print(f"DEBUG: Marcando {len(registros_a_solucionar)} diagnósticos como solucionados para aire {aire_id}, parte {parte_afectada_enum.value}", file=sys.stderr)
+            for registro in registros_a_solucionar:
+                registro.solucionado = True
+                registro.fecha_solucion = datetime.now(timezone.utc)
+            # El commit se hará fuera de esta función, en la ruta que llama a este helper
+            # session.commit() # No hacer commit aquí
+        else:
+            print(f"DEBUG: No hay diagnósticos pendientes para marcar como solucionados para aire {aire_id}, parte {parte_afectada_enum.value}", file=sys.stderr)
+        return True # Indicar éxito
+    except Exception as e:
+        print(f"ERROR: Excepción al marcar diagnósticos como solucionados para aire {aire_id}, parte {parte_afectada_enum.value}: {e}", file=sys.stderr)
+        # No hacer rollback aquí, dejar que la función llamante lo maneje.
+        # session.rollback() # No hacer rollback aquí
+        # raise # Re-lanzar para que la transacción principal falle si es necesario
+        return False # Indicar fallo
+    
 @api.route('/diagnostico_componentes', methods=['POST'])
 @jwt_required()
 def crear_diagnostico_componente_route():
@@ -2462,6 +2477,10 @@ def add_mantenimiento_aire(aire_id):
                                 aire.condensadora_operativa = nuevo_estado_enum
                             else:
                                 print(f"WARNING: componente_afectado_str desconocido '{componente_afectado_str}' para la clave de alerta '{alert_key}'", file=sys.stderr)
+                            # Si el nuevo estado es OPERATIVA, marcar diagnósticos anteriores como solucionados
+                            if nuevo_estado_enum == OperativaStateEnum.OPERATIVA and componente_afectado_str in ['evaporadora', 'condensadora']:
+                                parte_enum_para_solucion = ParteACEnum(componente_afectado_str)
+                                marcar_diagnosticos_como_solucionados(aire_id, parte_enum_para_solucion, db.session)
 
                             # --- Create new RegistroDiagnosticoAire if a new diagnosis was selected ---
                             if nuevo_diagnostico_id:

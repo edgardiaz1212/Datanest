@@ -146,6 +146,8 @@ const AiresDetailsPage = () => {
             const aireUpdated = await actions.updateAire(aireId, updateAirePayload);
             if (aireUpdated) { // updateAire action should refetch aire details on success
                  setShowAddRecordModal(false);
+                 // --- AÑADIR ESTA LÍNEA PARA RECARGAR LOS REGISTROS DE DIAGNÓSTICO ---
+                 await actions.fetchDiagnosticRecordsByAire(aireId);
                  // Reset form data, but keep current operative states updated from the store
                  setNewRecordFormData({ parte_ac: 'general', diagnostico_id: '', fecha_hora: new Date().toISOString().slice(0, 16), notas: '', current_evaporadora_operativa: newRecordFormData.current_evaporadora_operativa, current_condensadora_operativa: newRecordFormData.current_condensadora_operativa });
             // Después de actualizar el aire, verificar si se necesita crear el proveedor "Energía"
