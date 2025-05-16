@@ -13,7 +13,6 @@ const AiresDetailsPage = () => {
         selectedAireDiagnosticRecords: diagnosticRecords,
         diagnosticoComponentes: diagnosticosDisponibles,
         trackerUser: currentUser,
-        proveedores: listaProveedores, // Obtener lista de proveedores del store
 
         // Loading states
         airesLoading, // General loading for aire details
@@ -49,9 +48,7 @@ const AiresDetailsPage = () => {
         if (aireId) {
             actions.fetchAireDetails(aireId);
             actions.fetchDiagnosticRecordsByAire(aireId);
-            if (canManageDiagnostics) {
-                actions.fetchProveedores(); // Cargar proveedores para verificar si "Energía" existe
-
+            if (canManageDiagnostics) { // Solo cargar diagnósticos predefinidos si el usuario puede gestionarlos
                 actions.fetchDiagnosticoComponentes({ activo: true }); // Fetch active predefined diagnostics
             }
         }
@@ -146,35 +143,11 @@ const AiresDetailsPage = () => {
             const aireUpdated = await actions.updateAire(aireId, updateAirePayload);
             if (aireUpdated) { // updateAire action should refetch aire details on success
                  setShowAddRecordModal(false);
-                 // --- AÑADIR ESTA LÍNEA PARA RECARGAR LOS REGISTROS DE DIAGNÓSTICO ---
+                 // Recargar los registros de diagnóstico después de actualizar el aire
                  await actions.fetchDiagnosticRecordsByAire(aireId);
-                 // Reset form data, but keep current operative states updated from the store
-                 setNewRecordFormData({ parte_ac: 'general', diagnostico_id: '', fecha_hora: new Date().toISOString().slice(0, 16), notas: '', current_evaporadora_operativa: newRecordFormData.current_evaporadora_operativa, current_condensadora_operativa: newRecordFormData.current_condensadora_operativa });
-            // Después de actualizar el aire, verificar si se necesita crear el proveedor "Energía"
-                await actions.fetchDetailedAlerts(); // Obtener las alertas actualizadas
-                const currentAlerts = getStore().detailedAlertsList; // Usar getStore para la lista más reciente
-                const operatividadAlertRequiringEnergia = currentAlerts.find(
-                    al => al.aire_id === parseInt(aireId) &&
-                          al.alerta_tipo === "Operatividad" &&
-                          al.requiere_proveedor_energia === true
-                );
-
-                if (operatividadAlertRequiringEnergia) {
-                    const energiaProviderExists = listaProveedores.some(
-                        p => p.nombre.toLowerCase() === "energía" || p.nombre.toLowerCase() === "energia"
-                    );
-
-                    if (!energiaProviderExists) {
-                        if (window.confirm("Se ha detectado una falla que requiere seguimiento y el proveedor 'Energía' no existe. ¿Desea crearlo ahora para asignar la actividad pendiente?")) {
-                            await actions.addProveedor({ nombre: "Energía", email_proveedor: "energia@dcce.com" }); // Ajusta el email si es necesario
-                            await actions.fetchProveedores(); // Actualizar la lista de proveedores en el store
-                            // Volver a llamar a fetchDetailedAlerts para que el backend ahora cree la actividad
-                            // ya que el proveedor "Energía" existirá.
-                            await actions.fetchDetailedAlerts();
-                        }
-                    }
-                }
-                }
+                 // Reset form data for the next time the modal is opened
+                 setNewRecordFormData({ parte_ac: 'general', diagnostico_id: '', fecha_hora: new Date().toISOString().slice(0, 16), notas: '', current_evaporadora_operativa: aireUpdated.evaporadora_operativa, current_condensadora_operativa: aireUpdated.condensadora_operativa }); // Use updated states from the response
+            }
         } catch (error) {
             setAddRecordError(error.message || "Error al enviar el formulario.");
         } finally {

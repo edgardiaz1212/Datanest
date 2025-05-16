@@ -1,6 +1,6 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react";
 import { Context } from "../store/appContext";
-import { Modal, Button, Form, Table, Alert, Spinner, Dropdown, Container, Row, Col } from "react-bootstrap";
+import { Modal, Button, Form, Table, Alert, Spinner, Dropdown, Container, Row, Col, Nav, Tab, Card, Badge } from "react-bootstrap"; // Añadido Nav y Tab
 import { format } from 'date-fns';
 
 // --- Importaciones para PDF ---
@@ -26,21 +26,65 @@ const ActividadesProveedor = () => { // Cambiado a función nombrada para export
     const [selectedProveedorFilter, setSelectedProveedorFilter] = useState('');
     const [selectedStatusFilter, setSelectedStatusFilter] = useState('');
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false); // Renombrado para claridad
-    const [pdfError, setPdfError] = useState(null); // Renombrado para claridad
+    const [pdfError, setPdfError] = useState(null);
+    const [activeTab, setActiveTab] = useState('energia'); // 'energia' u 'otros'
+    const [idProveedorEnergia, setIdProveedorEnergia] = useState(null);
+    // Nuevo estado para los diagnósticos no solucionados
+    const [diagnosticosNoSolucionados, setDiagnosticosNoSolucionados] = useState([]);
 
     // --- useEffects y otros handlers (sin cambios) ---
     useEffect(() => {
         actions.fetchProveedores();
-        actions.fetchAllActividades();
+        // La carga inicial de actividades dependerá de la pestaña activa
     }, []);
 
     useEffect(() => {
-        if (selectedProveedorFilter) {
-            actions.fetchActividadesPorProveedor(selectedProveedorFilter);
-        } else {
-            actions.fetchAllActividades(selectedStatusFilter || null);
+        // Encontrar el ID del proveedor "Energía" una vez que los proveedores se cargan
+        const proveedorEnergia = store.proveedores.find(
+            p => p.nombre.toLowerCase().includes('energia') || p.nombre.toLowerCase().includes('energía')
+        );
+        if (proveedorEnergia) {
+            setIdProveedorEnergia(proveedorEnergia.id);
         }
-    }, [selectedProveedorFilter, selectedStatusFilter]);
+    }, [store.proveedores]);
+
+    useEffect(() => {
+        if (activeTab === 'energia') {
+            if (idProveedorEnergia) {
+                // Para la pestaña Energía, cargamos las actividades del proveedor Energía
+                // Y también cargamos todos los diagnósticos no solucionados de los aires
+                actions.fetchActividadesPorProveedor(idProveedorEnergia); // Esto es para las actividades existentes
+                // Necesitamos una acción para traer TODOS los registros de diagnóstico o filtrarlos en el backend
+                // Por ahora, simularemos que los obtenemos y filtramos aquí.
+                // Idealmente, tendrías una acción: actions.fetchAllUnresolvedDiagnosticRecords()
+                // y luego los filtrarías/agruparías.
+                // Como placeholder, vamos a asumir que los tenemos en alguna parte del store o los cargamos.
+                // Esta parte necesitará una acción de Flux dedicada.
+                actions.fetchAllDiagnosticRecords().then(allRecords => { // Asumiendo que tienes esta acción
+                    if (allRecords) {
+                        const unresolved = allRecords.filter(r => !r.solucionado);
+                        setDiagnosticosNoSolucionados(unresolved);
+                    }
+                });
+            } else {
+                // Si aún no se encuentra el ID de Energía, no cargar nada o mostrar mensaje
+                actions.fetchActividadesPorProveedor(null); // Limpia la lista
+                setDiagnosticosNoSolucionados([]);
+            }
+        } else if (activeTab === 'otros') {
+            // Para la pestaña Otros, usamos el filtro de proveedor (excluyendo Energía) o todos (excluyendo Energía)
+            actions.fetchAllActividades(selectedStatusFilter || null); // fetchAllActividades podría necesitar un filtro para excluir Energía
+        } else {
+            // Lógica para cuando se selecciona un proveedor específico en la pestaña "Otros"
+            if (selectedProveedorFilter && selectedProveedorFilter !== idProveedorEnergia?.toString()) {
+                actions.fetchActividadesPorProveedor(selectedProveedorFilter);
+            } else {
+                 // Si no hay filtro de proveedor en "Otros", cargar todas las actividades (excluyendo Energía)
+                 // o las filtradas por estado (excluyendo Energía)
+                actions.fetchAllActividades(selectedStatusFilter || null);
+            }
+        }
+    }, [activeTab, idProveedorEnergia, selectedProveedorFilter, selectedStatusFilter, actions]);
 
  // --- Dentro de ActividadesProveedor ---
 
@@ -60,7 +104,9 @@ const handleShowAddModal = () => {
     setIsEditing(false);
     setCurrentActividad(null);
     setFormData({
-        proveedor_id: selectedProveedorFilter || '', // Pre-selecciona si está filtrado
+        proveedor_id: activeTab === 'energia' && idProveedorEnergia
+                        ? idProveedorEnergia.toString()
+                        : (activeTab === 'otros' && selectedProveedorFilter ? selectedProveedorFilter : ''),
         descripcion: '',
         fecha_ocurrencia: '',
         // Default fecha_reporte a ahora, formateado para datetime-local
@@ -146,17 +192,48 @@ const handleDelete = async (id) => {
 
 const handleProveedorFilterChange = (e) => {
     setSelectedProveedorFilter(e.target.value);
-    // Opcional: Limpiar filtro de estatus si seleccionas proveedor
-    setSelectedStatusFilter('');
+    if (e.target.value) { // Si se selecciona un proveedor, limpiar filtro de estado
+        setSelectedStatusFilter('');
+    }
 };
 
  const handleStatusFilterChange = (e) => {
     setSelectedStatusFilter(e.target.value);
     // Limpiar filtro de proveedor si seleccionas estatus (si la lógica es excluyente)
-    if (e.target.value) { // Si se selecciona un estatus
-        setSelectedProveedorFilter('');
-    }
+    // Esto solo aplica si estamos en la pestaña "Otros" y no hay un proveedor específico seleccionado
+    // if (activeTab === 'otros' && e.target.value) {
+    //     setSelectedProveedorFilter('');
+    // }
 };
+
+    const getFilteredActividades = () => {
+        if (activeTab === 'energia') {
+            // Para la pestaña Energía, las actividades ya deberían estar filtradas por idProveedorEnergia
+            // Solo aplicamos el filtro de estado si existe
+            return selectedStatusFilter
+                ? store.actividadesProveedor.filter(act => act.estatus === selectedStatusFilter)
+                : store.actividadesProveedor;
+        } else { // activeTab === 'otros'
+            // Para "Otros", excluimos las de Energía y aplicamos filtros de proveedor y estado
+            return store.actividadesProveedor.filter(act => act.proveedor_id !== idProveedorEnergia &&
+                (!selectedProveedorFilter || act.proveedor_id === parseInt(selectedProveedorFilter)) &&
+                (!selectedStatusFilter || act.estatus === selectedStatusFilter));
+        }
+    };
+
+    // Agrupar diagnósticos no solucionados por aire para la pestaña "Energía"
+    const diagnosticosAgrupadosPorAire = useMemo(() => {
+        if (activeTab !== 'energia' || !diagnosticosNoSolucionados.length) return {};
+        return diagnosticosNoSolucionados.reduce((acc, diag) => {
+            const aireNombre = diag.aire_nombre || `Aire ID: ${diag.aire_id}`; // Necesitarás el nombre del aire
+            if (!acc[aireNombre]) {
+                acc[aireNombre] = { aireId: diag.aire_id, nombre: aireNombre, ubicacion: diag.aire_ubicacion, diagnosticos: [] };
+            }
+            acc[aireNombre].diagnosticos.push(diag);
+            return acc;
+        }, {});
+    }, [activeTab, diagnosticosNoSolucionados]);
+
     // --- *** NUEVA FUNCIÓN handleGeneratePDF *** ---
     const handleGeneratePDF = () => {
         // 1. Verificar que un proveedor esté seleccionado
@@ -176,11 +253,14 @@ const handleProveedorFilterChange = (e) => {
             );
             const nombreProveedor = proveedorSeleccionado ? proveedorSeleccionado.nombre : 'Desconocido';
 
-            // 3. Filtrar las actividades del store para el proveedor y estado activo
-            const actividadesParaReporte = store.actividadesProveedor.filter(
-                act => (act.estatus === 'Pendiente' || act.estatus === 'En Progreso')
-                       // No necesitamos filtrar por proveedor_id aquí, porque
-                       // store.actividadesProveedor ya está filtrado por el useEffect
+            // 3. Usar getFilteredActividades y luego filtrar por estado para el PDF
+            // Para el PDF, solo queremos Pendiente y En Progreso
+            const actividadesFiltradasParaVista = getFilteredActividades();
+            const actividadesParaReporte = actividadesFiltradasParaVista.filter(
+                act => (act.estatus === 'Pendiente' || act.estatus === 'En Progreso') &&
+                       (activeTab === 'energia' ? act.proveedor_id === idProveedorEnergia : true) && // Asegurar que si es energía, solo las de energía
+                       (activeTab === 'otros' && selectedProveedorFilter ? act.proveedor_id === parseInt(selectedProveedorFilter) : true) // Si es otros y hay filtro, aplicarlo
+
             );
 
             // 4. Verificar si hay actividades para reportar
@@ -277,7 +357,7 @@ const handleProveedorFilterChange = (e) => {
                         variant="outline-danger"
                         onClick={handleGeneratePDF} // Llama a la nueva función
                         disabled={!selectedProveedorFilter || isGeneratingPDF} // Deshabilitado si no hay proveedor o si se está generando
-                        className="me-2"
+                        className="me-2 mb-2 mb-md-0" // Ajuste para móviles
                         title={!selectedProveedorFilter ? "Selecciona un proveedor para generar el PDF" : "Descargar PDF de actividades Pendientes/En Progreso"}
                     >
                         {isGeneratingPDF ? (
@@ -292,7 +372,7 @@ const handleProveedorFilterChange = (e) => {
                         )}
                     </Button>
                     {/* Botón Nueva Actividad (sin cambios) */}
-                    <Button variant="primary" onClick={handleShowAddModal}>
+                    <Button variant="primary" onClick={handleShowAddModal} className="mb-2 mb-md-0">
                         <i className="fas fa-plus me-2"></i> Nueva Actividad
                     </Button>
                 </Col>
@@ -301,56 +381,81 @@ const handleProveedorFilterChange = (e) => {
             {/* Alerta para errores de PDF */}
             {pdfError && <Alert variant="danger" onClose={() => setPdfError(null)} dismissible>{pdfError}</Alert>}
 
-            {/* Filters (sin cambios) */}
-            <Row className="mb-3 gx-2">
-                <Col md={6}>
-                    <Form.Group controlId="proveedorFilter">
-                        <Form.Label>Filtrar por Proveedor</Form.Label>
-                        <Form.Select
-                            value={selectedProveedorFilter}
-                            onChange={handleProveedorFilterChange}
-                        >
-                            <option value="">-- Todos los Proveedores --</option>
-                            {store.proveedoresLoading ? (
-                                <option disabled>Cargando...</option>
-                            ) : (
-                                store.proveedores.map(p => (
-                                    <option key={p.id} value={p.id}>{p.nombre}</option>
-                                ))
-                            )}
-                        </Form.Select>
-                    </Form.Group>
-                </Col>
-                <Col md={6}>
-                     <Form.Group controlId="statusFilter">
-                        <Form.Label>Filtrar por Estatus (Global)</Form.Label>
-                        <Form.Select
-                            value={selectedStatusFilter}
-                            onChange={handleStatusFilterChange}
-                            disabled={!!selectedProveedorFilter}
-                        >
-                            <option value="">-- Todos los Estatus --</option>
-                            {ESTATUS_OPTIONS.map(status => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </Form.Select>
-                         {selectedProveedorFilter && <Form.Text muted>El filtro por estatus se aplica solo cuando no hay proveedor seleccionado.</Form.Text>}
-                    </Form.Group>
-                </Col>
-            </Row>
+            {/* Pestañas */}
+            <Tab.Container id="actividades-tabs" activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
+                <Nav variant="tabs" className="mb-3">
+                    <Nav.Item>
+                        <Nav.Link eventKey="energia">Proveedor Energía</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                        <Nav.Link eventKey="otros">Otros Proveedores</Nav.Link>
+                    </Nav.Item>
+                </Nav>
 
-            {/* Loading and Error Display (sin cambios) */}
-            {store.actividadesLoading && <div className="text-center"><Spinner animation="border" /> Cargando actividades...</div>}
-            {store.actividadesError && <Alert variant="danger" onClose={() => actions.clearActividadesError()} dismissible>{store.actividadesError}</Alert>}
-            {!store.actividadesLoading && !store.actividadesError && store.actividadesProveedor.length === 0 && (
-                <Alert variant="info">No se encontraron actividades con los filtros seleccionados.</Alert>
-            )}
+                {/* Filtros comunes o específicos por pestaña */}
+                <Row className="mb-3 gx-2">
+                    {activeTab === 'otros' && (
+                        <Col md={6}>
+                            <Form.Group controlId="proveedorFilterOtros">
+                                <Form.Label>Filtrar por Proveedor (Otros)</Form.Label>
+                                <Form.Select value={selectedProveedorFilter} onChange={handleProveedorFilterChange} >
+                                    <option value="">-- Todos los Otros Proveedores --</option>
+                                    {store.proveedoresLoading ? (
+                                        <option disabled>Cargando...</option>
+                                    ) : (
+                                        store.proveedores
+                                            .filter(p => p.id !== idProveedorEnergia) // Excluir Energía
+                                            .map(p => (<option key={p.id} value={p.id}>{p.nombre}</option>))
+                                    )}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                    )}
+                    <Col md={activeTab === 'otros' ? 6 : 12}>
+                        <Form.Group controlId="statusFilterComun">
+                            <Form.Label>Filtrar por Estatus</Form.Label>
+                            <Form.Select value={selectedStatusFilter} onChange={handleStatusFilterChange} >
+                                <option value="">-- Todos los Estatus --</option>
+                                {ESTATUS_OPTIONS.map(status => (
+                                    <option key={status} value={status}>{status}</option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                    </Col>
+                </Row>
 
-            {/* Activities Table (sin cambios) */}
-            {!store.actividadesLoading && store.actividadesProveedor.length > 0 && (
-                 <Table striped bordered hover responsive size="sm">
-                 {/* ... thead y tbody sin cambios ... */}
-                 <thead>
+                <Tab.Content>
+                    <Tab.Pane eventKey="energia">
+                        {/* Renderizar la nueva tabla de diagnósticos para Energía */}
+                        {idProveedorEnergia === null && !store.proveedoresLoading && <Alert variant="warning">Proveedor "Energía" no encontrado o no definido.</Alert>}
+                        {idProveedorEnergia !== null && store.actividadesLoading && <div className="text-center"><Spinner animation="border" /> Cargando...</div>}
+                        {idProveedorEnergia !== null && !store.actividadesLoading && store.actividadesError && <Alert variant="danger">{store.actividadesError}</Alert>}
+                        {idProveedorEnergia !== null && !store.actividadesLoading && !store.actividadesError &&
+                            renderDiagnosticosEnergiaTabla(diagnosticosAgrupadosPorAire)}
+                    </Tab.Pane>
+                    <Tab.Pane eventKey="otros">
+                        {renderActividadesTabla(getFilteredActividades())}
+                    </Tab.Pane>
+                </Tab.Content>
+            </Tab.Container>
+        </Container>
+    );
+
+    // Función para renderizar la tabla de actividades (reutilizable)
+    function renderActividadesTabla(actividades) {
+        if (store.actividadesLoading) {
+            return <div className="text-center"><Spinner animation="border" /> Cargando actividades...</div>;
+        }
+        if (store.actividadesError) {
+            return <Alert variant="danger" onClose={() => actions.clearActividadesError()} dismissible>{store.actividadesError}</Alert>;
+        }
+        if (actividades.length === 0) {
+            return <Alert variant="info">No se encontraron actividades con los filtros seleccionados.</Alert>;
+        }
+
+        return (
+            <Table striped bordered hover responsive size="sm">
+                <thead>
                         <tr>
                             <th>Proveedor</th>
                             <th>Descripción</th>
@@ -362,7 +467,7 @@ const handleProveedorFilterChange = (e) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {store.actividadesProveedor.map(act => (
+                        {actividades.map(act => (
                             <tr key={act.id}>
                                 <td>{act.nombre_proveedor || 'N/A'}</td>
                                 <td>{act.descripcion}</td>
@@ -385,12 +490,147 @@ const handleProveedorFilterChange = (e) => {
                             </tr>
                         ))}
                     </tbody>
-             </Table>
-            )}
+            </Table>
+        );
+    }
 
+    // Nueva función para renderizar la tabla de diagnósticos para la pestaña Energía
+    function renderDiagnosticosEnergiaTabla(diagnosticosAgrupados) {
+        // Aquí asumimos que diagnosticosAgrupados es un objeto donde cada clave es el nombre del aire
+        // y el valor es un objeto con { aireId, nombre, ubicacion, diagnosticos: [...] }
+        const airesConDiagnosticos = Object.values(diagnosticosAgrupados);
 
-            {/* Add/Edit Modal (sin cambios) */}
-            <Modal show={showModal} onHide={handleCloseModal} size="lg">
+        if (store.loading) { // Podrías tener un loading específico para diagnósticos
+            return <div className="text-center"><Spinner animation="border" /> Cargando diagnósticos...</div>;
+        }
+        // if (store.errorDiagnosticos) { // Un error específico
+        //     return <Alert variant="danger">{store.errorDiagnosticos}</Alert>;
+        // }
+        if (airesConDiagnosticos.length === 0) {
+            return <Alert variant="info">No hay diagnósticos de operatividad pendientes que requieran atención del proveedor Energía.</Alert>;
+        }
+
+        return (
+            <>
+                {airesConDiagnosticos.map(grupo => (
+                    <Card key={grupo.aireId} className="mb-3">
+                        <Card.Header>
+                            <strong>Aire: {grupo.nombre}</strong> (Ubicación: {grupo.ubicacion || 'N/A'})
+                        </Card.Header>
+                        <Table striped bordered hover responsive size="sm" className="mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora Diagnóstico</th>
+                                    <th>Parte Afectada</th>
+                                    <th>Diagnóstico</th>
+                                    <th>Notas</th>
+                                    <th>Registrado Por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {grupo.diagnosticos.map(diag => (
+                                    <tr key={diag.id}>
+                                        <td>{diag.fecha_hora ? format(new Date(diag.fecha_hora), 'dd/MM/yyyy HH:mm') : 'N/A'}</td>
+                                        <td><Badge bg="info">{diag.parte_ac}</Badge></td>
+                                        <td>{diag.diagnostico_nombre || 'N/A'}</td>
+                                        <td>{diag.notas || '-'}</td>
+                                        <td>{diag.registrado_por_username || 'Sistema'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Card>
+                ))}
+            </>
+        );
+    }
+
+    return ( // El return principal del componente
+        <Container className="mt-4">
+            {/* ... (Título, Botón PDF, Botón Nueva Actividad) ... */}
+            <Row className="mb-3 align-items-center">
+                <Col xs={12} md={6}>
+                    <h2>Gestión de Actividades de Proveedores</h2>
+                </Col>
+                <Col xs={12} md={6} className="text-md-end mt-2 mt-md-0">
+                    <Button
+                        variant="outline-danger"
+                        onClick={handleGeneratePDF}
+                        disabled={
+                            (activeTab === 'energia' && !idProveedorEnergia) || 
+                            (activeTab === 'otros' && !selectedProveedorFilter) || 
+                            isGeneratingPDF
+                        }
+                        className="me-2 mb-2 mb-md-0"
+                        title={
+                            (activeTab === 'energia' && !idProveedorEnergia) ? "Proveedor Energía no definido" :
+                            (activeTab === 'otros' && !selectedProveedorFilter) ? "Selecciona un proveedor (Otros) para generar PDF" :
+                            "Descargar PDF de actividades Pendientes/En Progreso"
+                        }
+                    >
+                        {isGeneratingPDF ? <><Spinner size="sm" /> Generando...</> : <><i className="fas fa-file-pdf me-2"></i> Descargar PDF</>}
+                    </Button>
+                    <Button variant="primary" onClick={handleShowAddModal} className="mb-2 mb-md-0">
+                        <i className="fas fa-plus me-2"></i> Nueva Actividad
+                    </Button>
+                </Col>
+            </Row>
+
+            {pdfError && <Alert variant="danger" onClose={() => setPdfError(null)} dismissible>{pdfError}</Alert>}
+
+            <Tab.Container id="actividades-tabs" activeKey={activeTab} onSelect={(k) => {
+                setActiveTab(k);
+                // Resetear filtros al cambiar de pestaña para evitar confusión
+                setSelectedProveedorFilter('');
+                setSelectedStatusFilter('');
+            }}>
+                <Nav variant="tabs" className="mb-3">
+                    <Nav.Item>
+                        <Nav.Link eventKey="energia">Proveedor Energía</Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                        <Nav.Link eventKey="otros">Otros Proveedores</Nav.Link>
+                    </Nav.Item>
+                </Nav>
+
+                <Row className="mb-3 gx-2">
+                    {activeTab === 'otros' && (
+                        <Col md={6}>
+                            <Form.Group controlId="proveedorFilterOtros">
+                                <Form.Label>Filtrar por Proveedor (Otros)</Form.Label>
+                                <Form.Select value={selectedProveedorFilter} onChange={handleProveedorFilterChange}>
+                                    <option value="">-- Todos los Otros Proveedores --</option>
+                                    {store.proveedoresLoading ? <option disabled>Cargando...</option> :
+                                        store.proveedores.filter(p => p.id !== idProveedorEnergia)
+                                            .map(p => (<option key={p.id} value={p.id}>{p.nombre}</option>))}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                    )}
+                    <Col md={activeTab === 'otros' ? 6 : 12}>
+                        <Form.Group controlId="statusFilterComun">
+                            <Form.Label>Filtrar por Estatus</Form.Label>
+                            <Form.Select value={selectedStatusFilter} onChange={handleStatusFilterChange}>
+                                <option value="">-- Todos los Estatus --</option>
+                                {ESTATUS_OPTIONS.map(status => (<option key={status} value={status}>{status}</option>))}
+                            </Form.Select>
+                        </Form.Group>
+                    </Col>
+                </Row>
+
+                <Tab.Content>
+                    <Tab.Pane eventKey="energia">
+                        {/* El contenido de la pestaña Energía ya se maneja arriba con renderDiagnosticosEnergiaTabla */}
+                        {renderDiagnosticosEnergiaTabla(diagnosticosAgrupadosPorAire)}
+                    </Tab.Pane>
+                    <Tab.Pane eventKey="otros">
+                        {renderActividadesTabla(getFilteredActividades())}
+                    </Tab.Pane>
+                </Tab.Content>
+            </Tab.Container>
+
+            {/* Modal (sin cambios en su estructura interna, solo cómo se pre-llena el proveedor_id) */}
+            <Modal show={showModal} onHide={handleCloseModal} size="lg" backdrop="static">
                 {/* ... Contenido del modal sin cambios ... */}
                 <Modal.Header closeButton>
                     <Modal.Title>{isEditing ? "Editar Actividad" : "Agregar Nueva Actividad"}</Modal.Title>

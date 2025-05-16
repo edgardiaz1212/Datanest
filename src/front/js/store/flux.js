@@ -3151,6 +3151,40 @@ clearSelectedAireDiagnosticRecordsError: () => {
   setStore({ selectedAireDiagnosticRecordsError: null });
 },
 
+// --- Acción para obtener TODOS los registros de diagnóstico (o idealmente, filtrados por no solucionados en backend) ---
+fetchAllDiagnosticRecords: async (filters = {}) => {
+    // Ejemplo: filters = { solucionado: false }
+    // Esta acción es un placeholder, necesitarás una ruta de backend para esto.
+    // Por ahora, vamos a simular que obtenemos todos y filtramos en el frontend,
+    // pero lo ideal es que el backend haga el filtrado.
+    setStore({ loading: true, error: null }); // Usar un estado de carga/error genérico o crear uno nuevo
+    try {
+        // ASUME QUE TIENES UNA RUTA /api/registros_diagnostico_todos O SIMILAR
+        // O que /api/aires/X/registros_diagnostico puede devolver todos si no se especifica aire_id
+        // Por ahora, vamos a hacer un fetch a una ruta hipotética /api/registros_diagnostico/todos
+        // Deberías crear esta ruta en tu backend.
+        const queryParams = new URLSearchParams();
+        if (filters.solucionado !== undefined) {
+            queryParams.append("solucionado", filters.solucionado.toString());
+        }
+        const response = await fetch(`${process.env.BACKEND_URL}/registros_diagnostico/todos?${queryParams.toString()}`, { // RUTA HIPOTÉTICA
+            method: "GET",
+            headers: getAuthHeaders(),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorData.msg || `Error fetching all diagnostic records: ${response.status}`);
+        }
+        const data = await response.json();
+        setStore({ loading: false }); // O el estado de carga específico
+        return data || []; // Devuelve los datos para ser usados en el componente
+    } catch (error) {
+        console.error("Error in fetchAllDiagnosticRecords:", error);
+        setStore({ loading: false, error: error.message || "Error cargando todos los registros de diagnóstico." });
+        return null;
+    }
+},
     },
   };
 };

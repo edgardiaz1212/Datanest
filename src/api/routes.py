@@ -1196,6 +1196,51 @@ def obtener_registros_diagnostico_por_aire_route(aire_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al obtener registros de diagnóstico."}), 500
 
+@api.route('/registros_diagnostico/todos', methods=['GET'])
+@jwt_required()
+def obtener_todos_registros_diagnostico_route():
+    """
+    Endpoint para obtener todos los registros de diagnóstico,
+    opcionalmente filtrados por 'solucionado'.
+    Requiere autenticación.
+    """
+    try:
+        query = db.session.query(RegistroDiagnosticoAire)
+
+        solucionado_filter_str = request.args.get('solucionado')
+        if solucionado_filter_str is not None:
+            solucionado_filter_bool = solucionado_filter_str.lower() == 'true'
+            query = query.filter(RegistroDiagnosticoAire.solucionado == solucionado_filter_bool)
+
+        # Eager load related data to avoid N+1 queries if serializing related objects
+        query = query.options(
+            db.joinedload(RegistroDiagnosticoAire.aire), # Para tener aire.nombre, aire.ubicacion
+            db.joinedload(RegistroDiagnosticoAire.diagnostico),
+            db.joinedload(RegistroDiagnosticoAire.registrado_por)
+        )
+
+        registros = query.order_by(RegistroDiagnosticoAire.fecha_hora.desc()).all()
+        
+        # Modificar la serialización para incluir nombre y ubicación del aire
+        results = []
+        for r in registros:
+            serialized_record = r.serialize()
+            if r.aire: # Asegurarse que la relación aire está cargada
+                serialized_record['aire_nombre'] = r.aire.nombre
+                serialized_record['aire_ubicacion'] = r.aire.ubicacion
+            else:
+                serialized_record['aire_nombre'] = "N/A"
+                serialized_record['aire_ubicacion'] = "N/A"
+            results.append(serialized_record)
+
+        return jsonify(results), 200
+
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_todos_registros_diagnostico_route: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener todos los registros de diagnóstico."}), 500
+
+
 @api.route('/registros_diagnostico/<int:registro_id>', methods=['PUT'])
 @jwt_required()
 def actualizar_registro_diagnostico_aire_route(registro_id):
@@ -1272,6 +1317,48 @@ def actualizar_registro_diagnostico_aire_route(registro_id):
         print(f"!!! ERROR inesperado al actualizar registro de diagnóstico ID {registro_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+def buscar_o_crear_proveedor_energia(session):
+    """Busca un proveedor que contenga 'energia' en su nombre o lo crea si no existe."""
+    proveedor_energia = session.query(Proveedor).filter(func.lower(Proveedor.nombre).contains('energia')).first()
+    if not proveedor_energia:
+        print("DEBUG: Proveedor 'Energía' no encontrado, creando uno nuevo.", file=sys.stderr)
+        proveedor_energia = Proveedor(nombre="Energía", email_proveedor="energia@dcce.com") # Ajusta el email si es necesario
+        session.add(proveedor_energia)
+        try:
+            session.flush() # Para obtener el ID si es necesario antes del commit principal
+            print(f"DEBUG: Proveedor 'Energía' creado con ID: {proveedor_energia.id}", file=sys.stderr)
+        except Exception as e_flush:
+            print(f"ERROR: Fallo al hacer flush para el nuevo proveedor Energía: {e_flush}", file=sys.stderr)
+            # No relanzar aquí, dejar que el commit principal maneje el error si ocurre.
+            # Si el commit falla, el proveedor no se creará.
+    else:
+        print(f"DEBUG: Proveedor 'Energía' encontrado con ID: {proveedor_energia.id}, Nombre: {proveedor_energia.nombre}", file=sys.stderr)
+    return proveedor_energia
+
+def crear_actividad_para_diagnostico_operatividad(session, aire_obj, registro_diagnostico, proveedor_energia_id, fecha_ocurrencia_alerta):
+    """Crea una actividad para un diagnóstico de operatividad si no existe una abierta."""
+    # Construir una descripción única para la actividad basada en el problema
+    descripcion_problema = f"Aire: {aire_obj.nombre}, Parte: {registro_diagnostico.parte_ac.value}, Diagnóstico: {registro_diagnostico.diagnostico.nombre if registro_diagnostico.diagnostico else 'N/A'}"
+    
+    # Verificar si ya existe una actividad PENDIENTE o EN_PROGRESO para este problema específico
+    actividad_existente = session.query(ActividadProveedor).filter(
+        ActividadProveedor.proveedor_id == proveedor_energia_id,
+        ActividadProveedor.descripcion.like(f"%{descripcion_problema}%"), # Buscar por la descripción del problema
+        ActividadProveedor.estatus.in_([EstatusActividad.PENDIENTE, EstatusActividad.EN_PROGRESO])
+    ).first()
+
+    if not actividad_existente:
+        descripcion_completa = f"Problema de operatividad detectado. {descripcion_problema}. Notas: {registro_diagnostico.notas or 'Sin notas adicionales'}."
+        nueva_actividad = ActividadProveedor(
+            proveedor_id=proveedor_energia_id,
+            descripcion=descripcion_completa,
+            fecha_ocurrencia=fecha_ocurrencia_alerta, # Fecha de la alerta/diagnóstico
+            fecha_reporte=datetime.now(timezone.utc),
+            estatus=EstatusActividad.PENDIENTE
+        )
+        session.add(nueva_actividad)
+        print(f"DEBUG: Nueva actividad creada para proveedor Energía, descripción: {descripcion_completa[:100]}...", file=sys.stderr)
 
 @api.route('/registros_diagnostico/<int:registro_id>', methods=['DELETE'])
 @jwt_required()
