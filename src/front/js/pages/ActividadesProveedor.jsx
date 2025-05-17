@@ -233,7 +233,8 @@ const ActividadesProveedor = () => {
       actions.clearActividadesError();
       const success = await actions.deleteActividadProveedor(
         id,
-        selectedProveedorFilter || null
+         selectedProveedorFilter || null,
+        selectedStatusFilter || null
       );
       if (!success) {
         // El error se muestra a través de store.actividadesError

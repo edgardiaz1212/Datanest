@@ -2677,11 +2677,10 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
-      deleteActividadProveedor: async (actividadId, currentProveedorId) => {
+      deleteActividadProveedor: async (actividadId, currentProveedorId, currentStatusFilter) => { // Añadido currentStatusFilter
         const store = getStore();
-        const originalList = [...store.actividadesProveedor];
-        const updatedList = originalList.filter((a) => a.id !== actividadId);
-        setStore({ actividadesProveedor: updatedList, actividadesError: null }); // Optimistic update
+         // No haremos actualización optimista aquí, vamos a refetch para asegurar consistencia.
+        setStore({ actividadesLoading: true, actividadesError: null }); // Indicar que estamos procesando
 
         try {
           const response = await fetch(
@@ -2692,26 +2691,36 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           if (!response.ok) {
-            setStore({ actividadesProveedor: originalList }); // Revert
             const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) getActions().logoutTrackerUser();
-            throw new Error(errorData.msg || `Error ${response.status}`);
-          }
+ setStore({ // Establecer error y detener la carga
+                actividadesError: errorData.msg || `Error ${response.status}`,
+                actividadesLoading: false
+            });
+            throw new Error(errorData.msg || `Error ${response.status}`); // Propagar el error
+           }
           console.log(`Actividad ${actividadId} deleted.`);
-          // No es necesario refetch si la actualización optimista es suficiente
-          // Si prefieres refetch:
-          // if (currentProveedorId) {
-          //   await getActions().fetchActividadesPorProveedor(currentProveedorId);
-          // } else {
-          //   await getActions().fetchAllActividades();
-          // }
+         // Refetch la lista apropiada para actualizar el store
+          if (currentProveedorId) {
+            await getActions().fetchActividadesPorProveedor(currentProveedorId);
+          } else {
+            // Si no hay proveedor específico, es la vista "Otros" sin filtro de proveedor,
+            // o la pestaña "Energía" (aunque para energía no se debería poder borrar desde aquí).
+            // Usamos el filtro de estado actual si existe.
+            await getActions().fetchAllActividades(currentStatusFilter || null);
+          }
+          // Las acciones fetch... ya manejan el estado de carga y error.
+
           return true;
         } catch (error) {
           console.error("Error deleting actividad:", error);
-          setStore({
-            actividadesProveedor: originalList,
-            actividadesError: error.message || "Error al eliminar actividad.",
-          });
+           // Si el error no fue establecido por el bloque !response.ok
+          if (!store.actividadesError) {
+            setStore({
+                actividadesError: error.message || "Error al eliminar actividad.",
+                actividadesLoading: false // Asegurar que loading se resetea
+            });
+          }
           return false;
         }
       },
