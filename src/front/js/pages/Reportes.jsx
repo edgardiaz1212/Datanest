@@ -1,45 +1,42 @@
 import React, { useEffect, useContext, useState } from 'react';
-import { Card, Spinner, Alert, Button, Tabs, Tab, Row, Col } from 'react-bootstrap'; // Changed Form to Tabs, Tab
-import { HiOutlineDocumentReport, HiOutlineTable, HiOutlineExclamationCircle } from 'react-icons/hi' // Added more icons
+import { Card, Spinner, Alert, Button, Tabs, Tab, Row, Col } from 'react-bootstrap';
+import { HiOutlineDocumentReport, HiOutlineTable } from 'react-icons/hi'; // Ya no se necesita HiOutlineExclamationCircle
 import { Context } from '../store/appContext';
 import ReportesAiresTable from '../component/Reportes/ReportesAiresTable.jsx';
 import ReportesOtrosEquiposTable from '../component/Reportes/ReportesOtrosEquiposTable.jsx';
-import ReportesFallasTable from '../component/Reportes/ReportesFallasTable.jsx'; // <--- NUEVO: Componente para tabla de fallas
+// Ya no se importa ReportesFallasTable
  
-// Importa jsPDF como siempre
 import jsPDF from 'jspdf';
-// Importa autoTable explícitamente desde jspdf-autotable
 import autoTable from 'jspdf-autotable';
-
-// Ya no necesitas la importación por efecto secundario:
-// import 'jspdf-autotable';
 
 const Reportes = () => {
   const { store, actions } = useContext(Context);
   const {
-    trackerUser: user,
+    // trackerUser: user, // No se usa directamente aquí
     aires: airesList,
     airesLoading,
     airesError,
     otrosEquiposList,
     otrosEquiposLoading,
     otrosEquiposError,
-    detailedAlertsList, // <--- NUEVO: Para obtener las fallas activas
-    detailedAlertsLoading, // <--- NUEVO
-    detailedAlertsError,   // <--- NUEVO
+    // Ya no necesitamos detailedAlertsList, detailedAlertsLoading, detailedAlertsError aquí
   } = store;
 
-  const { fetchAires, fetchOtrosEquipos, fetchDetailedAlerts } = actions; // <--- NUEVO: fetchDetailedAlerts
+  // Ya no necesitamos fetchDetailedAlerts aquí
+  const { fetchAires, fetchOtrosEquipos } = actions;
 
   const [groupedAires, setGroupedAires] = useState({});
   const [groupedOtrosEquipos, setGroupedOtrosEquipos] = useState({});
-  const [activeTab, setActiveTab] = useState('datosEquipo'); // 'datosEquipo' o 'fallasRegistradas'
+  // Si solo queda una pestaña principal, podrías eliminar la estructura de Tabs
+  // pero la mantendremos por si se añaden otros reportes en el futuro.
+  // El activeTab ahora solo será 'datosEquipo'.
+  const [activeTab, setActiveTab] = useState('datosEquipo'); 
 
   useEffect(() => {
     fetchAires();
     fetchOtrosEquipos();
-    fetchDetailedAlerts(); // <--- NUEVO: Cargar alertas/fallas
-  }, [fetchAires, fetchOtrosEquipos, fetchDetailedAlerts]);
+    // Ya no se llama a fetchDetailedAlerts
+  }, [fetchAires, fetchOtrosEquipos]);
 
   useEffect(() => {
     if (airesList && Array.isArray(airesList)) {
@@ -51,14 +48,12 @@ const Reportes = () => {
           acc[tipo] = { items: [], byUbicacion: {} };
         }
 
-        // Si es de tipo 'Precision', agrupar también por ubicación
-        if (tipo.toLowerCase() === 'precision') { // Usar toLowerCase para ser flexible con la capitalización
+        if (tipo.toLowerCase() === 'precision') {
           if (!acc[tipo].byUbicacion[ubicacion]) {
             acc[tipo].byUbicacion[ubicacion] = [];
           }
           acc[tipo].byUbicacion[ubicacion].push(aire);
         } else {
-          // Para otros tipos, agregar directamente a la lista de items del tipo
           acc[tipo].items.push(aire);
         }
         return acc;
@@ -83,7 +78,6 @@ const Reportes = () => {
     }
   }, [otrosEquiposList]);
 
-  // --- Función para generar PDF de Aires por Tipo ---
   const handleDownloadAiresPDF = (tipo, aires, ubicacion = null) => {
     if (!aires || aires.length === 0) {
       console.warn(`No hay datos de aires para generar el PDF para el tipo: ${tipo}` + (ubicacion ? ` y ubicación: ${ubicacion}` : ''));
@@ -92,12 +86,11 @@ const Reportes = () => {
 
     const doc = new jsPDF({ orientation: 'landscape' });
     const tableColumn = [
-      "Nombre (TAG)", "Ubicación", "Tipo","Capacidad (Ton)", // Añadida Ubicación General
+      "Nombre (TAG)", "Ubicación", "Tipo","Capacidad (Ton)",
       "Marca (Evap.)", "Modelo (Evap.)",
       "Serial (Evap.)", "Inventario (Evap.)",  "Ubicación(Evap.)", "Estado (Evap.)", 
       "Marca (Cond.)", "Modelo (Cond.)",
       "Serial (Cond.)", "Inventario (Cond.)", "Ubicación(Cond.)", "Estado (Cond.)"
-      
     ];
     const tableRows = [];
 
@@ -113,29 +106,27 @@ const Reportes = () => {
     aires.forEach(aire => {
       const aireData = [
         aire.nombre || '-',
-        aire.ubicacion || '-', // Ubicación general del aire
+        aire.ubicacion || '-',
         aire.tipo || '-',
         aire.toneladas !== null ? aire.toneladas : '-',
         aire.evaporadora_marca || '-',
         aire.evaporadora_modelo || '-',
         aire.evaporadora_serial || '-',
         aire.evaporadora_codigo_inventario || '-',
-        aire.ubicacion || '-',
-        aire.evaporadora_operativa ? 'Operativo' : 'No Operativo', // Aquí debería ser evaporadora_ubicacion_instalacion si es diferente
+        aire.evaporadora_ubicacion_instalacion || '-', // Usar ubicación específica de evaporadora
+        aire.evaporadora_operativa ? 'Operativo' : 'No Operativo',
         aire.condensadora_marca || '-',
         aire.condensadora_modelo || '-',
         aire.condensadora_serial || '-',
         aire.condensadora_codigo_inventario || '-',
-        aire.condensadora_ubicacion || '-',
+        aire.condensadora_ubicacion_instalacion || '-', // Usar ubicación específica de condensadora
         aire.condensadora_operativa ? 'Operativo' : 'No Operativo'  
-
       ];
       tableRows.push(aireData);
     });
 
-    // --- Llama a autoTable como una función, pasando 'doc' como primer argumento ---
     try {
-      autoTable(doc, { // <--- Cambio aquí
+      autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
         startY: 30,
@@ -152,60 +143,9 @@ const Reportes = () => {
 
     } catch (error) {
       console.error("Error al generar la tabla PDF con autoTable:", error);
-      // Informar al usuario sobre el error si es necesario
     }
   };
-  // --- Fin de la función ---
 
-  // --- Función para generar PDF de Fallas Registradas ---
-  const handleDownloadFallasPDF = () => {
-    const fallasOperatividad = detailedAlertsList.filter(alerta => alerta.alerta_tipo === "Operatividad");
-    if (!fallasOperatividad || fallasOperatividad.length === 0) {
-      console.warn('No hay fallas de operatividad para generar el PDF.');
-      alert('No hay fallas de operatividad para generar el PDF.');
-      return;
-    }
-
-    const doc = new jsPDF({ orientation: 'landscape' });
-    const tableColumn = [
-      "Aire", "Ubicación", "Componente Falla", "Mensaje",
-      "Diagnóstico", "Notas Diagnóstico", "Detectado"
-    ];
-    const tableRows = [];
-
-    doc.setFontSize(18);
-    doc.text("Reporte de Fallas Registradas en Aires Acondicionados", 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-
-    fallasOperatividad.forEach(falla => {
-      const fallaData = [
-        falla.aire_nombre || '-',
-        falla.aire_ubicacion || '-',
-        falla.componente || '-',
-        falla.mensaje || '-',
-        falla.diagnostico_nombre || 'No especificado',
-        falla.diagnostico_notas || '-',
-        falla.fecha_lectura ? new Date(falla.fecha_lectura).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-',
-      ];
-      tableRows.push(fallaData);
-    });
-
-    try {
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        startY: 30,
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [220, 53, 69] }, // Color rojo para fallas
-        margin: { top: 30 }
-      });
-      doc.save('reporte_fallas_aires.pdf');
-    } catch (error) {
-      console.error("Error al generar el PDF de fallas:", error);
-    }
-  };
   const handleDownloadOtrosEquiposPDF = (tipo, equipos) => {
     if (!equipos || equipos.length === 0) {
       console.warn('No hay datos de otros equipos para generar el PDF para el tipo:', tipo);
@@ -213,63 +153,48 @@ const Reportes = () => {
   }
 
   const doc = new jsPDF({ orientation: 'landscape' });
-  // --- Ajusta las columnas según tu modelo OtroEquipo ---
   const tableColumn = [
-    "Nombre",
-    "Tipo",
-    "Ubicación",
-    "Marca",
-    "Modelo",
-    "Serial",
-    "Cód. Inventario",
-    "Estado"
+    "Nombre", "Tipo", "Ubicación", "Marca", "Modelo", "Serial", "Cód. Inventario", "Estado"
   ];
   const tableRows = [];
 
-  // Título del documento
   doc.setFontSize(18);
   doc.text(`Reporte de Otros Equipos - Tipo: ${tipo}`, 14, 22);
   doc.setFontSize(11);
   doc.setTextColor(100);
 
-  // Prepara las filas para la tabla usando las propiedades de models.py (OtroEquipo)
   equipos.forEach(equipo => {
-    // --- Mapea las propiedades correctas del objeto 'equipo' ---
     const equipoData = [
-      equipo.nombre || '-',             // Corresponde a OtroEquipo.nombre
-      equipo.tipo || '-',               // Corresponde a OtroEquipo.tipo
-      equipo.ubicacion || '-',          // Corresponde a OtroEquipo.ubicacion
-      equipo.marca || '-',              // Corresponde a OtroEquipo.marca
-      equipo.modelo || '-',             // Corresponde a OtroEquipo.modelo
-      equipo.serial || '-',             // Corresponde a OtroEquipo.serial
-      equipo.codigo_inventario || '-',  // Corresponde a OtroEquipo.codigo_inventario
-      equipo.estado_operativo ? 'Operativo' : 'No Operativo', // Corresponde a OtroEquipo.estado_operativo
+      equipo.nombre || '-',
+      equipo.tipo || '-',
+      equipo.ubicacion || '-',
+      equipo.marca || '-',
+      equipo.modelo || '-',
+      equipo.serial || '-',
+      equipo.codigo_inventario || '-',
+      equipo.estado_operativo ? 'Operativo' : 'No Operativo',
     ];
     tableRows.push(equipoData);
   });
 
-  // Llama a autoTable como una función, pasando 'doc' como primer argumento
   try {
-    autoTable(doc, { // Usando la importación explícita
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 30,
       theme: 'grid',
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [41, 128, 185] }, // Puedes usar otro color para diferenciar
+      headStyles: { fillColor: [41, 128, 185] },
       margin: { top: 30 }
     });
 
-    // Nombre del archivo PDF
     const fileName = `reporte_otros_equipos_${tipo.replace(/\s+/g, '_')}.pdf`;
     doc.save(fileName);
 
   } catch (error) {
     console.error("Error al generar la tabla PDF para otros equipos:", error);
-    // Informar al usuario sobre el error si es necesario
   }
 };
-// --- Fin de la función ---
 
   return (
     <div className="container mt-4">
@@ -280,10 +205,9 @@ const Reportes = () => {
         onSelect={(k) => setActiveTab(k)}
         className="mb-3"
         id="reportes-tabs"
-        mountOnEnter // Carga el contenido de la pestaña solo cuando se activa
-        unmountOnExit // Descarga el contenido cuando se desactiva (opcional, para liberar memoria)
+        mountOnEnter
+        unmountOnExit
       >
-        {/* --- PESTAÑA DATOS DE EQUIPO --- */}
         <Tab eventKey="datosEquipo" title={<><HiOutlineTable className="me-1" /> Datos de Equipos</>}>
           {/* Aires Section */}
           <Card className="mb-4">
@@ -395,42 +319,7 @@ const Reportes = () => {
             </Card.Body>
           </Card>
         </Tab>
-
-        {/* --- PESTAÑA FALLAS REGISTRADAS --- */}
-        <Tab eventKey="fallasRegistradas" title={<><HiOutlineExclamationCircle className="me-1" /> Fallas Registradas (Aires)</>}>
-
-        <Card className="mb-4">
-          <Card.Header className="d-flex justify-content-between align-items-center">
-            <h2>Reporte de Fallas Registradas (Aires)</h2>
-            <Button
-              variant="outline-danger"
-              size="sm"
-              onClick={handleDownloadFallasPDF}
-              disabled={!detailedAlertsList.some(alerta => alerta.alerta_tipo === "Operatividad")}
-            >
-              <HiOutlineDocumentReport className="me-1" /> Descargar PDF de Fallas
-            </Button>
-          </Card.Header>
-          <Card.Body>
-            {detailedAlertsLoading && (
-              <div className="text-center p-3">
-                <Spinner animation="border" variant="danger" />
-                <p>Cargando fallas...</p>
-              </div>
-            )}
-            {detailedAlertsError && (
-              <Alert variant="danger">
-                Error al cargar fallas: {detailedAlertsError}
-              </Alert>
-            )}
-            {!detailedAlertsLoading && !detailedAlertsError && (
-              <ReportesFallasTable
-                fallas={detailedAlertsList.filter(alerta => alerta.alerta_tipo === "Operatividad")}
-              />
-            )}
-          </Card.Body>
-        </Card>
-        </Tab>
+        {/* La pestaña de Fallas Registradas ha sido eliminada */}
       </Tabs>
     </div>
   );
