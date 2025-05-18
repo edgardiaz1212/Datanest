@@ -2334,9 +2334,8 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       deleteProveedor: async (proveedorId) => {
         const store = getStore();
-        const originalList = [...store.proveedores];
-        const updatedList = originalList.filter((p) => p.id !== proveedorId);
-        setStore({ proveedores: updatedList, proveedoresError: null }); // Optimistic update
+        // Quitar actualización optimista para forzar el refetch y asegurar consistencia.
+        setStore({ proveedoresLoading: true, proveedoresError: null }); // Indicar que estamos procesando
 
         try {
           const response = await fetch(
@@ -2347,20 +2346,30 @@ const getState = ({ getStore, getActions, setStore }) => {
             }
           );
           if (!response.ok) {
-            setStore({ proveedores: originalList }); // Revert on error
+            // setStore({ proveedores: originalList }); // No es necesario revertir si no hay optimistic update
             const errorData = await response.json().catch(() => ({}));
             if (response.status === 401) getActions().logoutTrackerUser();
-            throw new Error(errorData.msg || `Error ${response.status}`);
+            setStore({ // Establecer error y detener la carga
+                proveedoresError: errorData.msg || `Error ${response.status}`,
+                proveedoresLoading: false
+            });
+            throw new Error(errorData.msg || `Error ${response.status}`); // Propagar el error
           }
           console.log(`Proveedor ${proveedorId} deleted.`);
-          // No es necesario refetch si la actualización optimista es suficiente
+          // Refetch la lista de proveedores para actualizar el store
+          await getActions().fetchProveedores();
+          // fetchProveedores ya maneja el estado de carga y error.
           return true;
         } catch (error) {
           console.error("Error deleting proveedor:", error);
-          setStore({
-            proveedores: originalList,
-            proveedoresError: error.message || "Error al eliminar proveedor.",
-          });
+          // Si el error no fue establecido por el bloque !response.ok
+          if (!store.proveedoresError) { // Solo establece si no hay un error HTTP previo
+            setStore({
+                // proveedores: originalList, // No es necesario si no hay optimistic update
+                proveedoresError: error.message || "Error al eliminar proveedor.",
+                proveedoresLoading: false // Asegurar que loading se resetea
+            });
+          }
           return false;
         }
       },

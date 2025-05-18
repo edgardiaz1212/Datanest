@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g # Ensure g is imported if used elsewhere, not directly here
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, RegistroDiagnosticoAire, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,7 +17,6 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 import io
 import base64 # Importar base64
 from sqlalchemy.orm import aliased # Añadir aliased
-from api.models import RegistroDiagnosticoAire, ParteACEnum # Importar el nuevo modelo y Enum
 from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
