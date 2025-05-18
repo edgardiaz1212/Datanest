@@ -43,7 +43,7 @@ const Layout = () => {
         if (!store.isAuthenticated && requiresAuth) {
             console.log("Usuario no autenticado intentando acceder a ruta protegida, redirigiendo a /login...");
             // Redirect to the login page instead of home?
-            navigate('/login'); // Consider redirecting to login
+            navigate('/login', { replace: true }); // Consider redirecting to login
         }
 
         // If the user IS authenticated and tries to access login/register, redirect to dashboard
