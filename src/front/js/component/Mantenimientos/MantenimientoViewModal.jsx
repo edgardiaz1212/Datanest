@@ -14,7 +14,8 @@ import {
   FiTag, // Icon for Tipo Equipo
   FiHash, // Icon for ID
   FiFileText, // Icon for Descripción
-  FiCheckSquare, // Icon for Tiene Imagen (alternative) or Alerta Resuelta
+  FiCheckSquare, // Icon for Alerta Resuelta
+  FiAlertCircle, // Icon for Alerta Original
   FiXSquare, // Icon for No Tiene Imagen (alternative)
 } from "react-icons/fi";
 
@@ -93,10 +94,10 @@ const MantenimientoViewModal = ({ // Remove : React.FC<MantenimientoViewModalPro
   const alertasResueltas = useMemo(() => {
     if (mantenimiento && mantenimiento.alertas_resueltas_info) {
       try {
-        return JSON.parse(mantenimiento.alertas_resueltas_info);
+        return Object.values(JSON.parse(mantenimiento.alertas_resueltas_info)); // Convertir el objeto a un array de sus valores
       } catch (e) {
         console.error("Error parseando alertas_resueltas_info:", e);
-        return [];
+        return []; // Devuelve un array vacío en caso de error
       }
     }
     return [];
@@ -150,24 +151,33 @@ const MantenimientoViewModal = ({ // Remove : React.FC<MantenimientoViewModalPro
           {alertasResueltas && alertasResueltas.length > 0 && (
             <>
               <hr className="my-3" />
-              <h5 className="mb-3"><FiCheckSquare className="me-2 text-success"/>Alertas de Operatividad Resueltas por este Mantenimiento</h5>
+              <h5 className="mb-3"><FiCheckSquare className="me-2 text-success"/>Diagnósticos Atendidos en este Mantenimiento</h5>
               {alertasResueltas.map((alerta, index) => (
-                <div key={index} className="mb-2 p-2 border rounded bg-light-subtle">
-                  <p className="mb-1">
-                    <Badge bg="danger" pill className="me-2">{alerta.componente || 'Componente Desconocido'}</Badge>
-                    <strong>Diagnóstico:</strong> {alerta.diagnostico || alerta.mensaje || 'No especificado'}
-                  </p>
-                  {alerta.notas_diagnostico && (
-                    <p className="mb-0 ms-4">
-                      <small className="text-muted">Notas del diagnóstico original: {alerta.notas_diagnostico}</small>
+                // Solo mostrar si la alerta fue marcada como resuelta
+                alerta.resuelta && (
+                  <div key={index} className="mb-3 p-3 border rounded bg-light-subtle shadow-sm">
+                    <p className="mb-1">
+                      <Badge bg="primary" pill className="me-2">
+                        <FiAlertCircle className="me-1"/> {alerta.componenteOriginal || 'Componente Desconocido'}
+                      </Badge>
+                      <strong>Diagnóstico Original:</strong> {alerta.diagnosticoOriginal || alerta.mensajeOriginal || 'No especificado'}
                     </p>
-                  )}
-                   {alerta.fecha_lectura_original && (
-                    <p className="mb-0 ms-4">
-                      <small className="text-muted">Falla detectada el: {formatearFechaHora(alerta.fecha_lectura_original)}</small>
+                    {alerta.notasOriginales && (
+                      <p className="mb-1 ms-4">
+                        <small className="text-muted">Notas Originales: {alerta.notasOriginales}</small>
+                      </p>
+                    )}
+                    <p className="mb-1 ms-4">
+                      <FiCheckSquare className="me-1 text-success"/> <strong>Nuevo Estado:</strong> <Badge bg={getBadgeColor(alerta.nuevoEstado)}>{alerta.nuevoEstado || 'N/A'}</Badge>
                     </p>
-                  )}
-                </div>
+                    {alerta.nuevoDiagnosticoId && ( // Si se registró un nuevo diagnóstico
+                      <p className="mb-0 ms-4">
+                        <FiTool className="me-1 text-info"/> <strong>Nuevo Diagnóstico Registrado:</strong> {alerta.nuevoDiagnosticoNombre || `ID: ${alerta.nuevoDiagnosticoId}`}
+                        {alerta.nuevasNotas && <span className="text-muted"> - Notas: {alerta.nuevasNotas}</span>}
+                      </p>
+                    )}
+                  </div>
+                )
               ))}
             </>
           )}
