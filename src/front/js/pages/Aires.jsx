@@ -218,7 +218,7 @@ const Aires = () => {
       if (formMode === 'add') {
         success = await addAire(payload); // Use addAire action
       } else if (formMode === 'edit' && formData.id) {
-        success = await updateAire(formData.id, payload);
+        success = await actions.updateAire(formData.id, payload);
       } else {
         throw new Error("Operación inválida.");
       }

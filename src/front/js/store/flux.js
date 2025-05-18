@@ -1003,20 +1003,25 @@ const getState = ({ getStore, getActions, setStore }) => {
           );
           const responseData = await response.json();
           if (!response.ok) {
-            if (response.status === 401) getActions().logoutTrackerUser();
+            if (response.status === 401) {
+              getActions().logoutTrackerUser();
+              // No continuar si es 401, el logout se encargará de limpiar
+              return false; // Opcional: podrías lanzar un error específico para 401
+            }
             throw new Error(
               responseData.msg || `Error updating aire: ${response.status}`
             );
           }
-          // After updating a specific aire, refetch its details for the details page
-          await getActions().fetchAireDetails(aireId);
+          // After updating a specific aire, refetch its details AND the main list
+          await getActions().fetchAireDetails(aireId); // Actualiza detalles para la vista de detalle
+          await getActions().fetchAires(); // <--- AÑADIDO: Refresca la lista principal y maneja airesLoading
           return true;
         } catch (error) {
           console.error("Error in updateAire:", error);
           setStore({
             airesError:
               error.message || "Error al actualizar el aire acondicionado.",
-            airesLoading: false,
+            airesLoading: false, // Asegúrate de que loading se ponga en false aquí también
           });
           return false;
         }

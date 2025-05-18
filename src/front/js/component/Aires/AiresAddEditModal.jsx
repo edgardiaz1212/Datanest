@@ -170,20 +170,23 @@ const AiresAddEditModal = ({
                                             </Form.Group>
                                         </Col>
                                     </Row>
-                                     <Form.Group className="mb-3" controlId="formEvapOperativaSelect">
-                                        <Form.Label>Estado Evaporadora</Form.Label>
-                                        <Form.Select
-                                            name="evaporadora_operativa"
-                                            value={formData.evaporadora_operativa || 'no_operativa'}
-                                            onChange={onChange}
-                                            disabled={isSubmitting}
-                                            aria-label="Seleccione el estado de la evaporadora"
-                                        >
-                                            <option value="operativa">Operativa</option>
-                                            <option value="parcialmente_operativa">Parcialmente Operativa</option> {/* Keep these options for current state */}
-                                            <option value="no_operativa">No Operativa</option> {/* Keep these options for current state */}
-                                        </Form.Select>
-                                    </Form.Group>
+                                    {/* Mostrar solo en modo 'add' */}
+                                    {formMode === 'add' && (
+                                        <Form.Group className="mb-3" controlId="formEvapOperativaSelect">
+                                            <Form.Label>Estado Evaporadora</Form.Label>
+                                            <Form.Select
+                                                name="evaporadora_operativa"
+                                                value={formData.evaporadora_operativa || 'no_operativa'}
+                                                onChange={onChange}
+                                                disabled={isSubmitting}
+                                                aria-label="Seleccione el estado de la evaporadora"
+                                            >
+                                                <option value="operativa">Operativa</option>
+                                                <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                                <option value="no_operativa">No Operativa</option>
+                                            </Form.Select>
+                                        </Form.Group>
+                                    )}
 
                                 </Accordion.Body>
                             </Accordion.Item>
@@ -226,20 +229,23 @@ const AiresAddEditModal = ({
                                             </Form.Group>
                                         </Col>
                                     </Row>
-                                     <Form.Group className="mb-3" controlId="formCondOperativaSelect">
-                                        <Form.Label>Estado Condensadora</Form.Label>
-                                        <Form.Select
-                                            name="condensadora_operativa"
-                                            value={formData.condensadora_operativa || 'no_operativa'}
-                                            onChange={onChange}
-                                            disabled={isSubmitting}
-                                            aria-label="Seleccione el estado de la condensadora"
-                                        >
-                                            <option value="operativa">Operativa</option>
-                                            <option value="parcialmente_operativa">Parcialmente Operativa</option> {/* Keep these options for current state */}
-                                            <option value="no_operativa">No Operativa</option> {/* Keep these options for current state */}
-                                        </Form.Select>
-                                    </Form.Group>
+                                    {/* Mostrar solo en modo 'add' */}
+                                    {formMode === 'add' && (
+                                        <Form.Group className="mb-3" controlId="formCondOperativaSelect">
+                                            <Form.Label>Estado Condensadora</Form.Label>
+                                            <Form.Select
+                                                name="condensadora_operativa"
+                                                value={formData.condensadora_operativa || 'no_operativa'}
+                                                onChange={onChange}
+                                                disabled={isSubmitting}
+                                                aria-label="Seleccione el estado de la condensadora"
+                                            >
+                                                <option value="operativa">Operativa</option>
+                                                <option value="parcialmente_operativa">Parcialmente Operativa</option>
+                                                <option value="no_operativa">No Operativa</option>
+                                            </Form.Select>
+                                        </Form.Group>
+                                    )}
                                 </Accordion.Body>
                             </Accordion.Item>
                         </Accordion>
