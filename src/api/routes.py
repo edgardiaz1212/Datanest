@@ -1665,6 +1665,8 @@ def parse_time_flexible(time_str):
             continue
     return None
 
+#Logica para cargar Excel con valores Temp humedad
+
 def parse_date_flexible(date_str):
     """Intenta parsear una fecha en formatos DD/MM/YYYY o YYYY-MM-DD."""
     if isinstance(date_str, datetime): # Si ya es un objeto datetime
@@ -1680,185 +1682,131 @@ def parse_date_flexible(date_str):
     return None
 
 
+def parse_date_flexible(value):
+    try:
+        if isinstance(value, datetime):
+            return value.date()
+        elif isinstance(value, str):
+            # Intentar varios formatos comunes
+            for fmt in ("%m/%d/%y", "%d/%m/%y", "%Y-%m-%d", "%d-%m-%Y"):
+                try:
+                    return datetime.strptime(value, fmt).date()
+                except ValueError:
+                    continue
+        return None
+    except Exception:
+        return None
+
+
+def parse_time_flexible(value):
+    try:
+        if isinstance(value, time_obj):
+            return value
+        elif isinstance(value, str):
+            for fmt in ("%H:%M", "%H:%M:%S", "%I:%M %p"):
+                try:
+                    return datetime.strptime(value, fmt).time()
+                except ValueError:
+                    continue
+        return None
+    except Exception:
+        return None
+
+
 @api.route('/lecturas/upload_excel', methods=['POST'])
 @jwt_required()
 def upload_lecturas_excel_route():
     current_user_id = get_jwt_identity()
-    # Opcional: Verificar rol si es necesario
-    # logged_in_user = TrackerUsuario.query.get(current_user_id)
-    # if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
-    #     return jsonify({"msg": "Acceso no autorizado"}), 403
 
     if 'file' not in request.files:
         return jsonify({"msg": "No se encontró el archivo en la solicitud."}), 400
-
     file = request.files['file']
     if file.filename == '':
         return jsonify({"msg": "No se seleccionó ningún archivo."}), 400
-
     if not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
         return jsonify({"msg": "Formato de archivo no permitido. Usar .xlsx o .xls"}), 400
 
     try:
-        df = pd.read_excel(file, header=None) # Leer sin cabecera por ahora
-        
-        lecturas_a_guardar = []
+        df = pd.read_excel(file, header=None)  # Leer sin cabecera
+
+        if df.shape[0] < 5 or df.shape[1] < 3:
+            return jsonify({"msg": "El archivo Excel no tiene suficientes filas/columnas."}), 400
+
         errores_detalle = []
-        filas_procesadas_ok = 0
+        lecturas_a_guardar = []
 
-        # --- Lógica de Parseo del Excel ---
-        # Asumimos:
-        # Fila 0: Nombres de Aires Acondicionados (a partir de la columna 1, índice 0 en pandas es col B)
-        # Fila 1: Sub-cabeceras "Temp", "Hum" debajo de cada aire
-        # Columna 0: Fechas o Horas
-        
-        if df.shape[0] < 3 or df.shape[1] < 2: # Mínimo 3 filas (aires, temp/hum, 1 data) y 2 cols (fecha/hora, 1 aire temp)
-            return jsonify({"msg": "El archivo Excel no tiene la estructura mínima esperada (filas de cabecera y datos)."}), 400
+        # Extraer fechas de la fila 2
+        fechas = {}
+        for col_idx in range(8, df.shape[1], 7):  # Cada bloque de 7 columnas es un día
+            fecha_celda = df.iloc[2, col_idx]
+            fecha = parse_date_flexible(str(fecha_celda))
+            if fecha:
+                for i in range(col_idx, min(col_idx + 7, df.shape[1])):
+                    fechas[i] = fecha
 
-        nombres_aires_excel = {} # {nombre_excel: {col_temp: X, col_hum: Y, db_id: Z, db_tipo: 'Precision'}}
-        
-        # Procesar cabeceras de aires y Temp/Hum
-        # Fila 0 para nombres de aires, Fila 1 para Temp/Hum
-        for col_idx in range(1, df.shape[1]): # Empezar desde la segunda columna (índice 1)
-            nombre_aire_excel = str(df.iloc[0, col_idx]).strip()
-            sub_header = str(df.iloc[1, col_idx]).strip().lower()
+        # Extraer horas de la fila 4
+        horas = {}
+        for col_idx in range(8, df.shape[1]):
+            hora_str = df.iloc[4, col_idx]
+            hora = parse_time_flexible(str(hora_str))
+            if hora:
+                horas[col_idx] = hora
 
-            if nombre_aire_excel and nombre_aire_excel != 'nan' and nombre_aire_excel not in nombres_aires_excel:
-                if sub_header == 'temp':
-                    nombres_aires_excel[nombre_aire_excel] = {'col_temp': col_idx, 'col_hum': None}
-                    # Buscar si la siguiente columna es 'Hum' para este aire
-                    if col_idx + 1 < df.shape[1] and str(df.iloc[0, col_idx + 1]).strip() == nombre_aire_excel and str(df.iloc[1, col_idx + 1]).strip().lower() == 'hum':
-                        nombres_aires_excel[nombre_aire_excel]['col_hum'] = col_idx + 1
-                # Si ya existe el aire y encontramos 'hum', lo asignamos si 'temp' ya estaba
-                elif nombre_aire_excel in nombres_aires_excel and sub_header == 'hum' and nombres_aires_excel[nombre_aire_excel].get('col_temp') is not None:
-                     nombres_aires_excel[nombre_aire_excel]['col_hum'] = col_idx
+        # Mapear nombres de aire (fila 5 en adelante)
+        aires_en_db = {aire.nombre: aire.id for aire in AireAcondicionado.query.all()}
 
+        for fila_idx in range(5, df.shape[0]):
+            nombre_aire = str(df.iloc[fila_idx, 1]).strip()
+            if nombre_aire in ['nan', '', ' ', None]:
+                continue
+            if nombre_aire not in aires_en_db:
+                errores_detalle.append(f"Aire '{nombre_aire}' no encontrado en la base de datos.")
+                continue
 
-        if not nombres_aires_excel:
-            return jsonify({"msg": "No se pudieron identificar nombres de aires o cabeceras 'Temp'/'Hum' en las primeras dos filas del Excel."}), 400
+            aire_id = aires_en_db[nombre_aire]
 
-        # Mapear nombres de aires del Excel a IDs y tipos de la BD
-        aires_en_db = AireAcondicionado.query.filter(AireAcondicionado.nombre.in_(nombres_aires_excel.keys())).all()
-        mapa_aires_db = {aire.nombre: {'id': aire.id, 'tipo': aire.tipo} for aire in aires_en_db}
+            for col_idx in range(8, df.shape[1]):
+                valor = df.iloc[fila_idx, col_idx]
+                if pd.isna(valor) or str(valor).strip() in ['', '#DIV/0!']:
+                    continue
 
-        for nombre_excel, data_excel in nombres_aires_excel.items():
-            if nombre_excel in mapa_aires_db:
-                data_excel['db_id'] = mapa_aires_db[nombre_excel]['id']
-                data_excel['db_tipo'] = mapa_aires_db[nombre_excel]['tipo']
-            else:
-                errores_detalle.append(f"Aire '{nombre_excel}' del Excel no encontrado en la base de datos. Se omitirán sus lecturas.")
-        
-        # Filtrar solo los aires que sí existen en la BD para el procesamiento de lecturas
-        aires_validos_procesar = {k: v for k, v in nombres_aires_excel.items() if 'db_id' in v}
-        if not aires_validos_procesar:
-             return jsonify({"msg": "Ninguno de los aires en el Excel coincide con aires en la base de datos.", "errors": errores_detalle}), 400
+                fecha = fechas.get(col_idx)
+                hora = horas.get(col_idx)
 
+                if not fecha or not hora:
+                    errores_detalle.append(f"Fila {fila_idx+1}, Columna {col_idx+1}: No se pudo extraer fecha u hora.")
+                    continue
 
-        fecha_actual_str = None
-        # Iterar por las filas de datos (a partir de la fila 2, índice 2 en pandas)
-        for fila_idx in range(2, df.shape[0]):
-            valor_col_a = df.iloc[fila_idx, 0]
-
-            # Intentar parsear como fecha
-            fecha_parseada = None
-            if pd.notna(valor_col_a):
-                if isinstance(valor_col_a, datetime): # Pandas a veces ya lo convierte
-                    fecha_parseada = valor_col_a.date()
-                elif isinstance(valor_col_a, str):
-                    fecha_parseada = parse_date_flexible(valor_col_a.strip())
-            
-            if fecha_parseada:
-                fecha_actual_str = fecha_parseada
-                continue # Es una fila de fecha, pasamos a la siguiente para las horas
-
-            # Si no es fecha y tenemos una fecha_actual_str, intentar parsear como hora
-            if fecha_actual_str and pd.notna(valor_col_a):
-                hora_actual_str = None
-                if isinstance(valor_col_a, time_obj): # Pandas a veces ya lo convierte
-                    hora_actual_str = valor_col_a
-                elif isinstance(valor_col_a, datetime):
-                     hora_actual_str = valor_col_a.time()
-                elif isinstance(valor_col_a, (str, int, float)): # Horas pueden ser números o strings
-                    hora_actual_str = parse_time_flexible(str(valor_col_a).strip())
-
-                if hora_actual_str:
-                    try:
-                        fecha_hora_obj = datetime.combine(fecha_actual_str, hora_actual_str)
-                    except TypeError:
-                        errores_detalle.append(f"Fila {fila_idx + 1}: Error combinando fecha '{fecha_actual_str}' y hora '{hora_actual_str}'.")
-                        continue
-                    
-                    # Procesar lecturas para cada aire en esta fila de hora
-                    for nombre_aire, info_aire in aires_validos_procesar.items():
-                        try:
-                            temp_val_crudo = df.iloc[fila_idx, info_aire['col_temp']]
-                            
-                            if pd.isna(temp_val_crudo) or str(temp_val_crudo).strip() == '':
-                                #errores_detalle.append(f"Fila {fila_idx + 1}, Aire '{nombre_aire}': Temperatura vacía.")
-                                continue # Saltar esta lectura si la temperatura es esencial y está vacía
-
-                            temperatura = float(temp_val_crudo)
-                            humedad = None
-
-                            if info_aire['col_hum'] is not None:
-                                hum_val_crudo = df.iloc[fila_idx, info_aire['col_hum']]
-                                if pd.notna(hum_val_crudo) and str(hum_val_crudo).strip() != '':
-                                    humedad = float(hum_val_crudo)
-                            
-                            # Validar humedad si el tipo no es Confort
-                            if info_aire['db_tipo'] != 'Confort' and humedad is None:
-                                errores_detalle.append(f"Fila {fila_idx + 1}, Aire '{nombre_aire}' (Tipo {info_aire['db_tipo']}): Humedad requerida pero está vacía.")
-                                continue
-                            
-                            lectura = Lectura(
-                                aire_id=info_aire['db_id'],
-                                fecha=fecha_hora_obj,
-                                temperatura=temperatura,
-                                humedad=humedad
-                            )
-                            lecturas_a_guardar.append(lectura)
-                            filas_procesadas_ok +=1
-
-                        except ValueError:
-                            errores_detalle.append(f"Fila {fila_idx + 1}, Aire '{nombre_aire}': Valor no numérico para temperatura o humedad.")
-                        except IndexError:
-                            errores_detalle.append(f"Fila {fila_idx + 1}, Aire '{nombre_aire}': Faltan columnas de Temp/Hum según la configuración.")
-                        except Exception as e_inner:
-                            errores_detalle.append(f"Fila {fila_idx + 1}, Aire '{nombre_aire}': Error inesperado procesando lectura - {str(e_inner)}.")
-                # else:
-                    # Si no es hora válida, podría ser una celda vacía o texto irrelevante
-                    # errores_detalle.append(f"Fila {fila_idx + 1}: '{valor_col_a}' no es una hora válida después de una fecha.")
-            # else:
-                # Si no hay fecha_actual_str, esta fila no se puede procesar como lectura de hora
-                # O si valor_col_a es NaN y no hay fecha actual, es una fila vacía.
-                # if pd.notna(valor_col_a): # Solo reportar si no es una celda vacía
-                    # errores_detalle.append(f"Fila {fila_idx + 1}: '{valor_col_a}' encontrada sin una fecha previa definida.")
-
+                try:
+                    fecha_hora = datetime.combine(fecha, hora)
+                    temperatura = float(valor)
+                    lectura = Lectura(
+                        aire_id=aire_id,
+                        fecha=fecha_hora,
+                        temperatura=temperatura
+                    )
+                    lecturas_a_guardar.append(lectura)
+                except Exception as e:
+                    errores_detalle.append(f"Error procesando fila {fila_idx+1}, columna {col_idx+1}: {str(e)}")
 
         if lecturas_a_guardar:
-            db.session.add_all(lecturas_a_guardar)
+            db.session.bulk_save_objects(lecturas_a_guardar)
             db.session.commit()
-        
-        msg_final = f"Proceso completado. {len(lecturas_a_guardar)} lecturas importadas."
-        if filas_procesadas_ok != len(lecturas_a_guardar) and filas_procesadas_ok > 0 : # Hubo algunos OK pero no todos los que se intentaron
-             msg_final = f"Proceso completado. {len(lecturas_a_guardar)} lecturas importadas. Algunas filas individuales tuvieron problemas."
-
 
         return jsonify({
-            "msg": msg_final,
+            "msg": f"{len(lecturas_a_guardar)} lecturas importadas.",
             "success_count": len(lecturas_a_guardar),
             "error_count": len(errores_detalle),
             "errors": errores_detalle
         }), 200
 
-    except pd.errors.EmptyDataError:
-        return jsonify({"msg": "El archivo Excel está vacío o no se pudo leer."}), 400
     except Exception as e:
         db.session.rollback()
         print(f"Error procesando archivo Excel: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": f"Error al procesar el archivo Excel: {str(e)}"}), 500
 
+    
 @api.route('/lecturas/download_excel_template', methods=['GET'])
 @jwt_required()
 def download_excel_template_route():
