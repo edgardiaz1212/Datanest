@@ -2166,8 +2166,15 @@ const getState = ({ getStore, getActions, setStore }) => {
 
           // Get AC info from store
           const store = getStore();
-          const aireInfo = store.aires.find((a) => a.id === aireId);
-
+          // Asegurarse que airesList esté poblado. Si no, intentar cargarlo.
+          // Esto es una medida defensiva, idealmente aires ya está cargado.
+          let airesList = store.aires;
+          if (!airesList || airesList.length === 0) {
+            console.warn("fetchEstadisticasAire: store.aires está vacío. Intentando cargar...");
+            await getActions().fetchAires(); // Esperar a que se carguen los aires
+            airesList = getStore().aires; // Obtener la lista actualizada
+          }
+          const aireInfo = airesList.find((a) => a.id === parseInt(aireId)); // Asegurar que aireId sea número para la comparación
           // --- Combine data into processedStatsAire ---
           const processedStatsAire = {
             // Spread the fetched stats (handle if statsData is null)
