@@ -1482,7 +1482,7 @@ def agregar_lectura_route(aire_id):
         return jsonify({"msg": "Error inesperado en el servidor al guardar la lectura."}), 500
 
 @api.route('/aires/<int:aire_id>/lecturas', methods=['GET'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def obtener_lecturas_por_aire_route(aire_id):
     """
     Endpoint para obtener todas las lecturas de un aire acondicionado específico.
@@ -1499,9 +1499,13 @@ def obtener_lecturas_por_aire_route(aire_id):
         if per_page > 100: # Limitar per_page para evitar sobrecarga
             per_page = 100
 
+        print(f"DEBUG BACKEND: Recibida petición de lecturas para aire_id: {aire_id}, page: {page}, per_page: {per_page}", file=sys.stderr) # <-- LOG AÑADIDO
+
         paginated_lecturas = Lectura.query.filter_by(aire_id=aire_id)\
             .order_by(Lectura.fecha.desc())\
             .paginate(page=page, per_page=per_page, error_out=False)
+
+        print(f"DEBUG BACKEND: Consulta de lecturas para aire {aire_id} encontró {len(paginated_lecturas.items)} items.", file=sys.stderr) # <-- LOG AÑADIDO
 
         lecturas_serializadas = [lectura.serialize() for lectura in paginated_lecturas.items]
 
@@ -1518,6 +1522,7 @@ def obtener_lecturas_por_aire_route(aire_id):
         print(f"!!! ERROR inesperado en obtener_lecturas_por_aire_route para aire {aire_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al obtener lecturas."}), 500
+
 
 @api.route('/diagnostico_componentes/<int:diagnostico_id>', methods=['PUT'])
 @jwt_required()

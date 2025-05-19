@@ -2132,7 +2132,7 @@ const getState = ({ getStore, getActions, setStore }) => {
               headers: getAuthHeaders(),
             }),
             fetch(
-              `${process.env.BACKEND_URL}/aires/${aireId}/lecturas?limit=50`,
+              `${process.env.BACKEND_URL}/aires/${aireId}/lecturas?per_page=50`, // Cambiado a per_page
               { headers: getAuthHeaders() }
             ), // Fetch last 50 readings
           ]);
@@ -2147,8 +2147,15 @@ const getState = ({ getStore, getActions, setStore }) => {
             `lecturas aire ${aireId}`
           );
 
-          // Ensure lecturasData is an array, default to empty if not
-          const validLecturas = Array.isArray(lecturasData) ? lecturasData : [];
+// --- CORRECCIÓN AQUÍ ---
+          // lecturasData es el objeto de paginación { items: [...], ... }
+          // Necesitamos el array de lecturasData.items
+          let validLecturas = [];
+          if (lecturasData && Array.isArray(lecturasData.items)) {
+            validLecturas = lecturasData.items;
+          } else if (Array.isArray(lecturasData)) { // Fallback por si la API cambia y devuelve un array directamente
+            validLecturas = lecturasData;
+          }
 
           if (!Array.isArray(lecturasData)) {
             console.warn(`fetchEstadisticasAire: lecturasData for aire ${aireId} was not an array. Received:`, lecturasData);
