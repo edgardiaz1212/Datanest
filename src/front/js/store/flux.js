@@ -917,11 +917,12 @@ const getState = ({ getStore, getActions, setStore }) => {
                 "Could not parse error response as JSON in fetchAires"
               );
             }
+            console.error(`fetchAires: Backend responded with status ${response.status}`, errorData);
 
             if (response.status === 401) actions.logoutTrackerUser();
             setStore({
               airesError:
-                errorData.msg || `Error fetching aires: ${response.status}`,
+                errorData?.msg || `Error fetching aires: ${response.status}`, // Defensive access to msg
               airesLoading: false,
               // NO establecer aires: [] aquí. Mantener datos obsoletos en caso de error.
             }); 
@@ -929,6 +930,8 @@ const getState = ({ getStore, getActions, setStore }) => {
           }
           const data = await response.json();
           if (Array.isArray(data)) {
+                        console.log(`fetchAires: Successfully fetched ${data.length} aires.`, data);
+
             setStore({ aires: data, airesLoading: false, airesError: null }); // Limpiar error en éxito
             return data; // Devolver datos para posible encadenamiento
  
@@ -936,7 +939,8 @@ const getState = ({ getStore, getActions, setStore }) => {
             // Este caso debería ser idealmente capturado por response.ok o ser un código de error específico del servidor
             setStore({
                 airesError: "Formato de respuesta inesperado del servidor al listar aires.",
-                airesLoading: false,
+                
+                airesLoading: false
                 // NO establecer aires: [] aquí.
             });
             return null; // Indicar fallo
@@ -945,8 +949,8 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.error("Error in fetchAires:", error);
           setStore({
             airesError: error.message || "Error cargando la lista de aires.",
-            airesLoading: false,
-            
+            airesLoading: false
+            // No limpiar store.aires aquí para no perder datos si ya existían y esto fue un error de red temporal
           });
           return null;
         }
@@ -2100,21 +2104,21 @@ const getState = ({ getStore, getActions, setStore }) => {
         });
 
         try {
-          // --- Helper to check responses ---
-          // (Assuming this helper exists elsewhere or is defined here)
-          // It should handle response.ok, parse JSON, and manage 401 errors by calling logoutTrackerUser
-          const checkResp = async (resp, name) => {
+             const checkResp = async (resp, name) => {
+             console.log(`DEBUG: checkResp for ${name}, status: ${resp.status}`);
             if (!resp.ok) {
               const errorData = await resp
                 .json()
                 .catch(() => ({ msg: "Failed to parse error response" }));
               if (resp.status === 401) getActions().logoutTrackerUser(); // Logout on 401
+              console.error(`Error cargando ${name}: ${errorData.msg || resp.status}`, errorData);
               throw new Error(
                 `Error cargando ${name}: ${errorData.msg || resp.status}`
               );
             }
             // Handle cases where the response might be empty (e.g., 204 No Content)
             const text = await resp.text();
+            // console.log(`DEBUG: checkResp for ${name}, text response:`, text.substring(0,100)); // Log first 100 chars
             try {
               return text ? JSON.parse(text) : null; // Return null for empty responses
             } catch (e) {
@@ -2122,8 +2126,6 @@ const getState = ({ getStore, getActions, setStore }) => {
               throw new Error(`Respuesta inválida del servidor para ${name}.`);
             }
           };
-          // --- End Helper ---
-
           // Fetch stats and readings concurrently
           const [statsResponse, lecturasResponse] = await Promise.all([
             fetch(`${process.env.BACKEND_URL}/aires/${aireId}/estadisticas`, {
@@ -2148,33 +2150,53 @@ const getState = ({ getStore, getActions, setStore }) => {
           // Ensure lecturasData is an array, default to empty if not
           const validLecturas = Array.isArray(lecturasData) ? lecturasData : [];
 
+          if (!Array.isArray(lecturasData)) {
+            console.warn(`fetchEstadisticasAire: lecturasData for aire ${aireId} was not an array. Received:`, lecturasData);
+          }
+
           // --- Calculate Variations ---
           let variacionTemp = 0;
           let variacionHum = 0;
           if (validLecturas.length > 1) {
             // Need at least 2 readings for variation
-            const temps = validLecturas.map((l) => l.temperatura);
-            const hums = validLecturas.map((l) => l.humedad);
-            const tempMax = Math.max(...temps);
-            const tempMin = Math.min(...temps);
-            const humMax = Math.max(...hums);
-            const humMin = Math.min(...hums);
+            // Filter out non-numeric or null values before Math.max/min
+            const temps = validLecturas.map((l) => l.temperatura).filter(t => typeof t === 'number' && !isNaN(t));
+            const hums = validLecturas.map((l) => l.humedad).filter(h => typeof h === 'number' && !isNaN(h));
+            const tempMax = temps.length > 0 ? Math.max(...temps) : 0;
+            const tempMin = temps.length > 0 ? Math.min(...temps) : 0;
+            const humMax = hums.length > 0 ? Math.max(...hums) : 0;
+            const humMin = hums.length > 0 ? Math.min(...hums) : 0;
             variacionTemp = tempMax - tempMin;
             variacionHum = humMax - humMin;
           }
           // --- End Variation Calculation ---
 
           // Get AC info from store
+          
           const store = getStore();
-          // Asegurarse que airesList esté poblado. Si no, intentar cargarlo.
-          // Esto es una medida defensiva, idealmente aires ya está cargado.
-          let airesList = store.aires;
-          if (!airesList || airesList.length === 0) {
-            console.warn("fetchEstadisticasAire: store.aires está vacío. Intentando cargar...");
-            await getActions().fetchAires(); // Esperar a que se carguen los aires
-            airesList = getStore().aires; // Obtener la lista actualizada
+          let currentAiresList = store.aires; // Renombrar para claridad
+          // console.log("DEBUG: Initial airesList from store:", currentAiresList);
+
+          // Check if airesList is empty or not an array
+          if (!Array.isArray(currentAiresList) || currentAiresList.length === 0) {
+            console.warn("fetchEstadisticasAire: store.aires está vacío o no es un array. Intentando cargar...");
+            const fetchedAiresData = await getActions().fetchAires(); // fetchAires devuelve los datos o null
+            
+            if (fetchedAiresData && Array.isArray(fetchedAiresData) && fetchedAiresData.length > 0) {
+                 currentAiresList = fetchedAiresData; // Usar los datos devueltos directamente
+                 console.log("fetchEstadisticasAire: airesList poblada desde el retorno de fetchAires, items:", currentAiresList.length);
+                 // Nota: fetchAires ya debería haber actualizado el store también.
+                 // Si quisieras forzar una actualización del store aquí (aunque debería ser redundante):
+                 // if (getStore().aires.length === 0) setStore({ aires: currentAiresList });
+            } else {
+                // Si fetchAires falló o no devolvió datos, currentAiresList podría seguir vacío.
+                // Intentar leer del store como último recurso, aunque probablemente también esté vacío.
+                currentAiresList = getStore().aires;
+                console.error("fetchEstadisticasAire: fetchAires no devolvió datos válidos. Usando store.aires (puede estar vacío). Items en store:", currentAiresList.length);
+            }
           }
-          const aireInfo = airesList.find((a) => a.id === parseInt(aireId)); // Asegurar que aireId sea número para la comparación
+          const validAiresList = Array.isArray(currentAiresList) ? currentAiresList : [];
+          const aireInfo = validAiresList.find((a) => a.id === parseInt(aireId)); // parseInt es importante
           // --- Combine data into processedStatsAire ---
           const processedStatsAire = {
             // Spread the fetched stats (handle if statsData is null)
@@ -2182,11 +2204,14 @@ const getState = ({ getStore, getActions, setStore }) => {
             // Add calculated variations
             variacion_temperatura: variacionTemp,
             variacion_humedad: variacionHum,
-            // Add AC name and location for convenience
-            aire_id: aireId, // Ensure aire_id is present
+            // Add AC name and location for convenience, ensure aireId is number
+            aire_id: parseInt(aireId), 
             nombre: aireInfo?.nombre || "Desconocido",
             ubicacion: aireInfo?.ubicacion || "Desconocida",
           };
+          // Log the final processed data
+          console.log("fetchEstadisticasAire: Final processedStatsAire:", processedStatsAire);
+          console.log("fetchEstadisticasAire: Raw readings for charts (_rawLecturasAire):", validLecturas.length, "items");
           // --- End Combine Data ---
 
           // Update the store
