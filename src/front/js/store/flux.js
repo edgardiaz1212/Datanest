@@ -930,7 +930,7 @@ const getState = ({ getStore, getActions, setStore }) => {
           }
           const data = await response.json();
           if (Array.isArray(data)) {
-                        console.log(`fetchAires: Successfully fetched ${data.length} aires.`, data);
+        
 
             setStore({ aires: data, airesLoading: false, airesError: null }); // Limpiar error en éxito
             return data; // Devolver datos para posible encadenamiento
@@ -1837,10 +1837,19 @@ const getState = ({ getStore, getActions, setStore }) => {
           const formData = new FormData();
           formData.append("file", file);
 
+if (!file || !(file instanceof File)) {
+  return { success: false, message: "Archivo inválido." };
+}
+
+const allowedExtensions = [".xlsx", ".xls"];
+const fileExtension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+if (!allowedExtensions.includes(fileExtension)) {
+  return { success: false, message: "Formato no soportado. Usa .xlsx o .xls" };
+}
           const response = await fetch(
-            `${process.env.BACKEND_URL}/api/lecturas/upload_excel`,
+            `${process.env.BACKEND_URL}/lecturas/upload_excel`,
             {
-              // Asegúrate que la ruta sea /api/...
               method: "POST",
               headers: getAuthHeaders(false), // No 'Content-Type', FormData lo maneja
               body: formData,

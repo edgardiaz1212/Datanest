@@ -55,7 +55,7 @@ const LecturasExcelUploadModal = ({ show, onHide, onUploadComplete }) => {
       if (result.errors && result.errors.length > 0) {
         // Aquí podrías formatear y mostrar los errores específicos
         console.error("Errores específicos:", result.errors);
-        // setUploadError(prev => `${prev} Detalles: ${result.errors.join(', ')}`);
+        setUploadError(prev => `${prev}\n\nDetalles de errores:\n- ${result.errors.join('\n- ')}`); // <--- MODIFICADO: Mostrar errores detallados
       }
     }
   };

@@ -20,6 +20,8 @@ typing-extensions = "*"
 flask = "*"
 fpdf2 = "*"
 flask-jwt-extended = "*"
+openpyxl = "*"
+pandas = "*"
 
 [requires]
 python_version = "3.12"
