@@ -84,17 +84,84 @@ const Estadisticas = () => { // Remove : React.FC
 
   const procesarLecturasParaGrafico = useCallback((
     lecturas, // : Lectura[]
-    umbralesAplicables // : UmbralConfiguracion[]
+    umbralesAplicables, // : UmbralConfiguracion[]
+    promediarPorHora = false, // Nuevo parámetro
+    maxPuntos = 50 // Máximo de puntos a mostrar (para lecturas individuales o promedios horarios)
   ) => { // : { tempChart: ChartDataType, humChart: ChartDataType } | null
     if (!lecturas || !Array.isArray(lecturas) || lecturas.length === 0) return null;
 
-    // Sort and limit readings
-    const sortedLecturas = [...lecturas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-    const limitedLecturas = sortedLecturas.slice(-50); // Limit to last 50
+    let labels = [];
+    let tempData = [];
+    let humData = [];
 
-    const labels = limitedLecturas.map(l => format(new Date(l.fecha), 'HH:mm'));
-    const tempData = limitedLecturas.map(l => l.temperatura);
-    const humData = limitedLecturas.map(l => l.humedad);
+    if (promediarPorHora) {
+        // 1. Agrupar lecturas por hora
+        const lecturasPorHora = lecturas.reduce((acc, l) => {
+            try {
+                const fechaHora = new Date(l.fecha);
+                if (isNaN(fechaHora.getTime())) return acc; // Saltar fechas inválidas
+
+                // Clave como 'YYYY-MM-DD-HH' para agrupar
+                const claveHora = format(fechaHora, 'yyyy-MM-dd-HH');
+
+                if (!acc[claveHora]) {
+                    acc[claveHora] = {
+                        fechaOriginal: fechaHora, // Guardar la primera fecha de esta hora para ordenamiento
+                        temps: [],
+                        hums: [],
+                        count: 0
+                    };
+                }
+                if (typeof l.temperatura === 'number' && !isNaN(l.temperatura)) {
+                    acc[claveHora].temps.push(l.temperatura);
+                }
+                if (typeof l.humedad === 'number' && !isNaN(l.humedad)) {
+                    acc[claveHora].hums.push(l.humedad);
+                }
+                acc[claveHora].count++;
+                return acc;
+            } catch (e) {
+                console.warn("Error procesando fecha en agrupación por hora:", l.fecha, e);
+                return acc;
+            }
+        }, {});
+
+        // 2. Calcular promedios y ordenar por fecha/hora
+        const promediosHorarios = Object.entries(lecturasPorHora)
+            .map(([clave, data]) => {
+                const avgTemp = data.temps.length > 0 ? data.temps.reduce((a, b) => a + b, 0) / data.temps.length : null;
+                const avgHum = data.hums.length > 0 ? data.hums.reduce((a, b) => a + b, 0) / data.hums.length : null;
+                return {
+                    fechaHoraKey: clave, // 'YYYY-MM-DD-HH'
+                    fechaOriginal: data.fechaOriginal,
+                    avgTemp: avgTemp !== null ? parseFloat(avgTemp.toFixed(1)) : null,
+                    avgHum: avgHum !== null ? parseFloat(avgHum.toFixed(1)) : null,
+                };
+            })
+            .sort((a, b) => a.fechaOriginal.getTime() - b.fechaOriginal.getTime()); // Ordenar cronológicamente
+
+        // 3. Limitar al número de puntos (maxPuntos horas más recientes)
+        const limitedPromedios = promediosHorarios.slice(-maxPuntos);
+
+        labels = limitedPromedios.map(p => format(p.fechaOriginal, 'dd/MM HH:00')); // Formato de label
+        tempData = limitedPromedios.map(p => p.avgTemp);
+        humData = limitedPromedios.map(p => p.avgHum);
+
+    } else { // Comportamiento original para lecturas individuales
+        const sortedLecturas = [...lecturas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const limitedLecturas = sortedLecturas.slice(-maxPuntos);
+
+        labels = limitedLecturas.map(l => {
+            try {
+                return format(new Date(l.fecha), 'HH:mm');
+            } catch (e) {
+                console.warn("Error formateando fecha para label:", l.fecha, e);
+                return "Error";
+            }
+        });
+        tempData = limitedLecturas.map(l => (typeof l.temperatura === 'number' && !isNaN(l.temperatura)) ? l.temperatura : null);
+        humData = limitedLecturas.map(l => (typeof l.humedad === 'number' && !isNaN(l.humedad)) ? l.humedad : null);
+    }
 
     // Find applicable thresholds (ensure umbralesAplicables is an array)
     const validUmbrales = Array.isArray(umbralesAplicables) ? umbralesAplicables : [];
@@ -104,8 +171,8 @@ const Estadisticas = () => { // Remove : React.FC
     const humMaxThreshold = validUmbrales.find(u => u.hum_max !== undefined)?.hum_max;
 
     // Helper to create threshold datasets
-    const createThresholdDataset = (label, value, color, dataLength) => { // Remove types
-      if (value === undefined || dataLength === 0) return null;
+    const createThresholdDataset = (label, value, color, dataLength) => {
+      if (value === undefined || value === null || dataLength === 0) return null;
       return {
         label: label,
         data: Array(dataLength).fill(value),
@@ -186,7 +253,8 @@ const Estadisticas = () => { // Remove : React.FC
     setLoadingChartsGeneralLocal(true);
     if (_rawLecturasGenerales && Array.isArray(umbrales)) {
       const umbralesGlobalesActivos = umbrales.filter(u => u.es_global && u.notificar_activo);
-      const generalChartData = procesarLecturasParaGrafico(_rawLecturasGenerales, umbralesGlobalesActivos);
+      // Llamar con promediarPorHora = true y, por ejemplo, las últimas 48 horas
+      const generalChartData = procesarLecturasParaGrafico(_rawLecturasGenerales, umbralesGlobalesActivos, true, 48);
       setGraficoGeneralTemp(generalChartData?.tempChart || null);
       setGraficoGeneralHum(generalChartData?.humChart || null);
     } else {
@@ -223,7 +291,8 @@ const Estadisticas = () => { // Remove : React.FC
       const umbralesParaAire = umbrales.filter(u =>
         u.notificar_activo && (u.es_global || u.aire_id === aireSeleccionado)
       );
-      const aireChartData = procesarLecturasParaGrafico(_rawLecturasAire, umbralesParaAire);
+      // Llamar con promediarPorHora = false (o sin el parámetro) para lecturas individuales
+      const aireChartData = procesarLecturasParaGrafico(_rawLecturasAire, umbralesParaAire, false, 50);
       setGraficoAireTemp(aireChartData?.tempChart || null);
       setGraficoAireHum(aireChartData?.humChart || null);
     } else {

@@ -524,6 +524,28 @@ const getState = ({ getStore, getActions, setStore }) => {
       //Datos para aircontrol
       loginTrackerUser: async (identifier, password) => {
         setStore({ loading: true, error: null });
+        
+        // --- Defensive reset of relevant states before attempting login ---
+        // Esto asegura que, incluso si el store quedó en un estado inconsistente
+        // por un cierre inesperado o un error previo, el login empiece limpio.
+        setStore({
+          trackerUser: null,
+          token: null,
+          isAuthenticated: false,
+          // Reset other states that might hold stale data from a previous session
+          // Puedes añadir más estados aquí si sospechas que alguno está causando conflicto
+          aires: [],
+          lecturas: [],
+          umbrales: [],
+          otrosEquiposList: [],
+          mantenimientos: [],
+          lecturasUbicacion: [],
+          estadisticasUbicacion: [],
+          ubicaciones: [],
+          _rawLecturasGenerales: [],
+          _rawLecturasAire: [],
+          // No limpiamos proveedores/contactos/actividades/documentos aquí, ya que son menos críticos para el login principal
+        });
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/tracker/login`,

@@ -34,8 +34,8 @@ const EstadisticasGeneral = ({
           <Row>
             {/* Temperature Line Chart */}
             <Col sm={12} className="mb-4">
-              <ChartContainer
-                title="Variación General de Temperatura (Últimas lecturas)"
+               <ChartContainer
+                title="Promedio Horario General de Temperatura (Últimas Horas)"
                 yAxisLabel="Temperatura (°C)"
                 data={graficoGeneralTemp}
                 loading={loadingChartsGeneral}
@@ -43,9 +43,9 @@ const EstadisticasGeneral = ({
               />
             </Col>
             {/* Humidity Line Chart */}
-            <Col sm={12}>
+            <Col sm={12} className="mt-4"> {/* Añadido margen superior para separar */}
                <ChartContainer
-                  title="Variación General de Humedad (Últimas lecturas)"
+                  title="Promedio Horario General de Humedad (Últimas Horas)"
                   yAxisLabel="Humedad (%)"
                   data={graficoGeneralHum}
                   loading={loadingChartsGeneral}
