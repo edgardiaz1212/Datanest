@@ -13,7 +13,8 @@ const opcionesLineaBase = {
     },
     scales: {
       y: {
-        title: { display: true } // Y-axis label text will be added dynamically
+        title: { display: true }, // Y-axis label text will be added dynamically
+        beginAtZero: true // <--- AÑADIDO: Asegura que el eje Y comience en 0
       },
       x: {
         title: { display: true, text: 'Hora (HH:mm)' }
