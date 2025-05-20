@@ -12,9 +12,9 @@ const LecturasTable = ({
   formatearFecha,
   formatearHora,
   // Set default values directly here using JavaScript default parameters
-  umbrales = [],
-  filtroAire = null,
-  aires = [],
+  umbrales = []
+  // filtroDispositivo, // Opcional: si se quiere un mensaje de vacío más específico
+  // dispositivosMedibles // Opcional: para el mensaje de vacío
 }) => {
 
   if (loading) {
@@ -26,12 +26,7 @@ const LecturasTable = ({
     );
   }
 
-  // Empty state message (now uses props for context)
   if (!loading && lecturas.length === 0) {
-    const nombreAireFiltrado = filtroAire && Array.isArray(aires)
-      ? aires.find(a => a.id === filtroAire)?.nombre
-      : null;
-
     return (
       <div className="text-center p-5">
         <div className="d-flex justify-content-center mb-3">
@@ -39,9 +34,7 @@ const LecturasTable = ({
           <FiDroplet size={40} className="text-primary" />
         </div>
         <h4>
-          No hay lecturas registradas
-          {/* Add context if filtered */}
-          {nombreAireFiltrado ? ` para ${nombreAireFiltrado}` : ""}
+          No hay lecturas registradas.
         </h4>
 
         <Button variant="primary" className="mt-3" onClick={onAdd}>
@@ -51,11 +44,13 @@ const LecturasTable = ({
     );
   }
 
-  // --- Logic to determine badge colors (remains the same) ---
   const getBadgeColors = (lectura) => {
-    // Ensure umbrales is an array before filtering/finding
     const umbralesActivos = Array.isArray(umbrales) ? umbrales.filter(u => u.notificar_activo) : [];
-    const umbralEspecifico = umbralesActivos.find(u => u.aire_id === lectura.aire_id);
+    let umbralEspecifico = null;
+    // Solo buscar umbral específico si la lectura tiene un aire_id
+    if (lectura.aire_id) {
+      umbralEspecifico = umbralesActivos.find(u => u.aire_id === lectura.aire_id);
+    }
     const umbralGlobal = umbralesActivos.find(u => u.es_global);
     const umbralAplicable = umbralEspecifico || umbralGlobal;
 
@@ -63,11 +58,11 @@ const LecturasTable = ({
     let humColor = 'primary'; // Default blue
 
     if (umbralAplicable) {
-      if (lectura.temperatura < umbralAplicable.temp_min) tempColor = 'info'; // Cold - light blue
-      else if (lectura.temperatura > umbralAplicable.temp_max) tempColor = 'danger'; // Hot - red
+      if (typeof lectura.temperatura === 'number' && lectura.temperatura < umbralAplicable.temp_min) tempColor = 'info';
+      else if (typeof lectura.temperatura === 'number' && lectura.temperatura > umbralAplicable.temp_max) tempColor = 'danger';
 
-      if (lectura.humedad < umbralAplicable.hum_min) humColor = 'secondary'; // Dry - gray
-      else if (lectura.humedad > umbralAplicable.hum_max) humColor = 'warning'; // Humid - yellow/orange
+      if (typeof lectura.humedad === 'number' && lectura.humedad < umbralAplicable.hum_min) humColor = 'secondary';
+      else if (typeof lectura.humedad === 'number' && lectura.humedad > umbralAplicable.hum_max) humColor = 'warning';
     } else {
       // Fallback logic if NO thresholds are defined (optional)
       if (lectura.temperatura > 25) tempColor = 'danger';
@@ -84,7 +79,7 @@ const LecturasTable = ({
       <Table hover>
         <thead>
           <tr>
-            <th>Aire Acondicionado</th>
+            <th>Dispositivo</th>
             <th>Ubicación</th>
             <th><FiCalendar className="me-1" />Fecha</th>
             <th><FiClock className="me-1" />Hora</th>
@@ -94,7 +89,6 @@ const LecturasTable = ({
           </tr>
         </thead>
         <tbody>
-          {/* Remove type annotation from map parameter */}
           {lecturas.map(lectura => {
             // Defensive check
             if (!lectura || !lectura.id) return null;
@@ -103,8 +97,8 @@ const LecturasTable = ({
 
             return (
               <tr key={lectura.id}>
-                <td>{lectura.aire_nombre || 'N/A'}</td>
-                <td>{lectura.ubicacion || 'N/A'}</td>
+                <td>{lectura.nombre_dispositivo || 'N/A'}</td>
+                <td>{lectura.ubicacion_dispositivo || 'N/A'}</td>
                 <td>
                   {formatearFecha(lectura.fecha)}
                 </td>
@@ -112,13 +106,13 @@ const LecturasTable = ({
                   {formatearHora(lectura.fecha)}
                 </td>
                 <td>
-                  <Badge bg={tempColor}>
-                    {Number(lectura.temperatura).toFixed(1)} °C
+                  <Badge bg={tempColor} pill>
+                    {typeof lectura.temperatura === 'number' ? Number(lectura.temperatura).toFixed(1) : 'N/A'} °C
                   </Badge>
                 </td>
                 <td>
-                  <Badge bg={humColor}>
-                    {Number(lectura.humedad).toFixed(1)} %
+                  <Badge bg={humColor} pill>
+                    {typeof lectura.humedad === 'number' ? Number(lectura.humedad).toFixed(1) : 'N/A'} %
                   </Badge>
                 </td>
                 {canDelete && (
@@ -146,12 +140,13 @@ const LecturasTable = ({
 LecturasTable.propTypes = {
   lecturas: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number.isRequired,
-    aire_id: PropTypes.number.isRequired,
+    aire_id: PropTypes.number, // Puede ser null si es otro_equipo
+    otro_equipo_id: PropTypes.number, // Puede ser null si es aire
     fecha: PropTypes.string.isRequired,
     temperatura: PropTypes.number.isRequired,
     humedad: PropTypes.oneOfType([PropTypes.number, PropTypes.oneOf([null])]), // Permitir número o null
-    aire_nombre: PropTypes.string,
-    ubicacion: PropTypes.string,
+    nombre_dispositivo: PropTypes.string,
+    ubicacion_dispositivo: PropTypes.string,
   })).isRequired,
   loading: PropTypes.bool.isRequired,
   canDelete: PropTypes.bool.isRequired,
@@ -159,7 +154,6 @@ LecturasTable.propTypes = {
   onAdd: PropTypes.func.isRequired,
   formatearFecha: PropTypes.func.isRequired,
   formatearHora: PropTypes.func.isRequired,
-  // PropType for umbrales is still useful for validation, even with default
   umbrales: PropTypes.arrayOf(PropTypes.shape({
       id: PropTypes.number.isRequired,
       nombre: PropTypes.string,
@@ -170,11 +164,9 @@ LecturasTable.propTypes = {
       hum_min: PropTypes.number,
       hum_max: PropTypes.number,
       notificar_activo: PropTypes.bool,
-  })), // Removed .isRequired as it now has a default
-  // PropType for filtroAire is still useful
-  filtroAire: PropTypes.number,
-  // PropType for aires is still useful
-  aires: PropTypes.array,
+  })),
+  // filtroDispositivo: PropTypes.object, // Si se implementa el mensaje de vacío específico
+  // dispositivosMedibles: PropTypes.array, // Si se implementa el mensaje de vacío específico
 };
 
 export default LecturasTable;

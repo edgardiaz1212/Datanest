@@ -1,53 +1,65 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
 
 const LecturasAddModal = ({
   show,
   onHide,
-  aires,
+  dispositivosMedibles, // Cambiado de aires
   formData,
   onChange,
   onSubmit,
-  // Set default value directly here using JavaScript default parameters
   isSubmitting = false
 }) => {
-  const [selectedTipoAire, setSelectedTipoAire] = useState('');
+  const [selectedTipoDispositivo, setSelectedTipoDispositivo] = useState(''); // Cambiado de selectedTipoAire
 
-  // Obtener los tipos únicos de la lista de aires
-  const tiposDeAireUnicos = useMemo(() => {
-    if (!Array.isArray(aires)) return [];
-    const tipos = aires.map(a => a.tipo || 'Sin Tipo').filter(Boolean);
+  // Obtener los tipos únicos de la lista de dispositivosMedibles
+  const tiposDeDispositivoUnicos = useMemo(() => {
+    if (!Array.isArray(dispositivosMedibles)) return [];
+    // Usar 'tipoOriginal' que viene de AireAcondicionado.tipo o OtroEquipo.tipo
+    const tipos = dispositivosMedibles.map(d => d.tipoOriginal || (d.esAire ? 'Sin Tipo Aire' : 'Sin Tipo OtroEquipo')).filter(Boolean);
     return ['Todos', ...new Set(tipos)]; // Añadir "Todos" como opción
-  }, [aires]);
+  }, [dispositivosMedibles]);
 
-  // Filtrar aires basados en el tipo seleccionado
-  const airesFiltradosPorTipo = useMemo(() => {
-    if (!Array.isArray(aires)) return [];
-    if (!selectedTipoAire || selectedTipoAire === 'Todos') {
-      return aires;
+  // Filtrar dispositivos basados en el tipo seleccionado
+  const dispositivosFiltradosPorTipo = useMemo(() => {
+    if (!Array.isArray(dispositivosMedibles)) return [];
+    if (!selectedTipoDispositivo || selectedTipoDispositivo === 'Todos') {
+      return dispositivosMedibles;
     }
-    return aires.filter(a => (a.tipo || 'Sin Tipo') === selectedTipoAire);
-  }, [aires, selectedTipoAire]);
+    return dispositivosMedibles.filter(d => (d.tipoOriginal || (d.esAire ? 'Sin Tipo Aire' : 'Sin Tipo OtroEquipo')) === selectedTipoDispositivo);
+  }, [dispositivosMedibles, selectedTipoDispositivo]);
 
-  // Efecto para resetear el aire_id si el tipo cambia y el aire seleccionado ya no es válido
+  // Efecto para resetear el dispositivo_key si el tipo cambia y el dispositivo seleccionado ya no es válido
   useEffect(() => {
-    if (formData.aire_id && selectedTipoAire && selectedTipoAire !== 'Todos') {
-      const aireActual = aires.find(a => a.id.toString() === formData.aire_id);
-      if (aireActual && (aireActual.tipo || 'Sin Tipo') !== selectedTipoAire) {
-        onChange({ target: { name: 'aire_id', value: '' } }); // Resetea la selección de aire
+    if (formData.dispositivo_key && selectedTipoDispositivo && selectedTipoDispositivo !== 'Todos') {
+      const dispositivoActual = dispositivosMedibles.find(d => d.key === formData.dispositivo_key);
+      if (dispositivoActual && (dispositivoActual.tipoOriginal || (dispositivoActual.esAire ? 'Sin Tipo Aire' : 'Sin Tipo OtroEquipo')) !== selectedTipoDispositivo) {
+        onChange({ target: { name: 'dispositivo_key', value: '' } }); // Resetea la selección de dispositivo
       }
     }
-  }, [selectedTipoAire, formData.aire_id, aires, onChange]);
+  }, [selectedTipoDispositivo, formData.dispositivo_key, dispositivosMedibles, onChange]);
 
-  // Encuentra el aire seleccionado para determinar si se debe mostrar el campo de humedad
-  const selectedAireObj = Array.isArray(airesFiltradosPorTipo) && formData.aire_id
-    ? airesFiltradosPorTipo.find(a => a.id.toString() === formData.aire_id)
+  // Encuentra el dispositivo seleccionado para determinar si se debe mostrar el campo de humedad
+  const selectedDispositivoObj = Array.isArray(dispositivosFiltradosPorTipo) && formData.dispositivo_key
+    ? dispositivosFiltradosPorTipo.find(d => d.key === formData.dispositivo_key)
     : null;
-  // Mostrar el campo de humedad si no hay un aire seleccionado (estado inicial)
-  // o si el aire seleccionado no es de tipo 'Confort'.
-  const mostrarCampoHumedad = !selectedAireObj || (selectedAireObj && selectedAireObj.tipo !== 'Confort');
 
+  // Mostrar el campo de humedad si:
+  // 1. No hay dispositivo seleccionado (estado inicial).
+  // 2. El dispositivo seleccionado es un Aire y NO es de tipo 'Confort'.
+  // 3. El dispositivo seleccionado NO es un Aire (es decir, es un Termohigrómetro, que siempre muestra humedad).
+  const mostrarCampoHumedad = !selectedDispositivoObj ||
+                              (selectedDispositivoObj?.esAire && selectedDispositivoObj?.tipoOriginal !== 'Confort') ||
+                              (selectedDispositivoObj && !selectedDispositivoObj.esAire);
+
+  // Humedad es requerida si:
+  // 1. El dispositivo seleccionado NO es un Aire (Termohigrómetro).
+  // 2. El dispositivo seleccionado es un Aire Y NO es de tipo 'Confort'.
+  const humedadRequerida = selectedDispositivoObj && (
+                            (!selectedDispositivoObj.esAire) ||
+                            (selectedDispositivoObj.esAire && selectedDispositivoObj.tipoOriginal !== 'Confort')
+                       );
 
   return (
     // Prevent closing during submit
@@ -61,14 +73,14 @@ const LecturasAddModal = ({
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Tipo de Aire</Form.Label>
+                <Form.Label>Tipo de Dispositivo</Form.Label>
                 <Form.Select
-                  value={selectedTipoAire}
-                  onChange={(e) => setSelectedTipoAire(e.target.value)}
-                  disabled={isSubmitting || !tiposDeAireUnicos || tiposDeAireUnicos.length <= 1}
-                  aria-label="Seleccione un tipo de aire"
+                  value={selectedTipoDispositivo}
+                  onChange={(e) => setSelectedTipoDispositivo(e.target.value)}
+                  disabled={isSubmitting || !tiposDeDispositivoUnicos || tiposDeDispositivoUnicos.length <= 1}
+                  aria-label="Seleccione un tipo de dispositivo"
                 >
-                  {tiposDeAireUnicos.map(tipo => (
+                  {tiposDeDispositivoUnicos.map(tipo => (
                     <option key={tipo} value={tipo}>{tipo}</option>
                   ))}
                 </Form.Select>
@@ -76,29 +88,29 @@ const LecturasAddModal = ({
             </Col>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Aire Acondicionado <span className="text-danger">*</span></Form.Label>
+                <Form.Label>Dispositivo <span className="text-danger">*</span></Form.Label>
                 <Form.Select
-                  name="aire_id"
-                  value={formData.aire_id || ''}
+                  name="dispositivo_key" // Cambiado de aire_id
+                  value={formData.dispositivo_key || ''}
                   onChange={onChange}
                   required
-                  disabled={isSubmitting || !airesFiltradosPorTipo || airesFiltradosPorTipo.length === 0}
-                  aria-label="Seleccione un aire acondicionado"
+                  disabled={isSubmitting || !dispositivosFiltradosPorTipo || dispositivosFiltradosPorTipo.length === 0}
+                  aria-label="Seleccione un dispositivo"
                 >
-                  <option value="">Seleccione un aire</option>
-                  {airesFiltradosPorTipo.map(aire => (
-                    aire && typeof aire.id !== 'undefined' ? (
-                      <option key={aire.id} value={aire.id.toString()}>
-                        {aire.nombre || 'N/A'} ({aire.ubicacion || 'N/A'})
+                  <option value="">Seleccione un dispositivo</option>
+                  {dispositivosFiltradosPorTipo.map(disp => (
+                    disp && typeof disp.idOriginal !== 'undefined' ? ( // Usar idOriginal y key
+                      <option key={disp.key} value={disp.key}>
+                        {disp.nombre || 'N/A'} ({disp.ubicacion || 'N/A'}) {disp.esAire ? `(Aire ${disp.tipoOriginal || ''})` : `(${disp.tipoOriginal || 'Otro'})`}
                       </option>
                     ) : null
                   ))}
                 </Form.Select>
-                {(!airesFiltradosPorTipo || airesFiltradosPorTipo.length === 0) && (
+                {(!dispositivosFiltradosPorTipo || dispositivosFiltradosPorTipo.length === 0) && (
                   <Form.Text muted>
-                    {selectedTipoAire && selectedTipoAire !== 'Todos'
-                      ? `No hay aires de tipo "${selectedTipoAire}".`
-                      : "No hay aires disponibles."}
+                    {selectedTipoDispositivo && selectedTipoDispositivo !== 'Todos'
+                      ? `No hay dispositivos de tipo "${selectedTipoDispositivo}".`
+                      : "No hay dispositivos disponibles."}
                   </Form.Text>
                 )}
               </Form.Group>
@@ -129,7 +141,6 @@ const LecturasAddModal = ({
                   onChange={onChange}
                   required
                   disabled={isSubmitting}
-                  // Consider adding step="1" if seconds might be needed by backend
                 />
               </Form.Group>
             </Col>
@@ -154,14 +165,14 @@ const LecturasAddModal = ({
             {mostrarCampoHumedad && (
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Humedad (%) {selectedAireObj && selectedAireObj.tipo !== 'Confort' && <span className="text-danger">*</span>}</Form.Label>
+                  <Form.Label>Humedad (%) {humedadRequerida && <span className="text-danger">*</span>}</Form.Label>
                   <Form.Control
                     type="number"
                     step="0.1" // Allow decimals
                     name="humedad"
                     value={formData.humedad ?? ''}
                     onChange={onChange}
-                    required={selectedAireObj && selectedAireObj.tipo !== 'Confort'}
+                    required={humedadRequerida}
                     placeholder="Ej: 55.0"
                     disabled={isSubmitting}
                   />
@@ -195,18 +206,20 @@ const LecturasAddModal = ({
 LecturasAddModal.propTypes = {
   show: PropTypes.bool.isRequired,
   onHide: PropTypes.func.isRequired,
-  aires: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
+  dispositivosMedibles: PropTypes.arrayOf(PropTypes.shape({
+    idOriginal: PropTypes.number.isRequired,
+    key: PropTypes.string.isRequired,
     nombre: PropTypes.string.isRequired,
     ubicacion: PropTypes.string,
-    tipo: PropTypes.string, // Se espera que los aires tengan una propiedad 'tipo'
+    tipoOriginal: PropTypes.string,
+    esAire: PropTypes.bool.isRequired,
   })).isRequired,
   formData: PropTypes.shape({
-    aire_id: PropTypes.string,
+    dispositivo_key: PropTypes.string, // Cambiado de aire_id
     fecha: PropTypes.string,
     hora: PropTypes.string,
-    temperatura: PropTypes.oneOfType([PropTypes.string, PropTypes.number]), // Allow string or number during input
-    humedad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),     // Allow string or number during input
+    temperatura: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    humedad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }).isRequired,
   onChange: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,

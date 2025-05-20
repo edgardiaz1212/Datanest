@@ -1613,9 +1613,12 @@ const getState = ({ getStore, getActions, setStore }) => {
         setStore({ lecturasLoading: true, lecturasError: null });
         try {
           const fetchedAiresList = await getActions().fetchAires();
-          await getActions().fetchUmbrales();
-          const currentAiresForMap = fetchedAiresList || getStore().aires;
+          // Cargar otros equipos si no están ya en el store, para el dispositivosMap
+          const otrosEquiposListStore = getStore().otrosEquiposList;
+          const currentOtrosEquiposList = otrosEquiposListStore.length > 0 ? otrosEquiposListStore : await getActions().fetchOtrosEquipos() || [];
 
+          await getActions().fetchUmbrales();
+          const currentAiresForMap = fetchedAiresList || getStore().aires;          
           if (!fetchedAiresList && !getStore().airesError) {
             console.warn(
               "fetchAires pudo haber fallado en devolver datos para airesMap en fetchLecturas, o un error en fetchAires no se propagó como airesError."
@@ -1625,25 +1628,29 @@ const getState = ({ getStore, getActions, setStore }) => {
           let url;
           const queryParams = new URLSearchParams();
 
-          if (filters.aire_id) {
-            url = `${process.env.BACKEND_URL}/aires/${filters.aire_id}/lecturas`;
-            // Añadir parámetros de paginación para la ruta de un aire específico
+          if (filters.dispositivo_id && filters.tipo_dispositivo) {
+            if (filters.tipo_dispositivo === 'aire') {
+                url = `${process.env.BACKEND_URL}/aires/${filters.dispositivo_id}/lecturas`;
+            } else if (filters.tipo_dispositivo === 'otro_equipo') {
+                url = `${process.env.BACKEND_URL}/otros_equipos/${filters.dispositivo_id}/lecturas`;
+            } else {
+                console.warn(`Tipo de dispositivo no reconocido en filtro: ${filters.tipo_dispositivo}. Mostrando últimas globales.`);
+                url = `${process.env.BACKEND_URL}/lecturas/ultimas`;
+                queryParams.append("limite", perPage); // la ruta /ultimas no suele estar paginada así
+            }
             queryParams.append("page", page);
             queryParams.append("per_page", perPage);
             url = `${url}?${queryParams.toString()}`;
           } else {
-            // Decide how to handle no filter - fetch all? Fetch first? Error?
-            // Fetching last N readings globally might be better:
-            url = `${process.env.BACKEND_URL}/lecturas/ultimas?limite=100`; // Fetch last 100 global readings
-            console.warn("No filter, fetching last 100 global readings.");
-            // If using /lecturas/ultimas, the response structure might differ
+            console.warn("No hay filtro de dispositivo, mostrando últimas lecturas globales.");
+            url = `${process.env.BACKEND_URL}/lecturas/ultimas`;
+            queryParams.append("limite", perPage);
           }
 
           // Si no hay aire_id, usamos la ruta global que actualmente no está paginada en el backend
           // de la misma manera. Para este ejemplo, la paginación completa se enfoca en la vista de un aire específico.
-          const finalUrl = filters.aire_id
-            ? url
-            : `${process.env.BACKEND_URL}/lecturas/ultimas?limite=${perPage}`;
+          const finalUrl = `${url}?${queryParams.toString()}`;
+
           const response = await fetch(finalUrl, {
             method: "GET",
             headers: getAuthHeaders(), // <--- Usa cabeceras con token
@@ -1657,64 +1664,31 @@ const getState = ({ getStore, getActions, setStore }) => {
           }
           const data = await response.json();
 
-          const airesMap = (
-            Array.isArray(currentAiresForMap) ? currentAiresForMap : []
-          ).reduce((acc, aire) => {
-            if (aire && typeof aire.id !== "undefined") {
-              // Comprobación defensiva
-              acc[aire.id] = aire;
-            }
-            return acc;
-          }, {});
-
-          if (filters.aire_id && data.items) {
+          // El backend ahora serializa con nombre_dispositivo y ubicacion_dispositivo
+          if (filters.dispositivo_id && data.items) {
             // Respuesta paginada para un aire específico
-            const processedLecturas = (data.items || []).map((lectura) => {
-              const aire = airesMap[lectura.aire_id];
-              return {
-                ...lectura,
-                aire_nombre:
-                  lectura.nombre_aire || aire?.nombre || "Desconocido",
-                ubicacion:
-                  lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
-              };
-            });
+            
             // El backend ya ordena por fecha desc.
             setStore({
               lecturas: processedLecturas,
               lecturasPaginationInfo: {
                 total_items: data.total_items,
                 total_pages: data.total_pages,
-                current_page: data.current_page,
+                current_page: data.current_page || 1, // Ensure current_page has a fallback
                 per_page: data.per_page,
                 has_next: data.has_next,
                 has_prev: data.has_prev,
               },
               lecturasLoading: false,
-            });
-          } else if (!filters.aire_id && Array.isArray(data)) {
-            // Respuesta no paginada (lista) para lecturas globales
-            const processedLecturas = (data || [])
-              .map((lectura) => {
-                const aire = airesMap[lectura.aire_id];
-                return {
-                  ...lectura,
-                  aire_nombre:
-                    lectura.nombre_aire || aire?.nombre || "Desconocido",
-                  ubicacion:
-                    lectura.ubicacion_aire || aire?.ubicacion || "Desconocida",
-                };
-              })
-              .sort(
-                (a, b) =>
-                  new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
-              );
+            });          } else if (!filters.dispositivo_id && Array.isArray(data)) { // Changed condition and fixed processedLecturas
+            
+            // Respuesta no paginada (lista) para lecturas globales (/lecturas/ultimas)
 
             setStore({
-              lecturas: processedLecturas,
+              lecturas: data || [], // Use data directly
               lecturasPaginationInfo: {
                 // Info de paginación simulada para la vista global limitada
-                total_items: processedLecturas.length,
+                total_items: (data || []).length,
                 total_pages: 1,
                 current_page: 1,
                 per_page: perPage,
@@ -1748,13 +1722,22 @@ const getState = ({ getStore, getActions, setStore }) => {
           return false;
         }
       },
-      addLectura: async (aireId, lecturaData) => {
+      addLectura: async (dispositivoId, lecturaData, tipoDispositivo = 'aire') => {
+        // tipoDispositivo puede ser 'aire' o 'otro_equipo'
+ 
         // Ruta protegida, necesita token
         // No se establece lecturasLoading aquí para no afectar la tabla principal
         // El modal manejará su propio estado de 'isSubmitting'
         // setStore({ lecturasError: null }); // Limpiar error previo
         try {
-          const url = `${process.env.BACKEND_URL}/aires/${aireId}/lecturas`;
+          let url;
+          if (tipoDispositivo === 'aire') {
+              url = `${process.env.BACKEND_URL}/aires/${dispositivoId}/lecturas`;
+          } else if (tipoDispositivo === 'otro_equipo') { // Asumiendo que 'otro_equipo' es el identificador para termohigrómetros
+              url = `${process.env.BACKEND_URL}/otros_equipos/${dispositivoId}/lecturas`;
+          } else {
+              throw new Error("Tipo de dispositivo no válido para agregar lectura.");
+          }
           const response = await fetch(url, {
             method: "POST",
             headers: getAuthHeaders(), // Usa cabeceras con token
@@ -1765,6 +1748,11 @@ const getState = ({ getStore, getActions, setStore }) => {
               humedad: lecturaData.humedad, // Puede ser null
             }),
           });
+          // Validar que la humedad esté presente si es un termohigrómetro (otro_equipo)
+          if (tipoDispositivo === 'otro_equipo' && (lecturaData.humedad === null || lecturaData.humedad === undefined || String(lecturaData.humedad).trim() === '')) {
+            // El backend ya debería manejar esto, pero una validación temprana en frontend es buena.
+            // throw new Error("Humedad es requerida para termohigrómetros.");
+          }
           const responseData = await response.json();
           if (!response.ok) {
             if (response.status === 401) getActions().logoutTrackerUser();

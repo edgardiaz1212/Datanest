@@ -41,7 +41,7 @@ const AiresDetailsPage = () => {
     const [addRecordError, setAddRecordError] = useState(null);
 
     // Permissions
-    const canManageDiagnostics = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor' || currentUser?.rol === 'tecnico';
+    const canManageDiagnostics = currentUser?.rol === 'admin' || currentUser?.rol === 'supervisor' || currentUser?.rol === 'operador';
 
     useEffect(() => {
         // Fetch aire details, diagnostic records, and predefined diagnostics

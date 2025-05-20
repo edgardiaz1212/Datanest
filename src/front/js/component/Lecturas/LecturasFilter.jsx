@@ -1,66 +1,63 @@
+// c:\Users\AdminLocal\Documents\Github\movementColocationPageV2\src\front\js\component\Lecturas\LecturasFilter.jsx
 import React from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import PropTypes from 'prop-types';
 import { Dropdown } from 'react-bootstrap';
 import { FiFilter } from 'react-icons/fi';
 
+const LecturasFilter = ({ dispositivosMedibles, filtroDispositivoKey, onFilterChange }) => {
+  const isValidDispositivosArray = Array.isArray(dispositivosMedibles);
 
-const LecturasFilter = ({ 
-  aires,
-  filtroAire,
-  onFilterChange
-}) => {
-  // --- Defensive Check ---
-  const isValidAiresArray = Array.isArray(aires);
-
-  // Find selected AC only if aires is a valid array
-  const aireSeleccionado = isValidAiresArray
-    ? aires.find(a => a.id === filtroAire)
+  const dispositivoSeleccionado = isValidDispositivosArray && filtroDispositivoKey
+    ? dispositivosMedibles.find(d => d.key === filtroDispositivoKey)
     : undefined;
 
-  // Determine display name for the toggle button
-  const nombreFiltro = aireSeleccionado
-    ? `${aireSeleccionado.nombre} (${aireSeleccionado.ubicacion || 'Sin Ubic.'})` // Add fallback for ubicacion
-    : 'Todos los aires';
+  let nombreCompletoFiltro = 'Todos los Dispositivos';
+  if (dispositivoSeleccionado) {
+    const tipoDisplay = dispositivoSeleccionado.esAire
+      ? `Aire ${dispositivoSeleccionado.tipoOriginal || ''}`.trim()
+      : `${dispositivoSeleccionado.tipoOriginal || 'Otro Equipo'}`.trim();
+    nombreCompletoFiltro = `${dispositivoSeleccionado.nombre} (${dispositivoSeleccionado.ubicacion || 'Sin Ubic.'}) - ${tipoDisplay}`;
+  }
+
+  const toggleButtonText = dispositivoSeleccionado
+    ? dispositivoSeleccionado.nombre // Mostrar solo el nombre en el botón para brevedad
+    : 'Todos los Dispositivos';
 
   return (
     <Dropdown className="d-inline-block me-2">
       <Dropdown.Toggle
         variant="outline-secondary"
-        id="dropdown-filtro-lecturas" // More specific ID
-        title={aireSeleccionado ? `Filtrando por: ${nombreFiltro}` : "Mostrar todos los aires"} // Accessibility
+        id="dropdown-filtro-lecturas-dispositivos" // ID actualizado
+        title={dispositivoSeleccionado ? `Filtrando por: ${nombreCompletoFiltro}` : "Mostrar todos los dispositivos"} // Tooltip con nombre completo
       >
         <FiFilter className="me-2" />
-        {/* Display the determined name */}
-        {nombreFiltro}
+        {toggleButtonText}
       </Dropdown.Toggle>
-      <Dropdown.Menu>
-        {/* Option to clear filter */}
-        <Dropdown.Item onClick={() => onFilterChange(null)}>
-          Todos los aires
+      <Dropdown.Menu style={{ maxHeight: '300px', overflowY: 'auto' }}> {/* Para listas largas */}
+        <Dropdown.Item onClick={() => onFilterChange(null)} active={!filtroDispositivoKey}>
+          Todos los Dispositivos
         </Dropdown.Item>
         <Dropdown.Divider />
-        {/* Render items only if aires is a valid array */}
-        {isValidAiresArray ? (
-          // Check if array is empty before mapping
-          aires.length > 0 ? (
-            aires.map(aire => (
-              // Defensive check for aire and aire.id
-              aire && aire.id ? (
+        {isValidDispositivosArray ? (
+          dispositivosMedibles.length > 0 ? (
+            dispositivosMedibles.map(disp => (
+              disp && disp.key ? ( // Verificar que el dispositivo y su key existan
                 <Dropdown.Item
-                  key={aire.id}
-                  onClick={() => onFilterChange(aire.id)}
-                  active={filtroAire === aire.id} // Highlight active filter
+                  key={disp.key}
+                  onClick={() => onFilterChange(disp.key)}
+                  active={filtroDispositivoKey === disp.key}
                 >
-                  {aire.nombre} - {aire.ubicacion || 'Sin Ubic.'} {/* Add fallback */}
+                  {disp.nombre} ({disp.ubicacion || 'Sin Ubic.'})
+                  <small className="d-block text-muted">
+                    {disp.esAire ? `Aire ${disp.tipoOriginal || ''}`.trim() : `${disp.tipoOriginal || 'Otro Equipo'}`.trim()}
+                  </small>
                 </Dropdown.Item>
-              ) : null // Don't render invalid items
+              ) : null
             ))
           ) : (
-            // Message if array is empty
-            <Dropdown.Item disabled>No hay aires disponibles</Dropdown.Item>
+            <Dropdown.Item disabled>No hay dispositivos disponibles</Dropdown.Item>
           )
         ) : (
-          // Message if aires is not yet loaded or invalid
           <Dropdown.Item disabled>Cargando filtros...</Dropdown.Item>
         )}
       </Dropdown.Menu>
@@ -68,14 +65,16 @@ const LecturasFilter = ({
   );
 };
 
-// Add PropTypes for runtime type checking
 LecturasFilter.propTypes = {
-  aires: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
+  dispositivosMedibles: PropTypes.arrayOf(PropTypes.shape({
+    key: PropTypes.string.isRequired,
     nombre: PropTypes.string.isRequired,
     ubicacion: PropTypes.string,
-  })), // Not required, might be loading
-  filtroAire: PropTypes.number, // Can be null
+    esAire: PropTypes.bool.isRequired,
+    tipoOriginal: PropTypes.string,
+    idOriginal: PropTypes.number.isRequired,
+  })), // No es requerido, puede estar cargando
+  filtroDispositivoKey: PropTypes.string, // Puede ser null
   onFilterChange: PropTypes.func.isRequired,
 };
 

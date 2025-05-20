@@ -373,26 +373,44 @@ class Lectura(db.Model):
     __tablename__ = 'lecturas'
 
     id = db.Column(db.Integer, primary_key=True)
-    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=False) # Asegurar que no sea nulo
+    aire_id = db.Column(db.Integer, db.ForeignKey('aires_acondicionados.id'), nullable=True) # Corregido ForeignKey
+    otro_equipo_id = db.Column(db.Integer, db.ForeignKey('otros_equipos.id'), nullable=True) # Corregido ForeignKey
     fecha = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
     temperatura = db.Column(db.Float, nullable=False)
     humedad = db.Column(db.Float, nullable=True)
 
     # Relación
     aire = db.relationship("AireAcondicionado", back_populates="lecturas")
+    otro_equipo = db.relationship('OtroEquipo', back_populates='lecturas') 
+    
+    __table_args__ = (
+        db.CheckConstraint('(aire_id IS NOT NULL AND otro_equipo_id IS NULL) OR (aire_id IS NULL AND otro_equipo_id IS NOT NULL)', name='chk_lectura_device_exclusive'),
+    )
 
     def __repr__(self):
         return f"<Lectura(id={self.id}, aire_id={self.aire_id}, fecha='{self.fecha}')>"
 
     def serialize(self):
-        fecha_formatted = self.fecha.isoformat() if self.fecha else None
-        return {
+        data = {
             'id': self.id,
             'aire_id': self.aire_id,
+            'otro_equipo_id': self.otro_equipo_id,
+            'fecha': self.fecha.isoformat() if self.fecha else None,
             'temperatura': self.temperatura,
             'humedad': self.humedad,
-            'fecha': fecha_formatted, # Clave corregida
+            "nombre_dispositivo": None,
+            "ubicacion_dispositivo": None,
+            "tipo_dispositivo": None
         }
+        if self.aire_id and self.aire:
+            data["nombre_dispositivo"] = self.aire.nombre
+            data["ubicacion_dispositivo"] = self.aire.ubicacion
+            data["tipo_dispositivo"] = self.aire.tipo
+        elif self.otro_equipo_id and self.otro_equipo:
+            data["nombre_dispositivo"] = self.otro_equipo.nombre
+            data["ubicacion_dispositivo"] = self.otro_equipo.ubicacion
+            data["tipo_dispositivo"] = self.otro_equipo.tipo
+        return data
 
 class Mantenimiento(db.Model):
     __tablename__ = 'mantenimientos'
@@ -570,7 +588,7 @@ class OtroEquipo(db.Model):
 
     # Relación
     mantenimientos = db.relationship("Mantenimiento", back_populates="otro_equipo", cascade="all, delete-orphan")
-
+    lecturas = db.relationship("Lectura", back_populates="otro_equipo", lazy=True, cascade="all, delete-orphan")
     def __repr__(self):
         return f"<OtroEquipo(id={self.id}, nombre='{self.nombre}', tipo='{self.tipo}')>"
 

@@ -47,7 +47,7 @@ const OtrosEquipos = () => { // Remove : React.FC
 
     const [isSubmitting, setIsSubmitting] = useState(false); // For modal submit buttons
 
-    const canManage = user?.rol === 'admin' || user?.rol === 'supervisor';
+    const canManage = user?.rol === 'admin' || user?.rol === 'supervisor' || user?.rol === 'operador'; 
 
     // --- Helper para formatear fechas (remains the same, remove type annotations) ---
     const formatDate = useCallback((dateString, forInput = false) => {

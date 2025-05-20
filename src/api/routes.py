@@ -21,7 +21,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
 import json
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill # type: ignore
 from openpyxl import Workbook
 
 api = Blueprint('api', __name__)
@@ -1002,12 +1002,12 @@ def marcar_diagnosticos_como_solucionados(aire_id, parte_afectada_enum, session)
 @jwt_required()
 def crear_diagnostico_componente_route():
     """
-    Endpoint para crear un nuevo diagnóstico predefinido. Requiere autenticación (Admin/Supervisor).
+    Endpoint para crear un nuevo diagnóstico predefinido. Requiere autenticación (Admin/Supervisor/operador).
     Recibe los datos en formato JSON.
     """
     current_user_id = get_jwt_identity()
     logged_in_user = TrackerUsuario.query.get(current_user_id)
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'opearador']:
         return jsonify({"msg": "Acceso no autorizado para crear diagnósticos"}), 403
 
     data = request.get_json()
@@ -1103,12 +1103,12 @@ def obtener_diagnostico_componente_por_id_route(diagnostico_id):
 def crear_registro_diagnostico_aire_route(aire_id):
     """
     Endpoint para agregar un nuevo registro de diagnóstico histórico para un aire acondicionado.
-    Requiere autenticación (Admin/Supervisor/Tecnico).
+    Requiere autenticación (Admin/Supervisor/operador).
     Recibe los datos en formato JSON.
     """
     current_user_id = get_jwt_identity()
     logged_in_user = TrackerUsuario.query.get(current_user_id)
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor','operador' ]:
         return jsonify({"msg": "Acceso no autorizado para crear registros de diagnóstico"}), 403
 
     aire = db.session.get(AireAcondicionado, aire_id)
@@ -1247,12 +1247,12 @@ def obtener_todos_registros_diagnostico_route():
 def actualizar_registro_diagnostico_aire_route(registro_id):
     """
     Endpoint para actualizar un registro de diagnóstico histórico existente.
-    Requiere autenticación (Admin/Supervisor/Tecnico).
+    Requiere autenticación (Admin/Supervisor).
     Recibe los datos en formato JSON.
     """
     current_user_id = get_jwt_identity()
     logged_in_user = TrackerUsuario.query.get(current_user_id)
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'operador']:
         return jsonify({"msg": "Acceso no autorizado para actualizar registros de diagnóstico"}), 403
 
     registro = db.session.get(RegistroDiagnosticoAire, registro_id)
@@ -1366,11 +1366,11 @@ def crear_actividad_para_diagnostico_operatividad(session, aire_obj, registro_di
 def eliminar_registro_diagnostico_aire_route(registro_id):
     """
     Endpoint para eliminar un registro de diagnóstico histórico específico.
-    Requiere autenticación (Admin/Supervisor/Tecnico).
+    Requiere autenticación (Admin/Supervisor/Operador).
     """
     current_user_id = get_jwt_identity()
     logged_in_user = TrackerUsuario.query.get(current_user_id)
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'tecnico']:
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'operador']:
         return jsonify({"msg": "Acceso no autorizado para eliminar registros de diagnóstico"}), 403
 
     registro = db.session.get(RegistroDiagnosticoAire, registro_id)
@@ -1482,6 +1482,93 @@ def agregar_lectura_route(aire_id):
         print(f"!!! ERROR inesperado en agregar_lectura_route para aire {aire_id}: {e}", file=sys.stderr)
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al guardar la lectura."}), 500
+
+@api.route('/otros_equipos/<int:equipo_id>/lecturas', methods=['POST'])
+@jwt_required()
+def agregar_lectura_otro_equipo_route(equipo_id):
+    current_user_id = get_jwt_identity() # Opcional: para registrar quién hizo la lectura
+
+    otro_equipo = db.session.get(OtroEquipo, equipo_id)
+    if not otro_equipo:
+        return jsonify({"msg": f"OtroEquipo con ID {equipo_id} no encontrado."}), 404
+
+    # Asegúrate que el tipo sea exacto, por ejemplo, "Termohigrometro"
+    # Si cualquier OtroEquipo puede tener lecturas, puedes omitir esta verificación de tipo.
+    if otro_equipo.tipo != "Termohigrometro":
+        return jsonify({"msg": "Solo se pueden agregar lecturas a OtrosEquipos de tipo 'Termohigrometro'."}), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    # Humedad es requerida para termohigrómetros
+    required_fields = ['fecha_hora', 'temperatura', 'humedad']
+    if not all(field in data and data[field] is not None and str(data[field]).strip() != '' for field in required_fields):
+        missing_or_empty = [field for field in required_fields if field not in data or data[field] is None or str(data[field]).strip() == '']
+        return jsonify({"msg": f"Faltan campos requeridos o están vacíos para termohigrómetro: {', '.join(missing_or_empty)}"}), 400
+
+    try:
+        fecha_dt = datetime.fromisoformat(data['fecha_hora'])
+        temperatura_float = float(data['temperatura'])
+        humedad_float = float(data['humedad'])
+
+        nueva_lectura = Lectura(
+            otro_equipo_id=equipo_id,
+            fecha=fecha_dt,
+            temperatura=temperatura_float,
+            humedad=humedad_float
+        )
+        db.session.add(nueva_lectura)
+        db.session.commit()
+        return jsonify(nueva_lectura.serialize()), 201
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error en el formato de los datos de entrada: {str(e)}"}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy en agregar_lectura_otro_equipo_route para equipo {equipo_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al guardar la lectura."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado en agregar_lectura_otro_equipo_route para equipo {equipo_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor al guardar la lectura."}), 500
+
+@api.route('/otros_equipos/<int:equipo_id>/lecturas', methods=['GET'])
+@jwt_required()
+def obtener_lecturas_por_otro_equipo_route(equipo_id):
+    """
+    Endpoint para obtener todas las lecturas de un OtroEquipo específico.
+    Requiere autenticación.
+    """
+    otro_equipo = db.session.get(OtroEquipo, equipo_id)
+    if not otro_equipo:
+        return jsonify({"msg": f"OtroEquipo con ID {equipo_id} no encontrado."}), 404
+
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        if per_page > 100: per_page = 100
+
+        paginated_lecturas = Lectura.query.filter_by(otro_equipo_id=equipo_id)\
+            .order_by(Lectura.fecha.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        lecturas_serializadas = [lectura.serialize() for lectura in paginated_lecturas.items]
+        return jsonify({
+            "items": lecturas_serializadas,
+            "total_items": paginated_lecturas.total,
+            "total_pages": paginated_lecturas.pages,
+            "current_page": paginated_lecturas.page,
+            "per_page": paginated_lecturas.per_page,
+            "has_next": paginated_lecturas.has_next,
+            "has_prev": paginated_lecturas.has_prev
+        }), 200
+    except Exception as e:
+        print(f"!!! ERROR inesperado en obtener_lecturas_por_otro_equipo_route para equipo {equipo_id}: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error inesperado en el servidor al obtener lecturas."}), 500
+
+
 
 @api.route('/aires/<int:aire_id>/lecturas', methods=['GET'])
 @jwt_required()
@@ -2337,7 +2424,7 @@ def agregar_otro_equipo_route():
     """
     current_user_id = get_jwt_identity()
     logged_in_user = TrackerUsuario.query.get(current_user_id)
-    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor', 'operador']: 
         return jsonify({"msg": "Acceso no autorizado para agregar equipos diversos"}), 403
 
 
@@ -3752,46 +3839,21 @@ def contar_alertas_activas_helper():
 
 def obtener_ultimas_lecturas_con_info_aire_helper(limite=5):
     """
-    Helper para obtener las últimas N lecturas con info del aire.
+    Helper para obtener las últimas N lecturas con info del aire/dispositivo.
     Retorna una lista de diccionarios o None en caso de error.
     """
     try:
-        # Alias para claridad
-        LecturaAlias = aliased(Lectura)
-        AireAlias = aliased(AireAcondicionado)
+        # Obtener las últimas 'limite' lecturas directamente
+        # y usar el método serialize() de Lectura que ya maneja la lógica
+        # para obtener nombre_dispositivo y ubicacion_dispositivo.
+        # Para optimizar, se podrían usar joinedload si fuera necesario,
+        # pero para un número limitado de lecturas, la carga diferida podría ser aceptable.
+        ultimas_lecturas_obj = db.session.query(Lectura)\
+            .order_by(Lectura.fecha.desc())\
+            .limit(limite)\
+            .all()
 
-        # Consulta
-        query = db.session.query(
-            LecturaAlias.id,
-            LecturaAlias.aire_id,
-            AireAlias.nombre.label('nombre_aire'),
-            AireAlias.ubicacion.label('ubicacion_aire'),
-            LecturaAlias.temperatura,
-            LecturaAlias.humedad,
-            LecturaAlias.fecha
-        ).join(
-            AireAlias, LecturaAlias.aire_id == AireAlias.id
-        ).order_by(
-            desc(LecturaAlias.fecha)
-        ).limit(limite)
-
-        # Ejecutar y convertir a lista de diccionarios
-        ultimas_lecturas_raw = query.all()
-
-        # Convertir resultados (NamedTuple) a diccionarios serializables
-        results = []
-        for lectura in ultimas_lecturas_raw:
-            results.append({
-                'id': lectura.id,
-                'aire_id': lectura.aire_id,
-                'nombre_aire': lectura.nombre_aire,
-                'ubicacion_aire': lectura.ubicacion_aire,
-                'temperatura': lectura.temperatura,
-                'humedad': lectura.humedad,
-                # Formatear fecha a ISO string para JSON
-                'fecha': lectura.fecha.isoformat() if lectura.fecha else None
-            })
-
+        results = [lectura.serialize() for lectura in ultimas_lecturas_obj]
         return results
 
     except Exception as e:

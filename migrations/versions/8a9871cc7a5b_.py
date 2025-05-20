@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: e4b457105363
+Revision ID: 8a9871cc7a5b
 Revises: 
-Create Date: 2025-05-20 11:41:43.553716
+Create Date: 2025-05-20 12:53:36.234528
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'e4b457105363'
+revision = '8a9871cc7a5b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -161,11 +161,14 @@ def upgrade():
     )
     op.create_table('lecturas',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('aire_id', sa.Integer(), nullable=False),
+    sa.Column('aire_id', sa.Integer(), nullable=True),
+    sa.Column('otro_equipo_id', sa.Integer(), nullable=True),
     sa.Column('fecha', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('temperatura', sa.Float(), nullable=False),
     sa.Column('humedad', sa.Float(), nullable=True),
+    sa.CheckConstraint('(aire_id IS NOT NULL AND otro_equipo_id IS NULL) OR (aire_id IS NULL AND otro_equipo_id IS NOT NULL)', name='chk_lectura_device_exclusive'),
     sa.ForeignKeyConstraint(['aire_id'], ['aires_acondicionados.id'], ),
+    sa.ForeignKeyConstraint(['otro_equipo_id'], ['otros_equipos.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('mantenimientos',
