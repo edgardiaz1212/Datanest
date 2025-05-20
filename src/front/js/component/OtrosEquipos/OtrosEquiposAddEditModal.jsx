@@ -17,7 +17,7 @@ const OtrosEquiposAddEditModal = ({
 }) => {
 
     // Define allowed types directly in the component
-    const tiposPermitidos = ['Motogenerador', 'UPS', 'PDU', 'Otro'];
+    const tiposPermitidos = ['Motogenerador', 'UPS', 'PDU', 'Termohigrometro', 'Otro'];
 
     return (
         // Use the isSubmitting prop to disable closing while submitting

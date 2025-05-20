@@ -21,7 +21,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
 import json
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl import Workbook
 
 api = Blueprint('api', __name__)
@@ -1933,81 +1933,106 @@ def upload_lecturas_excel_route():
         traceback.print_exc() 
         return jsonify({"msg": f"Error crítico al procesar el archivo Excel: {str(e)}", "errors": errores_detalle, "summary": contadores}), 500        
 
-@api.route('/lecturas/download_excel_template/<tipo>', methods=['GET'])
-def download_excel_template(tipo):
-    if tipo not in ['con_humedad', 'sin_humedad']:
-        return {"msg": "Tipo no válido. Usar 'con_humedad' o 'sin_humedad'."}, 400
-
+@api.route('/lecturas/download_excel_template', methods=['GET'])
+@jwt_required() # Es buena práctica proteger también la descarga de plantillas
+def download_excel_template():
     try:
         output = io.BytesIO()
         wb = Workbook()
         ws = wb.active
-        ws.title = "Lecturas"
+        ws.title = "Plantilla Lecturas Temperatura"
 
-        # Estilos básicos
+        # Estilos
         bold_font = Font(bold=True)
         center_align = Alignment(horizontal="center", vertical="center")
+        left_align = Alignment(horizontal="left", vertical="center")
         thin_border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
+        header_fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid") # Azul claro
+        aire_header_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") # Verde claro
 
-        def apply_style(cell):
+        def apply_header_style(cell):
             cell.font = bold_font
             cell.alignment = center_align
             cell.border = thin_border
+            cell.fill = header_fill
+        
+        # Título general (opcional)
+        ws.merge_cells('A1:Q1')
+        title_cell = ws['A1']
+        title_cell.value = "Plantilla para Carga Masiva de Lecturas de Temperatura"
+        title_cell.font = Font(bold=True, size=14)
+        title_cell.alignment = center_align
 
-        # === Encabezados fijos ===
-        ws.merge_cells('A1:A2')
-        ws['A1'] = 'SALA 32E'
-        apply_style(ws['A1'])
+        # --- Fila 2: FECHAS (para columnas de datos I en adelante) ---
+        ws['A2'] = "FECHAS (dd/mm/yyyy) ->"
+        apply_header_style(ws['A2'])
+        ws.merge_cells('A2:H2')
 
-        ws.merge_cells('B1:B2')
-        ws['B1'] = '32E-AAP-001'
-        apply_style(ws['B1'])
+        # --- Fila 4: HORAS (para columnas de datos I en adelante) ---
+        ws['A4'] = "HORAS (HH:MM) ->"
+        apply_header_style(ws['A4'])
+        ws.merge_cells('A4:H4')
 
-        # === Fechas dinámicas (este mes) ===
-        today = datetime.today().replace(day=1)
-        _, last_day = calendar.monthrange(today.year, today.month)
-        fechas = [today + timedelta(days=i) for i in range(last_day)]
-        col_idx = 8  # Columna I
+        # --- Fila 5: Encabezado para Nombres de Aires y Temperaturas ---
+        ws['B5'] = "NOMBRE DEL AIRE (Exacto como en BD)"
+        apply_header_style(ws['B5'])
+        ws['B5'].fill = aire_header_fill
+        ws.merge_cells('B5:H5')
 
-        for fecha in fechas:
-            ws.merge_cells(start_row=1, start_column=col_idx, end_row=1, end_column=col_idx+6)
-            fecha_str = fecha.strftime('%m/%d/%y')
-            cell = ws.cell(row=1, column=col_idx, value=fecha_str)
-            apply_style(cell)
+        ws['I5'] = "VALORES DE TEMPERATURA (°C)"
+        apply_header_style(ws['I5'])
+        ws.merge_cells('I5:Q5') # Asumiendo 9 columnas de datos de ejemplo
 
-            dias_semana = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
-            for i, dia in enumerate(dias_semana):
-                cell = ws.cell(row=2, column=col_idx + i, value=dia)
-                apply_style(cell)
+        # Fechas y Horas de ejemplo para 9 columnas de datos (I a Q)
+        today = datetime.now()
+        example_dates = [
+            (today).strftime("%d/%m/%Y"), (today).strftime("%d/%m/%Y"), (today).strftime("%d/%m/%Y"),
+            (today + timedelta(days=1)).strftime("%d/%m/%Y"), (today + timedelta(days=1)).strftime("%d/%m/%Y"), (today + timedelta(days=1)).strftime("%d/%m/%Y"),
+            (today + timedelta(days=2)).strftime("%d/%m/%Y"), (today + timedelta(days=2)).strftime("%d/%m/%Y"), (today + timedelta(days=2)).strftime("%d/%m/%Y")
+        ]
+        example_hours = ["06:00", "12:00", "18:00"] * 3
 
-            horas = ['2:00', '6:00', '9:00', '12:00', '15:00', '18:00', '22:00']
-            for i, hora in enumerate(horas):
-                cell = ws.cell(row=4, column=col_idx + i, value=hora)
-                apply_style(cell)
+        for i, date_str in enumerate(example_dates):
+            col_letter = chr(ord('I') + i)
+            ws[f'{col_letter}2'] = date_str
+            apply_header_style(ws[f'{col_letter}2'])
+        
+        for i, time_str in enumerate(example_hours):
+            col_letter = chr(ord('I') + i)
+            ws[f'{col_letter}4'] = time_str
+            apply_header_style(ws[f'{col_letter}4'])
 
-            if tipo == 'con_humedad':
-                for i, hora in enumerate(horas):
-                    cell = ws.cell(row=5, column=col_idx + i, value="Temp")
-                    apply_style(cell)
-                    cell = ws.cell(row=6, column=col_idx + i, value="Humedad")
-                    apply_style(cell)
-            else:
-                for i, hora in enumerate(horas):
-                    cell = ws.cell(row=5, column=col_idx + i, value="Temp")
-                    apply_style(cell)
+        # --- Filas de Aires Acondicionados de Ejemplo (a partir de Fila 6) ---
+        example_aires = [
+            "Aire Precisión Sala Principal P01",
+            "Aire Confort Oficina C05",
+            "UMAS Rack 17 U02"
+        ]
+        for row_idx, aire_name in enumerate(example_aires, start=6):
+            cell_b = ws[f'B{row_idx}']
+            cell_b.value = aire_name
+            cell_b.border = thin_border
+            cell_b.alignment = left_align
+            # Dejar celdas de temperatura (I en adelante) vacías para el usuario
+            for col_idx_data in range(ord('I'), ord('Q') + 1):
+                 ws[f'{chr(col_idx_data)}{row_idx}'].border = thin_border
 
-            col_idx += 7
+        # Ajustar anchos de columna (aproximado)
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 40
+        for col_idx_data in range(ord('I'), ord('Q') + 1):
+            ws.column_dimensions[chr(col_idx_data)].width = 15
 
         # === Guardar el archivo ===
         wb.save(output)
         output.seek(0)
 
-        filename = f"template_lecturas_{tipo}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        filename = f"plantilla_carga_lecturas_temp_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -2016,8 +2041,8 @@ def download_excel_template(tipo):
         )
 
     except Exception as e:
-        print(f"[ERROR] Error generando plantilla: {e}")
-        return {"msg": f"Error generando plantilla: {str(e)}"}, 500
+        print(f"[ERROR] Error generando plantilla de Excel: {e}", file=sys.stderr)
+        return jsonify({"msg": f"Error generando plantilla: {str(e)}"}), 500
 
 @api.route('/aires/<int:aire_id>/estadisticas', methods=['GET'])
 def obtener_estadisticas_por_aire_route(aire_id):
