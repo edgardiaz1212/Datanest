@@ -1885,6 +1885,15 @@ def upload_lecturas_excel_route():
                 #     print(f"[WARN] {msg}")
                 #     continue 
 
+                # --- VERIFICACIÓN DE DUPLICADOS ---
+                existing_lectura = Lectura.query.filter_by(aire_id=aire_obj.id, fecha=fecha_hora_lectura).first()
+                if existing_lectura:
+                    msg = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Ya existe una lectura para '{aire_obj.nombre}' a las {fecha_hora_lectura}. Se omite."
+                    if not any(f"Ya existe una lectura para '{aire_obj.nombre}' a las {fecha_hora_lectura}" in err for err in errores_detalle): # Evitar spam
+                        errores_detalle.append(msg)
+                    print(f"[WARN] {msg}")
+                    continue # Saltar a la siguiente lectura/columna
+
                 contadores['lecturas_validas'] += 1
                 lecturas_a_guardar.append(Lectura(
                     aire_id=aire_obj.id,
