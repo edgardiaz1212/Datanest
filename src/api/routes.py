@@ -21,7 +21,8 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 import uuid
 import pandas as pd
 import json
-from openpyxl.styles import PatternFill
+from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl import Workbook
 
 api = Blueprint('api', __name__)
 
@@ -1932,81 +1933,91 @@ def upload_lecturas_excel_route():
         traceback.print_exc() 
         return jsonify({"msg": f"Error crítico al procesar el archivo Excel: {str(e)}", "errors": errores_detalle, "summary": contadores}), 500        
 
-@api.route('/lecturas/download_excel_template', methods=['GET'])
-@jwt_required()
-def download_excel_template_route():
+@api.route('/lecturas/download_excel_template/<tipo>', methods=['GET'])
+def download_excel_template(tipo):
+    if tipo not in ['con_humedad', 'sin_humedad']:
+        return {"msg": "Tipo no válido. Usar 'con_humedad' o 'sin_humedad'."}, 400
+
     try:
-        # Datos de ejemplo para la plantilla
-        data = {
-            ('Fecha/Hora', ''): ['22/03/2025', '06:00', '09:00', '12:00', '23/03/2025', '06:00', '09:00'],
-            ('Aire_Ejemplo_1', 'Temp'): ['', 22.5, 22.7, 22.8, '', 23.0, 23.1],
-            ('Aire_Ejemplo_1', 'Hum'): ['', 50.0, 50.1, 50.2, '', 51.0, 51.1],
-            ('Aire_Confort_Ejemplo_2', 'Temp'): ['', 24.0, 24.1, 24.2, '', 24.5, 24.6],
-            ('Aire_Confort_Ejemplo_2', 'Hum'): ['', None, None, None, '', None, None] # Humedad puede ser vacía para Confort
-        }
-        
-        # Crear DataFrame con MultiIndex para las columnas
-        df_template = pd.DataFrame(data)
-        
-        # Establecer la primera columna como índice sin nombre para que no aparezca como cabecera de índice
-        df_template = df_template.set_index(df_template.columns[0])
-        df_template.index.name = None # Esto quita el nombre "Fecha/Hora" del índice en la celda A1
-
-        # Obtener todos los aires de la BD para sugerir nombres
-        aires_bd = AireAcondicionado.query.order_by(AireAcondicionado.nombre).all()
-        sugerencias_aires = "Aires en el sistema (usar nombres exactos):\n" + "\n".join([f"- {a.nombre} (Tipo: {a.tipo})" for a in aires_bd])
-
-        # Crear una hoja para instrucciones/sugerencias
-        df_instructions = pd.DataFrame({
-            'Instrucciones': [
-                "1. Reemplace 'Aire_Ejemplo_1', 'Aire_Confort_Ejemplo_2' con los nombres exactos de sus aires (ver lista abajo).",
-                "2. Mantenga las sub-cabeceras 'Temp' y 'Hum'. Para cada aire, debe haber al menos una columna 'Temp'. La columna 'Hum' es opcional para aires tipo 'Confort'.",
-                "3. En la primera columna (Columna A):",
-                "   - Ingrese una fecha (ej: DD/MM/YYYY o YYYY-MM-DD) en una fila.",
-                "   - En las filas siguientes bajo esa fecha, ingrese las horas (ej: HH:MM o HH:MM:SS).",
-                "4. Ingrese los valores numéricos de Temperatura y Humedad en las celdas correspondientes.",
-                "5. Para aires tipo 'Confort', la columna de Humedad puede dejarse vacía o no existir. Para otros tipos, es requerida si la columna 'Hum' existe.",
-                "6. Elimine las filas/columnas de ejemplo que no necesite y añada las que sí.",
-                "",
-                sugerencias_aires
-            ]
-        })
-
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df_template.to_excel(writer, sheet_name='Plantilla_Lecturas') # El índice se escribirá por defecto
-            df_instructions.to_excel(writer, sheet_name='Instrucciones', index=False)
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Lecturas"
 
-            workbook = writer.book
-            worksheet_plantilla = writer.sheets['Plantilla_Lecturas']
-            worksheet_plantilla.column_dimensions['A'].width = 18 
-            
-            worksheet_instructions = writer.sheets['Instrucciones']
-            worksheet_instructions.column_dimensions['A'].width = 100 
-            
-            num_aires_sugerencias = len(aires_bd)
-            base_rows_instructions = 8 # Número de filas de instrucciones antes de la lista de aires
-            
-            for i in range(1, base_rows_instructions + 2): # +2 por cabecera y empezar en 1
-                worksheet_instructions.row_dimensions[i].height = 30 # Para las primeras instrucciones
-            
-            # Ajustar altura para la lista de aires
-            for i in range(base_rows_instructions + 2, base_rows_instructions + num_aires_sugerencias + 3) : 
-                 worksheet_instructions.row_dimensions[i].height = 15
+        # Estilos básicos
+        bold_font = Font(bold=True)
+        center_align = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
 
+        def apply_style(cell):
+            cell.font = bold_font
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        # === Encabezados fijos ===
+        ws.merge_cells('A1:A2')
+        ws['A1'] = 'SALA 32E'
+        apply_style(ws['A1'])
+
+        ws.merge_cells('B1:B2')
+        ws['B1'] = '32E-AAP-001'
+        apply_style(ws['B1'])
+
+        # === Fechas dinámicas (este mes) ===
+        today = datetime.today().replace(day=1)
+        _, last_day = calendar.monthrange(today.year, today.month)
+        fechas = [today + timedelta(days=i) for i in range(last_day)]
+        col_idx = 8  # Columna I
+
+        for fecha in fechas:
+            ws.merge_cells(start_row=1, start_column=col_idx, end_row=1, end_column=col_idx+6)
+            fecha_str = fecha.strftime('%m/%d/%y')
+            cell = ws.cell(row=1, column=col_idx, value=fecha_str)
+            apply_style(cell)
+
+            dias_semana = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
+            for i, dia in enumerate(dias_semana):
+                cell = ws.cell(row=2, column=col_idx + i, value=dia)
+                apply_style(cell)
+
+            horas = ['2:00', '6:00', '9:00', '12:00', '15:00', '18:00', '22:00']
+            for i, hora in enumerate(horas):
+                cell = ws.cell(row=4, column=col_idx + i, value=hora)
+                apply_style(cell)
+
+            if tipo == 'con_humedad':
+                for i, hora in enumerate(horas):
+                    cell = ws.cell(row=5, column=col_idx + i, value="Temp")
+                    apply_style(cell)
+                    cell = ws.cell(row=6, column=col_idx + i, value="Humedad")
+                    apply_style(cell)
+            else:
+                for i, hora in enumerate(horas):
+                    cell = ws.cell(row=5, column=col_idx + i, value="Temp")
+                    apply_style(cell)
+
+            col_idx += 7
+
+        # === Guardar el archivo ===
+        wb.save(output)
         output.seek(0)
 
+        filename = f"template_lecturas_{tipo}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name='plantilla_lecturas_historicas.xlsx'
+            download_name=filename
         )
 
     except Exception as e:
-        print(f"Error generando plantilla: {str(e)}")
-        traceback.print_exc()
-        return jsonify({"msg": "Error al generar plantilla"}), 500
+        print(f"[ERROR] Error generando plantilla: {e}")
+        return {"msg": f"Error generando plantilla: {str(e)}"}, 500
 
 @api.route('/aires/<int:aire_id>/estadisticas', methods=['GET'])
 def obtener_estadisticas_por_aire_route(aire_id):
