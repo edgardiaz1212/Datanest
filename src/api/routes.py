@@ -1569,7 +1569,6 @@ def obtener_lecturas_por_otro_equipo_route(equipo_id):
         return jsonify({"msg": "Error inesperado en el servidor al obtener lecturas."}), 500
 
 
-
 @api.route('/aires/<int:aire_id>/lecturas', methods=['GET'])
 @jwt_required()
 def obtener_lecturas_por_aire_route(aire_id):
@@ -1831,20 +1830,41 @@ def upload_lecturas_excel_route():
         print(f"[DEBUG] df.head():\n{df.head().to_string()}")
 
 
-        if df.empty:
+        if df.empty or df.shape[0] < 2: # Necesitamos al menos 2 filas para leer B1 y las cabeceras/datos
             return jsonify({
-                "msg": "El archivo Excel está vacío."
+                "msg": "El archivo Excel está vacío o no tiene suficientes filas para el formato esperado (mínimo 2 filas)."
             }), 400
         
         # Fila de fechas: índice 2 (Fila 3 en Excel)
-        # Fila de horas: índice 4 (Fila 5 en Excel)
+        # Fila de horas: índice 3 (Fila 4 en Excel)
         # Fila de inicio de aires: índice 5 (Fila 6 en Excel)
         # Columna de nombres de aire: índice 1 (Columna B en Excel)
-        # Columna de inicio de datos: índice 8 (Columna I en Excel)
-        if df.shape[0] < 6 or df.shape[1] < 9: # Necesitamos al menos hasta la fila 6 y columna I
+        # Columna de inicio de datos: índice 2 (Columna C en Excel)
+        # La celda B1 (df.iloc[0,1]) indica el TIPO DE DATO
+        if df.shape[0] < 6 or df.shape[1] < 3: # Mínimo 6 filas (B1, Fechas, _, Horas, Encabezado Aires, Datos Aires), mínimo 3 columnas (A, B, C)
             return jsonify({
-                "msg": "El archivo Excel no tiene suficientes filas/columnas para el formato esperado."
+                "msg": "El archivo Excel no tiene suficientes filas/columnas para el formato esperado (mínimo hasta Col C para datos)."
             }), 400
+        
+        # --- Leer el tipo de dato de la celda B1 (índice [0,1]) ---
+        tipo_dato_celda = "TEMPERATURA" # Default por si B1 está vacía o mal formateada, aunque se validará
+        try:
+            valor_b1 = str(df.iloc[0, 1]).strip().upper()
+            if valor_b1 in ["TEMPERATURA", "HUMEDAD"]:
+                tipo_dato_celda = valor_b1
+            elif pd.isna(df.iloc[0, 1]) or str(df.iloc[0, 1]).strip() == "":
+                msg_err_b1 = "Advertencia: Celda B1 (tipo de dato) está vacía. Se asumirá 'TEMPERATURA'."
+                errores_detalle.append(msg_err_b1)
+                print(f"[WARN] {msg_err_b1}")
+                # tipo_dato_celda ya es "TEMPERATURA" por defecto
+            else:
+                msg_err_b1 = f"Error en celda B1: El tipo de dato debe ser 'TEMPERATURA' o 'HUMEDAD'. Se encontró: '{df.iloc[0, 1]}'."
+                errores_detalle.append(msg_err_b1)
+                return jsonify({"msg": msg_err_b1, "errors": errores_detalle, "summary": contadores}), 400
+            print(f"[INFO] Tipo de dato a cargar (de celda B1): {tipo_dato_celda}")
+        except IndexError:
+            # Esto no debería ocurrir si df.shape[0] >=1 y df.shape[1] >= 2 (B es la segunda columna)
+            return jsonify({"msg": "Error crítico: No se pudo acceder a la celda B1. Verifique la estructura del archivo.", "errors": errores_detalle, "summary": contadores}), 400
 
         lecturas_a_guardar = []
 
@@ -1856,10 +1876,10 @@ def upload_lecturas_excel_route():
         fechas_por_columna = {} # {col_idx: date_obj}
         horas_por_columna = {}  # {col_idx: time_obj}
 
-        # --- Extracción de fechas (Fila 2 del Excel, índice 2 del DataFrame) ---
+        # --- Extracción de fechas (Fila 2 del Excel, índice 1 del DataFrame) ---
         fecha_actual_para_propagacion = None
-        for col_idx in range(1, df.shape[1]): # Desde la columna B en adelante
-            valor_fecha_celda = df.iloc[1, col_idx] # Fila 2 del Excel
+        for col_idx in range(2, df.shape[1]): # Desde la columna C en adelante (índice 2)
+            valor_fecha_celda = df.iloc[1, col_idx] # Fila 2 del Excel (índice 1 del df), columna C en adelante
             if pd.notna(valor_fecha_celda):
                 fecha_parseada = parse_date_flexible(str(valor_fecha_celda).strip())
                 if fecha_parseada:
@@ -1876,13 +1896,13 @@ def upload_lecturas_excel_route():
         if fechas_por_columna:
             contadores['fechas_leidas'] = len(set(fechas_por_columna.values()))
         else:
-            msg_err = "No se pudieron extraer fechas válidas de la Fila 3 (columnas I en adelante)."
+            msg_err = "No se pudieron extraer fechas válidas de la Fila 2 (columnas C en adelante)."
             errores_detalle.append(msg_err)
             print(f"[ERROR] {msg_err}")
 
-        # --- Extracción de Horas (Fila 5 del Excel, índice 4 del DataFrame) ---
-        for col_idx in range(1, df.shape[1]): # Desde la columna I en adelante
-            valor_hora_celda = df.iloc[3, col_idx] # Fila 4 del Excel
+        # --- Extracción de Horas (Fila 4 del Excel, índice 3 del DataFrame) ---
+        for col_idx in range(2, df.shape[1]): # Desde la columna C en adelante (índice 2)
+            valor_hora_celda = df.iloc[3, col_idx] # Fila 4 del Excel (índice 3 de df), columna C en adelante
             if pd.notna(valor_hora_celda):
                 hora_parseada = parse_time_flexible(str(valor_hora_celda).strip())
                 if hora_parseada:
@@ -1894,7 +1914,7 @@ def upload_lecturas_excel_route():
         if horas_por_columna:
             contadores['horas_leidas'] = len(horas_por_columna)
         else:
-            msg_err = "No se pudieron extraer horas válidas de la Fila 4 (columnas B en adelante)."
+            msg_err = "No se pudieron extraer horas válidas de la Fila 4 (columnas C en adelante)."
             errores_detalle.append(msg_err)
             print(f"[ERROR] {msg_err}")
 
@@ -1930,11 +1950,10 @@ def upload_lecturas_excel_route():
             contadores['aires_encontrados'] += 1 
             print(f"[INFO] Fila Excel {fila_idx+1}: Procesando Aire '{aire_obj.nombre}' (ID: {aire_obj.id}, Tipo: {aire_obj.tipo})")
 
-            # Las lecturas para este aire están en la misma fila, desde la columna I (índice 8)
-            for col_idx in range(8, df.shape[1]):
-                temp_val_excel = df.iloc[fila_idx, col_idx]
-                # Humedad no se lee de este formato directamente, se asume None
-                hum_val_excel = None 
+            # Las lecturas para este aire están en la misma fila, desde la columna C (índice 2)
+            for col_idx in range(2, df.shape[1]):
+                valor_generico_excel = df.iloc[fila_idx, col_idx]
+
 
                 fecha_para_lectura = fechas_por_columna.get(col_idx)
                 hora_para_lectura = horas_por_columna.get(col_idx)
@@ -1950,31 +1969,43 @@ def upload_lecturas_excel_route():
                 fecha_hora_lectura = datetime.combine(fecha_para_lectura, hora_para_lectura)
                 is_confort = aire_obj.tipo == 'Confort' # Asegúrate que 'Confort' sea el string exacto en tu BD
 
-                if pd.isna(temp_val_excel) or str(temp_val_excel).strip() in ['', '#DIV/0!']:
+                if pd.isna(valor_generico_excel) or str(valor_generico_excel).strip() in ['', '#DIV/0!']:
                     continue 
                 try:
-                    temperatura = float(temp_val_excel)
+                    valor_numerico = float(valor_generico_excel)
                 except (ValueError, TypeError):
-                    msg = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Valor de temperatura '{temp_val_excel}' no válido para '{aire_obj.nombre}' a las {fecha_hora_lectura}. Se ignora."
-                    if not any(f"Valor de temperatura '{temp_val_excel}' no válido para '{aire_obj.nombre}'" in err for err in errores_detalle):
+                    msg = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Valor de lectura '{valor_generico_excel}' no válido para '{aire_obj.nombre}' a las {fecha_hora_lectura}. Se ignora."
+                    if not any(f"Valor de lectura '{valor_generico_excel}' no válido para '{aire_obj.nombre}'" in err for err in errores_detalle):
                         errores_detalle.append(msg)
                     print(f"[WARN] {msg}")
                     continue 
 
-                humedad = None # Asumimos que no hay humedad en este formato
-                # Si el aire NO es de tipo confort, la humedad es requerida.
-                # Como este formato no provee humedad, las lecturas para aires no-confort no se guardarán.
-                # --- MODIFICACIÓN: Comentar o eliminar este bloque para quitar la restricción ---
-                # if not is_confort:
-                #     msg = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Falta humedad para '{aire_obj.nombre}' (tipo {aire_obj.tipo}) a las {fecha_hora_lectura}, y es requerido. No se puede importar esta lectura desde este formato de Excel."
-                #     # Evitar spam de este error para el mismo aire
-                #     if not any(f"Falta humedad para '{aire_obj.nombre}'" in err for err in errores_detalle):
-                #         errores_detalle.append(msg)
-                #     print(f"[WARN] {msg}")
-                #     continue 
+                temperatura_a_guardar = None
+                humedad_a_guardar = None
+
+                if tipo_dato_celda == "TEMPERATURA":
+                    temperatura_a_guardar = valor_numerico
+                    humedad_a_guardar = None # Humedad no se provee en este caso
+                elif tipo_dato_celda == "HUMEDAD":
+                    humedad_a_guardar = valor_numerico
+                    # Temperatura es nullable=False, así que necesitamos un valor.
+                    temperatura_a_guardar = 0.0 # Placeholder
+                    msg_placeholder = f"Para la carga de HUMEDAD, la temperatura para '{aire_obj.nombre}' a las {fecha_hora_lectura} se ha establecido en 0.0 (placeholder)."
+                    if not any(msg_placeholder in err for err in errores_detalle): # Evitar spam
+                        errores_detalle.append(msg_placeholder)
+                        # print(f"[WARN] {msg_placeholder}") # Puede ser muy verboso, opcional
+                    
+                    # Validar rango de humedad (0-100)
+                    if not (0 <= humedad_a_guardar <= 100):
+                        msg_hum_range = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Valor de humedad '{humedad_a_guardar}%' fuera del rango (0-100) para '{aire_obj.nombre}'. Se ignora."
+                        if not any(f"Valor de humedad '{humedad_a_guardar}%' fuera del rango" in err for err in errores_detalle):
+                            errores_detalle.append(msg_hum_range)
+                        print(f"[WARN] {msg_hum_range}")
+                        continue
 
                 # --- VERIFICACIÓN DE DUPLICADOS ---
-                existing_lectura = Lectura.query.filter_by(aire_id=aire_obj.id, fecha=fecha_hora_lectura).first()
+                # Solo verificar si estamos intentando insertar el mismo tipo de dato que ya existe, o si la nueva lectura tiene ambos valores
+                existing_lectura = Lectura.query.filter_by(aire_id=aire_obj.id, fecha=fecha_hora_lectura).first() # Podríamos refinar esto
                 if existing_lectura:
                     msg = f"Fila Excel {fila_idx+1}, Columna Excel {col_idx+1}: Ya existe una lectura para '{aire_obj.nombre}' a las {fecha_hora_lectura}. Se omite."
                     if not any(f"Ya existe una lectura para '{aire_obj.nombre}' a las {fecha_hora_lectura}" in err for err in errores_detalle): # Evitar spam
@@ -1986,10 +2017,10 @@ def upload_lecturas_excel_route():
                 lecturas_a_guardar.append(Lectura(
                     aire_id=aire_obj.id,
                     fecha=fecha_hora_lectura,
-                    temperatura=temperatura,
-                    humedad=humedad # Será None
+                    temperatura=temperatura_a_guardar,
+                    humedad=humedad_a_guardar
                 ))
-                print(f"[INFO] Lectura válida: {aire_obj.nombre}, {fecha_hora_lectura}, T:{temperatura}, H:{humedad}")
+                # print(f"[INFO] Lectura válida: {aire_obj.nombre}, {fecha_hora_lectura}, T:{temperatura_a_guardar}, H:{humedad_a_guardar} (Tipo: {tipo_dato_celda})") # Verboso
 
         if lecturas_a_guardar:
             db.session.bulk_save_objects(lecturas_a_guardar)
@@ -2048,50 +2079,69 @@ def download_excel_template():
             cell.border = thin_border
             cell.fill = header_fill
         
-        # Título general (opcional)
-        ws.merge_cells('A1:Q1')
+        # --- Fila 1: Título General y Tipo de Dato ---
         title_cell = ws['A1']
-        title_cell.value = "Plantilla para Carga Masiva de Lecturas de Temperatura"
+        title_cell.value = "Plantilla para Carga Masiva de Lecturas"
         title_cell.font = Font(bold=True, size=14)
         title_cell.alignment = center_align
+        # Determinar hasta qué columna fusionar el título principal. Si los datos empiezan en C, y tenemos 9 columnas de datos de ejemplo (C a K)
+        # Col A (etiqueta tipo dato), Col B (valor tipo dato), Col C-K (datos)
+        # El título podría ir de A1 a K1 (11 columnas)
+        ws.merge_cells('A1:K1') 
 
-        # --- Fila 2: FECHAS (para columnas de datos I en adelante) ---
+        ws['A2'] = "TIPO DE DATO A CARGAR:"
+        apply_header_style(ws['A2'])
+        ws['B2'] = "TEMPERATURA" # Ejemplo
+        ws['B2'].font = Font(bold=True, color="0070C0") # Azul
+        ws['B2'].alignment = Alignment(horizontal="left", vertical="center")
+        ws['B2'].border = thin_border
+        ws.merge_cells('C2:H2') # Espacio para la nota
+        help_text_b1 = ws['C2'] # Nota al lado de B1
+        help_text_b1.value = "<-- Escribir 'TEMPERATURA' o 'HUMEDAD' aquí (sin comillas)."
+        help_text_b1.font = Font(italic=True, color="FF0000")
+        help_text_b1.alignment = Alignment(horizontal="left", vertical="center")
+
+        # --- Fila 3: FECHAS (para columnas de datos C en adelante) ---
+        # Las fechas están en la Fila 2 del Excel (índice 1 del df) según el código de subida.
+        # La plantilla debe reflejar esto.
+        # Si B1 (df.iloc[0,1]) es el tipo de dato, entonces la fila de fechas es df.iloc[1,:]
         ws['A2'] = "FECHAS (dd/mm/yyyy) ->"
         apply_header_style(ws['A2'])
-        ws.merge_cells('A2:H2')
+        ws.merge_cells('A2:B2') # Fusionar A2 y B2 para la etiqueta de Fechas
 
-        # --- Fila 4: HORAS (para columnas de datos I en adelante) ---
+        # --- Fila 4: HORAS (para columnas de datos C en adelante) ---
+        # Las horas están en la Fila 4 del Excel (índice 3 del df)
         ws['A4'] = "HORAS (HH:MM) ->"
         apply_header_style(ws['A4'])
-        ws.merge_cells('A4:H4')
+        ws.merge_cells('A4:B4') # Fusionar A4 y B4 para la etiqueta de Horas
 
         # --- Fila 5: Encabezado para Nombres de Aires y Temperaturas ---
         ws['B5'] = "NOMBRE DEL AIRE (Exacto como en BD)"
         apply_header_style(ws['B5'])
         ws['B5'].fill = aire_header_fill
-        ws.merge_cells('B5:H5')
+        # ws.merge_cells('B5:H5') # No fusionar si los datos empiezan en C
 
-        ws['I5'] = "VALORES DE TEMPERATURA (°C)"
-        apply_header_style(ws['I5'])
-        ws.merge_cells('I5:Q5') # Asumiendo 9 columnas de datos de ejemplo
+        ws['C5'] = "VALORES DE LECTURA (Según celda B1)" # Ahora desde Col C
+        apply_header_style(ws['C5'])
+        ws.merge_cells('C5:K5') # Asumiendo 9 columnas de datos de ejemplo (C a K)
 
-        # Fechas y Horas de ejemplo para 9 columnas de datos (I a Q)
+        # Fechas y Horas de ejemplo para 9 columnas de datos (C a K)
         today = datetime.now()
         example_dates = [
             (today).strftime("%d/%m/%Y"), (today).strftime("%d/%m/%Y"), (today).strftime("%d/%m/%Y"),
             (today + timedelta(days=1)).strftime("%d/%m/%Y"), (today + timedelta(days=1)).strftime("%d/%m/%Y"), (today + timedelta(days=1)).strftime("%d/%m/%Y"),
             (today + timedelta(days=2)).strftime("%d/%m/%Y"), (today + timedelta(days=2)).strftime("%d/%m/%Y"), (today + timedelta(days=2)).strftime("%d/%m/%Y")
         ]
-        example_hours = ["06:00", "12:00", "18:00"] * 3
+        example_hours = ["06:00", "12:00", "18:00"] * 3 # 9 valores
 
         for i, date_str in enumerate(example_dates):
-            col_letter = chr(ord('I') + i)
-            ws[f'{col_letter}2'] = date_str
+            col_letter = chr(ord('C') + i) # Empezar desde C
+            ws[f'{col_letter}2'] = date_str # Fechas en Fila 2
             apply_header_style(ws[f'{col_letter}2'])
         
         for i, time_str in enumerate(example_hours):
-            col_letter = chr(ord('I') + i)
-            ws[f'{col_letter}4'] = time_str
+            col_letter = chr(ord('C') + i) # Empezar desde C
+            ws[f'{col_letter}4'] = time_str # Horas en Fila 4
             apply_header_style(ws[f'{col_letter}4'])
 
         # --- Filas de Aires Acondicionados de Ejemplo (a partir de Fila 6) ---
@@ -2105,14 +2155,14 @@ def download_excel_template():
             cell_b.value = aire_name
             cell_b.border = thin_border
             cell_b.alignment = left_align
-            # Dejar celdas de temperatura (I en adelante) vacías para el usuario
-            for col_idx_data in range(ord('I'), ord('Q') + 1):
+            # Dejar celdas de datos (C en adelante) vacías para el usuario
+            for col_idx_data in range(ord('C'), ord('K') + 1): # C a K son 9 columnas
                  ws[f'{chr(col_idx_data)}{row_idx}'].border = thin_border
 
         # Ajustar anchos de columna (aproximado)
         ws.column_dimensions['A'].width = 25
         ws.column_dimensions['B'].width = 40
-        for col_idx_data in range(ord('I'), ord('Q') + 1):
+        for col_idx_data in range(ord('C'), ord('K') + 1): # C a K
             ws.column_dimensions[chr(col_idx_data)].width = 15
 
         # === Guardar el archivo ===

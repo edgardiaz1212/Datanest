@@ -6,7 +6,7 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-sqlalchemy = "==1.4.46"
+sqlalchemy = "*"
 flask-sqlalchemy = "*"
 flask-migrate = "*"
 flask-swagger = "*"
@@ -22,6 +22,10 @@ fpdf2 = "*"
 flask-jwt-extended = "*"
 pandas = "*"
 openpyxl = "*"
+alembic = "*"
+certifi = "*"
+click = "*"
+openyxl = "*"
 
 [requires]
 python_version = "3.12"
