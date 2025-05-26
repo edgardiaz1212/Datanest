@@ -140,15 +140,15 @@ const LecturasExcelUploadModal = ({ show, onHide, onUploadComplete }) => {
             <li><strong>Fila 3 (Ignorada):</strong> Esta fila es ignorada por el sistema y puede usarse para notas.</li>
             <li><strong>Fila 4 (Encabezados y Horas):</strong>
               <ul>
-                <li>La celda <code>B4</code> debe contener el encabezado "NOMBRE DEL AIRE (Exacto como en BD)" (o similar, la plantilla lo provee).</li>
+                <li>Celda <code>B4</code>: Encabezado "NOMBRE DISPOSITIVO (Aire o Termohigrómetro, exacto como en BD)".</li>
                 <li>Comenzando desde la <strong>Columna C</strong> (<code>C4</code>, <code>D4</code>, etc.), esta fila contiene las horas para las lecturas (ej: <code>HH:MM</code>).</li>
               </ul>
             </li>
-            <li><strong>Columna B (Nombres de Aires):</strong> A partir de la <strong>Fila 5</strong> (quinta fila) hacia abajo, esta columna lista los nombres de los Aires Acondicionados. Deben coincidir <em>exactamente</em> con los registrados en el sistema.</li>
+                <li><strong>Columna B:</strong> Nombre del dispositivo. Debe coincidir <em>exactamente</em> con el nombre de un Aire Acondicionado o un Termohigrómetro registrado en el sistema. El sistema intentará identificarlo automáticamente.</li>
               <ul>
                 <li>Filas con nombres como 'total', 'promedio', o designaciones de sala (ej: 'sala 32e', 'sala 31e') en esta columna serán ignoradas por el proceso.</li>
               </ul>
-            <li><strong>Columnas C en adelante (Valores de Lectura, desde Fila 5):</strong> Para cada aire en la Columna B (desde Fila 5), los valores de lectura (según celda <code>B1</code>) se ingresan en la misma fila, desde la <strong>Columna C</strong>. Cada valor debe alinearse con una columna que tenga una fecha (Fila 2) y una hora (Fila 4) definidas.</li>
+            <li><strong>Columnas C en adelante (Valores de Lectura, desde Fila 5):</strong> Para cada dispositivo listado en la Columna B (desde Fila 5), los valores de lectura (según celda <code>B1</code>) se ingresan en la misma fila, desde la <strong>Columna C</strong>. Cada valor debe alinearse con una columna que tenga una fecha (Fila 2) y una hora (Fila 4) definidas.</li>
             <li><strong>Manejo de Temperatura y Humedad:</strong>
               <ul>
                 <li>Si la celda <code>B1</code> es 'TEMPERATURA': El sistema importará los valores como temperaturas. La humedad para estas lecturas se guardará como nula o será ignorada.</li>
