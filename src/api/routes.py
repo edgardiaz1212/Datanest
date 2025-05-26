@@ -2298,51 +2298,65 @@ def obtener_estadisticas_generales_helper():
 
 def obtener_ubicaciones_helper():
     """
-    Helper para obtener todas las ubicaciones únicas de los aires.
+    Helper para obtener todas las ubicaciones únicas de los aires Y termohigrómetros.
     Retorna una lista de strings o None en caso de error.
     """
     try:
         # Usa db.session
-        ubicaciones_result = db.session.query(distinct(AireAcondicionado.ubicacion)).all()
-        # Extraer solo el string de cada tupla, filtrando None o vacíos
-        return [ubicacion[0] for ubicacion in ubicaciones_result if ubicacion[0]]
+        ubicaciones_aires = db.session.query(distinct(AireAcondicionado.ubicacion)).filter(AireAcondicionado.ubicacion.isnot(None), AireAcondicionado.ubicacion != '').all()
+        ubicaciones_otros = db.session.query(distinct(OtroEquipo.ubicacion)).filter(OtroEquipo.tipo == "Termohigrometro", OtroEquipo.ubicacion.isnot(None), OtroEquipo.ubicacion != '').all()
+        
+        all_ubicaciones_tuples = ubicaciones_aires + ubicaciones_otros
+        # Extraer solo el string de cada tupla, hacerlos únicos y ordenarlos
+        unique_ubicaciones = sorted(list(set([loc[0] for loc in all_ubicaciones_tuples if loc[0]])))
+        return unique_ubicaciones
     except Exception as e:
         print(f"Error en obtener_ubicaciones_helper: {e}", file=sys.stderr)
         traceback.print_exc()
         return None # Indicar error
-
-def obtener_estadisticas_por_ubicacion_helper(ubicacion=None):
+    
+def obtener_estadisticas_por_ubicacion_helper(ubicacion_param=None):
     """
-    Helper para obtener estadísticas agrupadas por ubicación.
+    Helper para obtener estadísticas agrupadas por ubicación, considerando Aires y Termohigrómetros.
     Retorna una lista de diccionarios o None en caso de error.
     """
     try:
-        # Usa db.session
-        query_aires = db.session.query(AireAcondicionado.id, AireAcondicionado.ubicacion)
-        if ubicacion:
-            query_aires = query_aires.filter(AireAcondicionado.ubicacion == ubicacion)
+        # Las siguientes líneas estaban causando un NameError y no son necesarias para la lógica actual.
+        # query_aires = db.session.query(AireAcondicionado.id, AireAcondicionado.ubicacion)
+        # if ubicacion_param: 
+        #     query_aires = query_aires.filter(AireAcondicionado.ubicacion == ubicacion_param)
+        
+        all_unique_locations = []
+        if ubicacion_param:
+            all_unique_locations = [ubicacion_param]
+        else:
+            ubicaciones_aires_q = db.session.query(distinct(AireAcondicionado.ubicacion)).filter(AireAcondicionado.ubicacion.isnot(None), AireAcondicionado.ubicacion != '')
+            ubicaciones_otros_q = db.session.query(distinct(OtroEquipo.ubicacion)).filter(OtroEquipo.tipo == "Termohigrometro", OtroEquipo.ubicacion.isnot(None), OtroEquipo.ubicacion != '')
+            
+            all_locs_tuples = ubicaciones_aires_q.all() + ubicaciones_otros_q.all()
+            all_unique_locations = sorted(list(set([loc[0] for loc in all_locs_tuples if loc[0]])))
 
-        # Agrupar IDs de aires por ubicación
-        aires_por_ubicacion = {}
-        all_aires = query_aires.all()
-        if not all_aires:
-             # Si no hay aires (en general o para esa ubicación), devuelve lista vacía
-             return []
+        if not all_unique_locations:
+            return []
 
-        for aire_id, loc in all_aires:
-            if loc not in aires_por_ubicacion:
-                aires_por_ubicacion[loc] = []
-            aires_por_ubicacion[loc].append(aire_id)
-
-        # Lista para almacenar los diccionarios de resultados directamente
         resultados = []
 
-        # Calcular estadísticas para cada ubicación encontrada
-        for loc, aires_ids in aires_por_ubicacion.items():
-            if not aires_ids: continue # Seguridad extra
+        for current_location in all_unique_locations:
+            aire_ids_in_loc = [
+                a.id for a in db.session.query(AireAcondicionado.id).filter(AireAcondicionado.ubicacion == current_location).all()
+            ]
+            termo_ids_in_loc = [
+                o.id for o in db.session.query(OtroEquipo.id).filter(OtroEquipo.tipo == "Termohigrometro", OtroEquipo.ubicacion == current_location).all()
+            ]
+            
+            num_aires_in_loc = len(aire_ids_in_loc)
+            num_termos_in_loc = len(termo_ids_in_loc)
+            total_dispositivos_in_loc = num_aires_in_loc + num_termos_in_loc
 
-            # Consultar estadísticas para los aires de esta ubicación
-            result = db.session.query(
+            if total_dispositivos_in_loc == 0:
+                continue
+
+            lecturas_query = db.session.query(
                 func.avg(Lectura.temperatura).label('temp_avg'),
                 func.min(Lectura.temperatura).label('temp_min'),
                 func.max(Lectura.temperatura).label('temp_max'),
@@ -2351,43 +2365,49 @@ def obtener_estadisticas_por_ubicacion_helper(ubicacion=None):
                 func.min(Lectura.humedad).label('hum_min'),
                 func.max(Lectura.humedad).label('hum_max'),
                 func.stddev(Lectura.humedad).label('hum_std'),
-                func.count(Lectura.id).label('total_lecturas') # Contar todas las lecturas
-            ).filter(Lectura.aire_id.in_(aires_ids)).first()
+                func.count(Lectura.id).label('total_lecturas')
+            ).filter(
+                or_(
+                    Lectura.aire_id.in_(aire_ids_in_loc),
+                    Lectura.otro_equipo_id.in_(termo_ids_in_loc)
+                )
+            )
+            
+            result_stats = lecturas_query.first()
 
-            # Preparar diccionario de datos para esta ubicación
-            stats_data = {'ubicacion': loc, 'num_aires': len(aires_ids)}
+            stats_data = {
+                'ubicacion': current_location, 
+                'num_aires': num_aires_in_loc,
+                'num_termohigrometros': num_termos_in_loc,
+                'num_dispositivos_total': total_dispositivos_in_loc
+            }
 
-            # Añadir resultados si se encontraron lecturas
-            if result and result.total_lecturas > 0:
+            if result_stats and result_stats.total_lecturas > 0:
                 stats_data.update({
-                    'temperatura_promedio': round(result.temp_avg, 2) if result.temp_avg is not None else 0,
-                    'temperatura_min': round(result.temp_min, 2) if result.temp_min is not None else 0,
-                    'temperatura_max': round(result.temp_max, 2) if result.temp_max is not None else 0,
-                    'temperatura_std': round(result.temp_std, 2) if result.temp_std is not None else 0,
-                    'humedad_promedio': round(result.hum_avg, 2) if result.hum_avg is not None else 0,
-                    'humedad_min': round(result.hum_min, 2) if result.hum_min is not None else 0,
-                    'humedad_max': round(result.hum_max, 2) if result.hum_max is not None else 0,
-                    'humedad_std': round(result.hum_std, 2) if result.hum_std is not None else 0,
-                    'lecturas_totales': result.total_lecturas if result.total_lecturas is not None else 0
+                    'temperatura_promedio': round(result_stats.temp_avg, 2) if result_stats.temp_avg is not None else 0,
+                    'temperatura_min': round(result_stats.temp_min, 2) if result_stats.temp_min is not None else 0,
+                    'temperatura_max': round(result_stats.temp_max, 2) if result_stats.temp_max is not None else 0,
+                    'temperatura_std': round(result_stats.temp_std, 2) if result_stats.temp_std is not None else 0,
+                    'humedad_promedio': round(result_stats.hum_avg, 2) if result_stats.hum_avg is not None else 0,
+                    'humedad_min': round(result_stats.hum_min, 2) if result_stats.hum_min is not None else 0,
+                    'humedad_max': round(result_stats.hum_max, 2) if result_stats.hum_max is not None else 0,
+                    'humedad_std': round(result_stats.hum_std, 2) if result_stats.hum_std is not None else 0,
+                    'lecturas_totales': result_stats.total_lecturas if result_stats.total_lecturas is not None else 0
                 })
             else:
-                # Añadir diccionario con ceros si no hay lecturas para los aires de esta ubicación
                 stats_data.update({
                     'temperatura_promedio': 0, 'temperatura_min': 0, 'temperatura_max': 0, 'temperatura_std': 0,
                     'humedad_promedio': 0, 'humedad_min': 0, 'humedad_max': 0, 'humedad_std': 0,
                     'lecturas_totales': 0
                 })
-            # Añadir el diccionario a la lista de resultados
             resultados.append(stats_data)
-
-        # Devolver la lista de diccionarios
+        
         return resultados
 
     except Exception as e:
-        print(f"Error en obtener_estadisticas_por_ubicacion_helper para '{ubicacion}': {e}", file=sys.stderr)
+        print(f"Error en obtener_estadisticas_por_ubicacion_helper para '{ubicacion_param}': {e}", file=sys.stderr)
         traceback.print_exc()
-        return None # Indicar error
-
+        return None
 # --- Rutas de API que usan los Helpers ---
 
 @api.route('/estadisticas/generales', methods=['GET'])
@@ -2436,7 +2456,7 @@ def get_estadisticas_por_ubicacion_route(ubicacion):
     Si se especifica /estadisticas/ubicacion/NombreUbicacion, filtra por esa.
     """
     # El helper ahora devuelve una lista de diccionarios o None
-    stats_list = obtener_estadisticas_por_ubicacion_helper(ubicacion)
+    stats_list = obtener_estadisticas_por_ubicacion_helper(ubicacion_param=ubicacion) # Pasar con el nombre de parámetro correcto
 
     if stats_list is None: # Error ocurrido en el helper
         msg = f"Error al calcular estadísticas para la ubicación '{ubicacion}'." if ubicacion else "Error al calcular estadísticas por ubicación."
@@ -3937,7 +3957,7 @@ def obtener_ultimas_lecturas_con_info_aire_helper(limite=5):
         traceback.print_exc()
         return None # Indicar error
 
-@api.route('/lecturas/ubicacion/<path:ubicacion>', methods=['GET']) # Usar <path:> para capturar slashes en la ubicación
+@api.route('/lecturas/ubicacion/<path:ubicacion>', methods=['GET'])
 @jwt_required()
 def obtener_lecturas_por_ubicacion_route(ubicacion):
     """
@@ -3947,38 +3967,57 @@ def obtener_lecturas_por_ubicacion_route(ubicacion):
     """
     try:
         limite = request.args.get('limite', default=50, type=int)
-        if limite <= 0 or limite > 500: # Limitar a 500 por rendimiento
+        if limite <= 0 or limite > 500: 
             limite = 50
     except ValueError:
         limite = 50
 
     try:
-        # Buscar los IDs de los aires en esa ubicación
-        aires_en_ubicacion = db.session.query(AireAcondicionado.id)\
-            .filter(AireAcondicionado.ubicacion == ubicacion)\
+        print(f"DEBUG RUTA LECTURAS UBICACION: Buscando para ubicación='{ubicacion}', limite={limite}", file=sys.stderr)
+
+        aire_ids_en_ubicacion = [
+            a.id for a in db.session.query(AireAcondicionado.id)\
+            .filter(func.lower(AireAcondicionado.ubicacion) == func.lower(ubicacion))\
             .all()
-
-        if not aires_en_ubicacion:
-            return jsonify([]), 200 # No hay aires, devuelve lista vacía
-
-        aire_ids = [a.id for a in aires_en_ubicacion]
-
-        # Obtener las últimas 'limite' lecturas para esos aires
-        lecturas = db.session.query(Lectura)\
-            .filter(Lectura.aire_id.in_(aire_ids))\
-            .order_by(Lectura.fecha.desc())\
-            .limit(limite)\
+        ]
+        
+        termo_ids_en_ubicacion = [
+            o.id for o in db.session.query(OtroEquipo.id)\
+            .filter(OtroEquipo.tipo == "Termohigrometro", func.lower(OtroEquipo.ubicacion) == func.lower(ubicacion))\
             .all()
+        ]
 
-        # Ordenar por fecha ascendente para el gráfico
-        lecturas.reverse()
+        print(f"DEBUG RUTA LECTURAS UBICACION: IDs de Aires encontrados: {aire_ids_en_ubicacion}", file=sys.stderr)
+        print(f"DEBUG RUTA LECTURAS UBICACION: IDs de Termohigrómetros encontrados: {termo_ids_en_ubicacion}", file=sys.stderr)
 
-        return jsonify([l.serialize() for l in lecturas]), 200
+        if not aire_ids_en_ubicacion and not termo_ids_en_ubicacion:
+            print(f"DEBUG RUTA LECTURAS UBICACION: No se encontraron dispositivos para la ubicación '{ubicacion}'. Devolviendo lista vacía.", file=sys.stderr)
+            return jsonify([]), 200
+
+        lecturas_query = db.session.query(Lectura)\
+            .filter(or_(
+                Lectura.aire_id.in_(aire_ids_en_ubicacion),
+                Lectura.otro_equipo_id.in_(termo_ids_en_ubicacion)
+            ))\
+            .order_by(Lectura.fecha.desc())
+        
+        lecturas = lecturas_query.limit(limite).all()
+        
+        print(f"DEBUG RUTA LECTURAS UBICACION: Número de lecturas encontradas (antes de reverse): {len(lecturas)}", file=sys.stderr)
+        if lecturas:
+            print(f"DEBUG RUTA LECTURAS UBICACION: Primera lectura (más reciente): {lecturas[0].serialize() if lecturas else 'N/A'}", file=sys.stderr)
+
+        lecturas.reverse() # Ordenar por fecha ascendente para el gráfico
+
+        serialized_data = [l.serialize() for l in lecturas]
+        print(f"DEBUG RUTA LECTURAS UBICACION: Devolviendo {len(serialized_data)} lecturas serializadas.", file=sys.stderr)
+        return jsonify(serialized_data), 200
 
     except Exception as e:
         print(f"Error obteniendo lecturas para ubicación '{ubicacion}': {e}", file=sys.stderr)
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return jsonify({"msg": "Error al obtener lecturas por ubicación."}), 500
+
 # --- Rutas de API ---
 
 @api.route('/contadores', methods=['GET'])

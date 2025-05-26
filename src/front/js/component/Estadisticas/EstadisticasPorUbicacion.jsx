@@ -51,10 +51,20 @@ const EstadisticasPorUbicacion = ({
 
   // --- useEffect para buscar datos del gráfico ---
   useEffect(() => {
+        console.log("EstPorUbicacion: Ubicación seleccionada cambió a:", ubicacionSeleccionada);
+
     // Llama a la acción para buscar lecturas cuando cambia la ubicación seleccionada
     actions.fetchLecturasPorUbicacion(ubicacionSeleccionada);
   }, [ubicacionSeleccionada, actions]); // Depende de la ubicación y actions
   // --- Fin useEffect ---
+
+ // Log para ver qué llega al componente
+  console.log("EstPorUbicacion: Renderizando con lecturasUbicacion:", lecturasUbicacion, 
+              "Loading:", lecturasUbicacionLoading, 
+              "Error:", lecturasUbicacionError,
+              "Ubicacion Seleccionada:", ubicacionSeleccionada);
+
+
 
   // --- Preparar datos para el gráfico ---
   const chartData = {
@@ -194,7 +204,7 @@ const EstadisticasPorUbicacion = ({
                <thead>
                 <tr>
                   <th><FiMapPin className="me-1" />Ubicación</th>
-                  <th><FiUsers className="me-1" />Aires</th>
+                  <th><FiUsers className="me-1" />Dispositivos</th> {/* O "Total Disp." */}
                   <th><FiThermometer className="me-1 text-danger" />Temp. Prom.</th>
                   <th>Temp. Mín.</th>
                   <th>Temp. Máx.</th>
@@ -211,7 +221,7 @@ const EstadisticasPorUbicacion = ({
                     est && est.ubicacion ? (
                       <tr key={est.ubicacion || index}>
                         <td>{est.ubicacion}</td>
-                        <td>{est.num_aires ?? 'N/A'}</td>
+                        <td>{est.num_dispositivos_total ?? est.num_aires ?? 'N/A'}</td> {/* Prioriza el total, fallback a num_aires */}
                         <td>{est.temperatura_promedio?.toFixed(1) ?? 'N/A'} °C</td>
                         <td>{est.temperatura_min?.toFixed(1) ?? 'N/A'} °C</td>
                         <td>{est.temperatura_max?.toFixed(1) ?? 'N/A'} °C</td>
