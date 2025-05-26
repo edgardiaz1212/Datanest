@@ -1,8 +1,7 @@
 import React, { useState, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { Modal, Button, Form, Alert, Spinner, ProgressBar } from 'react-bootstrap';
-import { Context } from '../../store/appContext'; // Ajusta la ruta si es necesario
-
+import { Context } from '../../store/appContext';
 const LecturasExcelUploadModal = ({ show, onHide, onUploadComplete }) => {
     const { store, actions } = useContext(Context); // Añadir store para el token
     const [selectedFile, setSelectedFile] = useState(null);
@@ -70,35 +69,16 @@ const LecturasExcelUploadModal = ({ show, onHide, onUploadComplete }) => {
   };
 
   const handleDownloadTemplate = async () => {
-    try {
-      const token = store.token; // Asumiendo que el token está en el store
-      const response = await fetch(`${process.env.BACKEND_URL}/api/lecturas/download_excel_template`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          // No 'Content-Type' es necesario para una descarga GET simple
-        },
-      });
+    // Construct the path to the file in the public folder
+    const filePath = process.env.PUBLIC_URL + '/basetemphum.xlsx';
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ msg: "Error al descargar plantilla."}));
-        throw new Error(errorData.msg || `Error ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "plantilla_lecturas_historicas.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error("Error descargando plantilla:", error);
-      setUploadError(error.message || "No se pudo descargar la plantilla.");
-    }
+    const a = document.createElement('a');
+    a.href = filePath;
+    a.download = "Formato_carga_base.xlsx"; 
+    document.body.appendChild(a); // Necesario para Firefox
+    a.click();
+    document.body.removeChild(a); // Limpiar
+    // No es necesario window.URL.revokeObjectURL porque no estamos creando un Blob URL.
   };
 
 

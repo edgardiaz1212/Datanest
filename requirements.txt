@@ -14,4 +14,4 @@ fpdf2
 pandas
 flask-swagger
 flask-jwt-extended
-openyxl
+openpyxl 
