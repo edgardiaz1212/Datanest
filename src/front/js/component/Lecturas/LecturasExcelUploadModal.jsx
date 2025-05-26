@@ -134,18 +134,29 @@ const LecturasExcelUploadModal = ({ show, onHide, onUploadComplete }) => {
         <Alert variant="info">
           <Alert.Heading as="h5">Formato Esperado del Excel:</Alert.Heading>
           <ul>
-            <li>El archivo debe tener la extensión <code>.xlsx</code> o <code>.xls</code>.</li>
-            <li><strong>Fila 2 (Fechas):</strong> Contiene las fechas de las lecturas, comenzando desde la <strong>Columna B</strong>. Una fecha en una celda se aplica a las celdas vacías siguientes (a su derecha en la misma fila) hasta que se encuentre una nueva fecha. (Ej: <code>22/03/2025</code>)</li>
-            <li><strong>Fila 4 (Horas):</strong> Contiene las horas para las lecturas, comenzando desde la <strong>Columna B</strong>. (Ej: <code>06:00</code>, <code>09:00</code>, <code>15:00</code>)</li>
-            <li><strong>Columna B (Nombres de Aires):</strong> A partir de la <strong>Fila 6</strong> hacia abajo, lista los nombres de los Aires Acondicionados. Estos nombres deben coincidir <em>exactamente</em> con los registrados en el sistema.
+            <li><strong>Extensión del Archivo:</strong> Debe ser <code>.xlsx</code> o <code>.xls</code>.</li>
+            <li><strong>Celda B1 (Tipo de Dato):</strong> La celda <code>B1</code> (primera fila, segunda columna) debe contener la palabra 'TEMPERATURA' o 'HUMEDAD' (sin comillas) para indicar el tipo de datos que se cargarán desde las columnas de valores.</li>
+            <li><strong>Fila 2 (Fechas):</strong> En la Fila 2, comenzando desde la <strong>Columna C</strong>, se ingresan las fechas (<code>dd/mm/yyyy</code>). Una fecha se propaga a celdas vacías a su derecha en la misma fila.</li>
+            <li><strong>Fila 3 (Ignorada):</strong> Esta fila es ignorada por el sistema y puede usarse para notas.</li>
+            <li><strong>Fila 4 (Encabezados y Horas):</strong>
+              <ul>
+                <li>La celda <code>B4</code> debe contener el encabezado "NOMBRE DEL AIRE (Exacto como en BD)" (o similar, la plantilla lo provee).</li>
+                <li>Comenzando desde la <strong>Columna C</strong> (<code>C4</code>, <code>D4</code>, etc.), esta fila contiene las horas para las lecturas (ej: <code>HH:MM</code>).</li>
+              </ul>
+            </li>
+            <li><strong>Columna B (Nombres de Aires):</strong> A partir de la <strong>Fila 5</strong> (quinta fila) hacia abajo, esta columna lista los nombres de los Aires Acondicionados. Deben coincidir <em>exactamente</em> con los registrados en el sistema.</li>
               <ul>
                 <li>Filas con nombres como 'total', 'promedio', o designaciones de sala (ej: 'sala 32e', 'sala 31e') en esta columna serán ignoradas por el proceso.</li>
               </ul>
+            <li><strong>Columnas C en adelante (Valores de Lectura, desde Fila 5):</strong> Para cada aire en la Columna B (desde Fila 5), los valores de lectura (según celda <code>B1</code>) se ingresan en la misma fila, desde la <strong>Columna C</strong>. Cada valor debe alinearse con una columna que tenga una fecha (Fila 2) y una hora (Fila 4) definidas.</li>
+            <li><strong>Manejo de Temperatura y Humedad:</strong>
+              <ul>
+                <li>Si la celda <code>B1</code> es 'TEMPERATURA': El sistema importará los valores como temperaturas. La humedad para estas lecturas se guardará como nula o será ignorada.</li>
+                <li>Si la celda <code>B1</code> es 'HUMEDAD': El sistema importará los valores como humedades (asegúrese que estén en el rango 0-100). La temperatura para estas lecturas se guardará con un valor predeterminado (ej: 0.0).</li>
+              </ul>
             </li>
-            <li><strong>Columnas I en adelante (Valores de Temperatura):</strong> Para cada aire listado en la Columna B (desde la Fila 6), los valores de temperatura se ingresan en la misma fila, comenzando en la <strong>Columna I</strong> y extendiéndose hacia la derecha. Cada valor de temperatura debe alinearse con una columna que tenga una fecha (en Fila 2) y una hora (en Fila 4) definidas.</li>
-            <li><strong>Humedad:</strong> El proceso de carga actual <strong>NO importa datos de humedad</strong>. Cualquier valor de humedad en el archivo será ignorado y las lecturas se guardarán sin este dato.</li>
-            <li><strong>Celdas de Temperatura Vacías/Inválidas:</strong> Si una celda destinada a un valor de temperatura está vacía o contiene un texto no numérico (como <code>#DIV/0!</code>), esa lectura específica será omitida.</li>
-            <li><strong>Lecturas Duplicadas:</strong> El sistema omite automáticamente la carga de lecturas si ya existe un registro para el mismo aire, en la misma fecha y hora.</li>
+            <li><strong>Celdas de Valor Vacías/Inválidas:</strong> Si una celda destinada a un valor de lectura (temperatura o humedad) está vacía o contiene un texto no numérico (como <code>#DIV/0!</code>), esa lectura específica será omitida.</li>
+            <li><strong>Lecturas Duplicadas:</strong> El sistema omite automáticamente la carga de lecturas si ya existe un registro para el mismo aire, en la misma fecha y hora. El sistema verifica duplicados antes de intentar guardar una nueva lectura.</li>
           </ul>
         </Alert>
 

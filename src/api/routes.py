@@ -1839,13 +1839,13 @@ def upload_lecturas_excel_route():
         # Fila de horas: índice 3 (Fila 4 en Excel)
         # Fila de inicio de aires: índice 5 (Fila 6 en Excel)
         # Columna de nombres de aire: índice 1 (Columna B en Excel)
-        # Columna de inicio de datos: índice 2 (Columna C en Excel)
+        # Columna de inicio de datos (valores): índice 2 (Columna C en Excel)
         # La celda B1 (df.iloc[0,1]) indica el TIPO DE DATO
-        if df.shape[0] < 6 or df.shape[1] < 3: # Mínimo 6 filas (B1, Fechas, _, Horas, Encabezado Aires, Datos Aires), mínimo 3 columnas (A, B, C)
+        if df.shape[0] < 5 or df.shape[1] < 3: # Mínimo 5 filas (B1, Fechas, Ignorada, Horas/Encabezado Nombre Aire, Datos Aires), mínimo 3 columnas (A, B, C)
             return jsonify({
-                "msg": "El archivo Excel no tiene suficientes filas/columnas para el formato esperado (mínimo hasta Col C para datos)."
+                "msg": "El archivo Excel no tiene suficientes filas/columnas para el formato esperado (mínimo 5 filas y 3 columnas)."
             }), 400
-        
+
         # --- Leer el tipo de dato de la celda B1 (índice [0,1]) ---
         tipo_dato_celda = "TEMPERATURA" # Default por si B1 está vacía o mal formateada, aunque se validará
         try:
@@ -1924,9 +1924,9 @@ def upload_lecturas_excel_route():
             return jsonify({"msg": "Faltan fechas u horas en el Excel para procesar lecturas.", "errors": errores_detalle, "summary": contadores}), 400
 
         # --- Procesar cada fila de datos de aires ---
-        # Nombres de aires en Col B (índice 1), a partir de Fila 6 (índice 5)
+        # Nombres de aires en Col B (índice 1), a partir de Fila 5 (índice 4 del DataFrame)
         print("[DEBUG] Procesando filas de aires...")
-        for fila_idx in range(5, df.shape[0]): # Desde la fila 6 del Excel en adelante
+        for fila_idx in range(4, df.shape[0]): # Desde la Fila 5 del Excel en adelante (índice 4 del df)
             nombre_aire_celda = str(df.iloc[fila_idx, 1]).strip() # Columna B
 
             # Ignorar celdas vacías, de resumen o nombres de sala que puedan estar en la columna de aires
@@ -2080,50 +2080,47 @@ def download_excel_template():
             cell.fill = header_fill
         
         # --- Fila 1: Título General y Tipo de Dato ---
-        title_cell = ws['A1']
-        title_cell.value = "Plantilla para Carga Masiva de Lecturas"
-        title_cell.font = Font(bold=True, size=14)
-        title_cell.alignment = center_align
-        # Determinar hasta qué columna fusionar el título principal. Si los datos empiezan en C, y tenemos 9 columnas de datos de ejemplo (C a K)
-        # Col A (etiqueta tipo dato), Col B (valor tipo dato), Col C-K (datos)
-        # El título podría ir de A1 a K1 (11 columnas)
-        ws.merge_cells('A1:K1') 
-
-        ws['A2'] = "TIPO DE DATO A CARGAR:"
-        apply_header_style(ws['A2'])
-        ws['B2'] = "TEMPERATURA" # Ejemplo
-        ws['B2'].font = Font(bold=True, color="0070C0") # Azul
-        ws['B2'].alignment = Alignment(horizontal="left", vertical="center")
-        ws['B2'].border = thin_border
-        ws.merge_cells('C2:H2') # Espacio para la nota
-        help_text_b1 = ws['C2'] # Nota al lado de B1
+        # La celda B1 (df.iloc[0,1]) indica el TIPO DE DATO
+        ws['A1'] = "TIPO DE DATO A CARGAR (en celda B1):"
+        apply_header_style(ws['A1'])
+        ws['B1'] = "TEMPERATURA" # Ejemplo, el usuario debe cambiar a "HUMEDAD" si es necesario
+        ws['B1'].font = Font(bold=True, color="0070C0") # Azul
+        ws['B1'].alignment = Alignment(horizontal="left", vertical="center")
+        ws['B1'].border = thin_border
+        ws.merge_cells('C1:K1') # Espacio para la nota de ayuda para B1
+        help_text_b1 = ws['C1'] 
         help_text_b1.value = "<-- Escribir 'TEMPERATURA' o 'HUMEDAD' aquí (sin comillas)."
         help_text_b1.font = Font(italic=True, color="FF0000")
         help_text_b1.alignment = Alignment(horizontal="left", vertical="center")
 
-        # --- Fila 3: FECHAS (para columnas de datos C en adelante) ---
+        # --- Fila 2: FECHAS (para columnas de datos C en adelante) ---
         # Las fechas están en la Fila 2 del Excel (índice 1 del df) según el código de subida.
-        # La plantilla debe reflejar esto.
-        # Si B1 (df.iloc[0,1]) es el tipo de dato, entonces la fila de fechas es df.iloc[1,:]
         ws['A2'] = "FECHAS (dd/mm/yyyy) ->"
         apply_header_style(ws['A2'])
         ws.merge_cells('A2:B2') # Fusionar A2 y B2 para la etiqueta de Fechas
 
-        # --- Fila 4: HORAS (para columnas de datos C en adelante) ---
-        # Las horas están en la Fila 4 del Excel (índice 3 del df)
-        ws['A4'] = "HORAS (HH:MM) ->"
+        # --- Fila 3: Espacio o Nota (Fila 3 del Excel / df.iloc[2,:] no se usa para fechas/horas)
+        ws.merge_cells('A3:K3')
+        note_fila3 = ws['A3']
+        note_fila3.value = "(Esta fila se ignora para la extracción de fechas/horas; puede usarse para notas adicionales si se desea)"
+        note_fila3.font = Font(italic=True, size=9)
+        note_fila3.alignment = Alignment(horizontal="center", vertical="center")
+
+        # --- Fila 4: Encabezado para Nombres de Aires (Col B) y HORAS (Col C en adelante) ---
+        # La Columna A4 puede quedar vacía o con una nota general.
+        ws['A4'] = "DATOS:" # Opcional, o dejar vacío
         apply_header_style(ws['A4'])
-        ws.merge_cells('A4:B4') # Fusionar A4 y B4 para la etiqueta de Horas
 
-        # --- Fila 5: Encabezado para Nombres de Aires y Temperaturas ---
-        ws['B5'] = "NOMBRE DEL AIRE (Exacto como en BD)"
-        apply_header_style(ws['B5'])
-        ws['B5'].fill = aire_header_fill
-        # ws.merge_cells('B5:H5') # No fusionar si los datos empiezan en C
+        ws['B4'] = "NOMBRE DEL AIRE (Exacto como en BD)" # Encabezado para la columna de nombres de aire
+        apply_header_style(ws['B4'])
+        ws['B4'].fill = aire_header_fill # Estilo distintivo para el encabezado de nombres de aire
 
-        ws['C5'] = "VALORES DE LECTURA (Según celda B1)" # Ahora desde Col C
-        apply_header_style(ws['C5'])
-        ws.merge_cells('C5:K5') # Asumiendo 9 columnas de datos de ejemplo (C a K)
+        # Las horas (ejemplos) se colocan directamente en las celdas C4, D4, etc.
+        # Y un encabezado general para los valores de lectura puede ir sobre estas horas, o se infiere.
+        # Por simplicidad, el modal explicará que C4 en adelante son horas y debajo los valores.
+        # Si quisiéramos un texto "HORAS (HH:MM) ->" podría ir en C3 y fusionarse,
+        # pero la Fila 3 está marcada como ignorada.
+        # Dejaremos que las horas de ejemplo en C4, D4... sirvan de guía.
 
         # Fechas y Horas de ejemplo para 9 columnas de datos (C a K)
         today = datetime.now()
@@ -2136,21 +2133,22 @@ def download_excel_template():
 
         for i, date_str in enumerate(example_dates):
             col_letter = chr(ord('C') + i) # Empezar desde C
-            ws[f'{col_letter}2'] = date_str # Fechas en Fila 2
+            ws[f'{col_letter}2'] = date_str # Fechas en Fila 2 (Excel)
             apply_header_style(ws[f'{col_letter}2'])
         
         for i, time_str in enumerate(example_hours):
             col_letter = chr(ord('C') + i) # Empezar desde C
             ws[f'{col_letter}4'] = time_str # Horas en Fila 4
             apply_header_style(ws[f'{col_letter}4'])
+            ws[f'{col_letter}4'].alignment = center_align # Asegurar que las horas estén centradas
 
-        # --- Filas de Aires Acondicionados de Ejemplo (a partir de Fila 6) ---
+        # --- Filas de Aires Acondicionados de Ejemplo (a partir de Fila 5) ---
         example_aires = [
             "Aire Precisión Sala Principal P01",
             "Aire Confort Oficina C05",
             "UMAS Rack 17 U02"
         ]
-        for row_idx, aire_name in enumerate(example_aires, start=6):
+        for row_idx, aire_name in enumerate(example_aires, start=5): # Los datos de aires comienzan en Fila 5
             cell_b = ws[f'B{row_idx}']
             cell_b.value = aire_name
             cell_b.border = thin_border
