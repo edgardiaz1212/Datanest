@@ -54,6 +54,9 @@ const EstadisticasPorUbicacion = ({
 }) => {
   const { store, actions } = useContext(Context);
 
+  // DEBUG: Check if the functions are received as props
+  console.log("EstPorUbicacion PROPS: setFechaDesde type:", typeof setFechaDesde, "setFechaHasta type:", typeof setFechaHasta);
+
   // --- useEffect para buscar datos del gráfico ---
   useEffect(() => {
         console.log("EstPorUbicacion: Ubicación seleccionada cambió a:", ubicacionSeleccionada);
@@ -164,7 +167,10 @@ const EstadisticasPorUbicacion = ({
                 <Form.Control
                   type="date"
                   value={fechaDesde || ''}
-                  onChange={e => setFechaDesde(e.target.value)}
+                  onChange={e => {
+                    console.log("onChange fechaDesde - typeof setFechaDesde:", typeof setFechaDesde); // DEBUG
+                    if (typeof setFechaDesde === 'function') setFechaDesde(e.target.value);
+                  }}
                   disabled={loadingUbicacion || loadingGraficasUbicacion}
                 />
               </Form.Group>
@@ -175,7 +181,10 @@ const EstadisticasPorUbicacion = ({
                 <Form.Control
                   type="date"
                   value={fechaHasta || ''}
-                  onChange={e => setFechaHasta(e.target.value)}
+                  onChange={e => {
+                    console.log("onChange fechaHasta - typeof setFechaHasta:", typeof setFechaHasta); // DEBUG
+                    if (typeof setFechaHasta === 'function') setFechaHasta(e.target.value);
+                  }}
                   disabled={loadingUbicacion || loadingGraficasUbicacion}
                 />
               </Form.Group>
@@ -323,10 +332,10 @@ EstadisticasPorUbicacion.propTypes = {
       lecturas_totales: PropTypes.number,
   })),
   loadingUbicacion: PropTypes.bool.isRequired,
-  fechaDesde: PropTypes.string,
-  setFechaDesde: PropTypes.func,
-  fechaHasta: PropTypes.string,
-  setFechaHasta: PropTypes.func,
+  fechaDesde: PropTypes.string.isRequired,
+  setFechaDesde: PropTypes.func.isRequired,
+  fechaHasta: PropTypes.string.isRequired,
+  setFechaHasta: PropTypes.func.isRequired,
   datosGraficoPromedioHoraTemp: PropTypes.object,
   datosGraficoPromedioHoraHum: PropTypes.object,
   datosGraficoPorComponenteTemp: PropTypes.object,
