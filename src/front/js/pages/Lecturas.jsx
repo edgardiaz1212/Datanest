@@ -34,6 +34,9 @@ const Lecturas = () => {
     fetchUmbrales: actionFetchUmbrales,
   } = actions;
 
+  console.log("DEBUG Lecturas.jsx: actions object:", actions);
+  console.log("DEBUG Lecturas.jsx: typeof updateLectura:", typeof updateLectura);
+
   const [filtroDispositivo, setFiltroDispositivo] = useState({ id: null, tipo: null });
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

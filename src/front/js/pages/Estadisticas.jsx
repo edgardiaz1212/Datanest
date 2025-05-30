@@ -67,20 +67,28 @@ const Estadisticas = () => { // Remove : React.FC
   // --- Local State ---
   const [aireSeleccionado, setAireSeleccionado] = useState(null); // number | null -> null
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null); // string | null -> null
-  // --- State for Date Range Filter ---
+  // --- State for Date Range Filter (shared or specific) ---
   const today = new Date();
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(today.getDate() - 7);
 
   // Local state for processed chart data and their loading status
+  // For "Por Aire" tab
   const [graficoGeneralTemp, setGraficoGeneralTemp] = useState(null);
   const [graficoGeneralHum, setGraficoGeneralHum] = useState(null);
   const [graficoComparativoTemp, setGraficoComparativoTemp] = useState(null);
   const [graficoComparativoHum, setGraficoComparativoHum] = useState(null);
   const [graficoAireTemp, setGraficoAireTemp] = useState(null);
   const [graficoAireHum, setGraficoAireHum] = useState(null);
+  // For "Por Ubicacion" tab
+  const [graficoUbicacionPromedioTemp, setGraficoUbicacionPromedioTemp] = useState(null);
+  const [graficoUbicacionPromedioHum, setGraficoUbicacionPromedioHum] = useState(null);
+  const [graficoUbicacionComponentesTemp, setGraficoUbicacionComponentesTemp] = useState(null);
+  const [graficoUbicacionComponentesHum, setGraficoUbicacionComponentesHum] = useState(null);
+
   const [loadingChartsGeneralLocal, setLoadingChartsGeneralLocal] = useState(true);
   const [loadingChartsAireLocal, setLoadingChartsAireLocal] = useState(false);
+  const [loadingChartsUbicacionLocal, setLoadingChartsUbicacionLocal] = useState(false); // State for Ubicacion charts loading
   const [fechaDesde, setFechaDesde] = useState(sevenDaysAgo.toISOString().split('T')[0]);
   const [fechaHasta, setFechaHasta] = useState(today.toISOString().split('T')[0]);
 
@@ -337,7 +345,30 @@ const Estadisticas = () => { // Remove : React.FC
     }
     setLoadingChartsAireLocal(false);
   }, [_rawLecturasAire, umbrales, aireSeleccionado, fechaDesde, fechaHasta, procesarLecturasParaGrafico]);
-
+  
+  // --- Effect for "Por Ubicación" charts ---
+  useEffect(() => {
+    setLoadingChartsUbicacionLocal(true); // Start loading
+    // Similar a la lógica de "Por Aire", pero usando store.lecturasUbicacion
+    // y los estados de fecha específicos para ubicación si los tienes.
+    // Aquí necesitarás procesar store.lecturasUbicacion para generar:
+    // 1. Datos promediados por hora para la ubicación seleccionada.
+    // 2. Datos agrupados por cada dispositivo dentro de esa ubicación.
+    if (ubicacionSeleccionada && store.lecturasUbicacion.length > 0) {
+      // Lógica de procesamiento para setGraficoUbicacionPromedioTemp, etc.
+      // Ejemplo (muy simplificado, necesitarás adaptarlo):
+      // const dataProcesada = procesarLecturasParaGrafico(store.lecturasUbicacion, [], fechaDesdeUbic, fechaHastaUbic, true);
+      // setGraficoUbicacionPromedioTemp(dataProcesada?.tempChart || null);
+      // setGraficoUbicacionPromedioHum(dataProcesada?.humChart || null);
+      // ... y para las otras gráficas ...
+    } else {
+      setGraficoUbicacionPromedioTemp(null);
+      setGraficoUbicacionPromedioHum(null);
+      setGraficoUbicacionComponentesTemp(null);
+      setGraficoUbicacionComponentesHum(null);
+    }
+    setLoadingChartsUbicacionLocal(false); // End loading
+  }, [ubicacionSeleccionada, store.lecturasUbicacion, fechaDesde, fechaHasta, procesarLecturasParaGrafico, umbrales]); // Asumiendo que usas las mismas fechas por ahora
 
   // --- Render ---
   // Determine overall initial loading state
@@ -405,13 +436,21 @@ const Estadisticas = () => { // Remove : React.FC
           {/* Per Location Tab */}
           <Tab eventKey="ubicacion" title={<><FiMapPin className="me-2" /> Por Ubicación</>}>
             <EstadisticasPorUbicacion
-              // Pass data/state from store/local state
               ubicaciones={ubicaciones}
               ubicacionSeleccionada={ubicacionSeleccionada}
-              setUbicacionSeleccionada={setUbicacionSeleccionada} // Pass setter for selection
-              estadisticasUbicacion={estadisticasUbicacion}
-              // Pass relevant loading state
-              loadingUbicacion={statsLoadingUbicacion} // Loading state for location stats data
+              setUbicacionSeleccionada={setUbicacionSeleccionada}
+              estadisticasUbicacion={estadisticasUbicacion} // Datos agregados para la tabla
+              loadingUbicacion={statsLoadingUbicacion} // Loading para la tabla de estadísticas
+              // --- Pasar props de fecha y carga para las gráficas de ubicación ---
+              fechaDesde={fechaDesde} // Usando las mismas fechas que "Por Aire" por ahora
+              setFechaDesde={setFechaDesde}
+              fechaHasta={fechaHasta}
+              setFechaHasta={setFechaHasta}
+              datosGraficoPromedioHoraTemp={graficoUbicacionPromedioTemp}
+              datosGraficoPromedioHoraHum={graficoUbicacionPromedioHum}
+              datosGraficoPorComponenteTemp={graficoUbicacionComponentesTemp}
+              datosGraficoPorComponenteHum={graficoUbicacionComponentesHum}
+              loadingGraficasUbicacion={loadingChartsUbicacionLocal} // Pasar el estado de carga correcto
             />
           </Tab>
         </Tabs>

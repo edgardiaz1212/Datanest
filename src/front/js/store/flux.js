@@ -1770,6 +1770,39 @@ const getState = ({ getStore, getActions, setStore }) => {
         }
       },
 
+      updateLectura: async (lecturaId, lecturaData) => {
+        // Ruta protegida, necesita token
+        // No se establece lecturasLoading aquí para no afectar la tabla principal
+        // El modal manejará su propio estado de 'isSubmitting'
+        // setStore({ lecturasError: null }); // Limpiar error previo
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/lecturas/${lecturaId}`,
+            {
+              method: "PUT",
+              headers: getAuthHeaders(), // Usa cabeceras con token y Content-Type
+              body: JSON.stringify({
+                fecha_hora: lecturaData.fecha_hora, // 'YYYY-MM-DDTHH:MM:SS'
+                temperatura: lecturaData.temperatura,
+                humedad: lecturaData.humedad, // Puede ser null
+              }),
+            }
+          );
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(
+              responseData.msg || `Error actualizando lectura: ${response.status}`
+            );
+          }
+          return true; // Indica éxito
+        } catch (error) {
+          console.error("Error in updateLectura:", error);
+          // El error se manejará en el componente que llama a esta acción
+          throw error; // Re-lanzar el error para que el componente lo capture
+        }
+      },
+
       deleteLectura: async (lecturaId) => {
         // Ruta protegida, necesita token
         const store = getStore();
