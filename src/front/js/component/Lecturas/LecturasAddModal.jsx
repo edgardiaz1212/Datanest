@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { Modal, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
+import { Modal, Form, Button, Row, Col, Spinner, Alert } from 'react-bootstrap';
+import { FiPlusCircle, FiEdit, FiSave, FiPlus } from 'react-icons/fi';
 
 const LecturasAddModal = ({
   show,
@@ -9,7 +10,9 @@ const LecturasAddModal = ({
   formData,
   onChange,
   onSubmit,
-  isSubmitting = false
+  isSubmitting = false,
+  error, // Recibe el error del store
+  editingId // Nuevo prop para saber si estamos editando
 }) => {
   const [selectedTipoDispositivo, setSelectedTipoDispositivo] = useState(''); // Cambiado de selectedTipoAire
 
@@ -63,13 +66,17 @@ const LecturasAddModal = ({
 
   return (
     // Prevent closing during submit
-    <Modal show={show} onHide={onHide} backdrop="static" keyboard={!isSubmitting}>
+    <Modal show={show} onHide={onHide} backdrop={isSubmitting ? "static" : true} keyboard={!isSubmitting}>
       {/* Disable close button during submit */}
       <Modal.Header closeButton={!isSubmitting}>
-        <Modal.Title>Agregar Lectura</Modal.Title>
+        <Modal.Title>
+          {editingId ? <FiEdit className="me-2" /> : <FiPlusCircle className="me-2" />}
+          {editingId ? "Editar Lectura" : "Agregar Nueva Lectura"}
+        </Modal.Title>
       </Modal.Header>
       <Form onSubmit={onSubmit}>
         <Modal.Body>
+          {error && <Alert variant="danger">{error}</Alert>}
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
@@ -77,7 +84,7 @@ const LecturasAddModal = ({
                 <Form.Select
                   value={selectedTipoDispositivo}
                   onChange={(e) => setSelectedTipoDispositivo(e.target.value)}
-                  disabled={isSubmitting || !tiposDeDispositivoUnicos || tiposDeDispositivoUnicos.length <= 1}
+                  disabled={isSubmitting || !!editingId || !tiposDeDispositivoUnicos || tiposDeDispositivoUnicos.length <= 1}
                   aria-label="Seleccione un tipo de dispositivo"
                 >
                   {tiposDeDispositivoUnicos.map(tipo => (
@@ -94,7 +101,7 @@ const LecturasAddModal = ({
                   value={formData.dispositivo_key || ''}
                   onChange={onChange}
                   required
-                  disabled={isSubmitting || !dispositivosFiltradosPorTipo || dispositivosFiltradosPorTipo.length === 0}
+                  disabled={isSubmitting || !!editingId || !dispositivosFiltradosPorTipo || dispositivosFiltradosPorTipo.length === 0}
                   aria-label="Seleccione un dispositivo"
                 >
                   <option value="">Seleccione un dispositivo</option>
@@ -190,11 +197,10 @@ const LecturasAddModal = ({
           <Button variant="primary" type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
-                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-1" />
-                Guardando...
+                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> Guardando...
               </>
             ) : (
-              'Guardar'
+              editingId ? <><FiSave /> Guardar Cambios</> : <><FiPlus /> Agregar Lectura</>
             )}
           </Button>
         </Modal.Footer>
@@ -224,6 +230,8 @@ LecturasAddModal.propTypes = {
   onChange: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
   isSubmitting: PropTypes.bool,
+  error: PropTypes.string,
+  editingId: PropTypes.number, // Puede ser null o un ID
 };
 
 export default LecturasAddModal;
