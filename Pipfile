@@ -25,7 +25,6 @@ openpyxl = "*"
 alembic = "*"
 certifi = "*"
 click = "*"
-openyxl = "*"
 
 [requires]
 python_version = "3.12"

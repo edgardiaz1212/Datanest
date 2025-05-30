@@ -1670,7 +1670,7 @@ const getState = ({ getStore, getActions, setStore }) => {
             
             // El backend ya ordena por fecha desc.
             setStore({
-              lecturas: processedLecturas,
+              lecturas: data.items || [], 
               lecturasPaginationInfo: {
                 total_items: data.total_items,
                 total_pages: data.total_pages,
@@ -1683,7 +1683,6 @@ const getState = ({ getStore, getActions, setStore }) => {
             });          } else if (!filters.dispositivo_id && Array.isArray(data)) { // Changed condition and fixed processedLecturas
             
             // Respuesta no paginada (lista) para lecturas globales (/lecturas/ultimas)
-
             setStore({
               lecturas: data || [], // Use data directly
               lecturasPaginationInfo: {

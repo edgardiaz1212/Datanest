@@ -4,7 +4,7 @@ import { Row, Col, Card, Alert, Spinner, Table } from 'react-bootstrap';
 import { Context } from '../store/appContext';
 import { FiWind, FiThermometer, FiDroplet, FiTool, FiAlertTriangle } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom'; // <--- ¡Asegúrate de que esté importado!
+import { Link } from 'react-router-dom'; 
 
 
 const Dashboard = () => {
