@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns'; // Adaptador para date-fns
+import ChartContainer from './ChartContainer.jsx'; // <-- AÑADIR ESTA LÍNEA
 // --- Fin Importaciones de Chart.js ---
 
 // --- Registrar módulos de Chart.js ---
