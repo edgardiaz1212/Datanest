@@ -1,12 +1,14 @@
 import React from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import { Table, Spinner, Badge, Button } from 'react-bootstrap';
-import { FiThermometer, FiDroplet, FiCalendar, FiClock, FiTrash2, FiPlus } from 'react-icons/fi';
+import { FiThermometer, FiDroplet, FiCalendar, FiClock, FiTrash2, FiPlus, FiEdit } from 'react-icons/fi';
 
 const LecturasTable = ({
   lecturas,
   loading,
+  canEdit, // <-- Nueva prop
   canDelete,
+  onEdit, // <-- Nueva prop
   onDelete,
   onAdd,
   formatearFecha,
@@ -85,7 +87,7 @@ const LecturasTable = ({
             <th><FiClock className="me-1" />Hora</th>
             <th><FiThermometer className="me-1" />Temp.</th>
             <th><FiDroplet className="me-1" />Hum.</th>
-            {canDelete && <th className="text-end">Acciones</th>}
+            {(canEdit || canDelete) && <th className="text-end">Acciones</th>}
           </tr>
         </thead>
         <tbody>
@@ -115,16 +117,29 @@ const LecturasTable = ({
                     {typeof lectura.humedad === 'number' ? Number(lectura.humedad).toFixed(1) : 'N/A'} %
                   </Badge>
                 </td>
-                {canDelete && (
+                {(canEdit || canDelete) && (
                   <td className="text-end">
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => onDelete(lectura.id)}
-                      title="Eliminar lectura" // Add tooltip text
-                    >
-                      <FiTrash2 />
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => onEdit(lectura)}
+                        title="Editar lectura"
+                        className="me-1"
+                      >
+                        <FiEdit />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => onDelete(lectura.id)}
+                        title="Eliminar lectura"
+                      >
+                        <FiTrash2 />
+                      </Button>
+                    )}
                   </td>
                 )}
               </tr>
@@ -149,7 +164,9 @@ LecturasTable.propTypes = {
     ubicacion_dispositivo: PropTypes.string,
   })).isRequired,
   loading: PropTypes.bool.isRequired,
+  canEdit: PropTypes.bool.isRequired,
   canDelete: PropTypes.bool.isRequired,
+  onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
   onAdd: PropTypes.func.isRequired,
   formatearFecha: PropTypes.func.isRequired,

@@ -1396,7 +1396,7 @@ def eliminar_registro_diagnostico_aire_route(registro_id):
 
 # --- Rutas para Lectura ---
 @api.route('/aires/<int:aire_id>/lecturas', methods=['POST'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required()
 def agregar_lectura_route(aire_id):
     """
     Endpoint para agregar una nueva lectura para un aire acondicionado específico.
@@ -1708,7 +1708,7 @@ def eliminar_diagnostico_componente_route(diagnostico_id):
         traceback.print_exc()
    
 @api.route('/lecturas/<int:lectura_id>', methods=['DELETE'])
-@jwt_required() # <--- Añadido aquí
+@jwt_required() 
 def eliminar_lectura_route(lectura_id):
     """
     Endpoint para eliminar una lectura específica por su ID.
@@ -1742,7 +1742,73 @@ def eliminar_lectura_route(lectura_id):
         traceback.print_exc()
         return jsonify({"msg": "Error inesperado en el servidor al eliminar la lectura."}), 500
 
+@api.route('/lecturas/<int:lectura_id>', methods=['PUT'])
+@jwt_required()
+def actualizar_lectura_route(lectura_id):
+    """
+    Endpoint para actualizar una lectura existente.
+    Requiere autenticación y rol 'admin' o 'supervisor'.
+    Recibe los datos en formato JSON: fecha_hora, temperatura, humedad.
+    """
+    current_user_id_str = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, int(current_user_id_str))
 
+    if not logged_in_user or logged_in_user.rol not in ['admin', 'supervisor']:
+        return jsonify({"msg": "Acceso no autorizado para actualizar lecturas"}), 403
+
+    lectura = db.session.get(Lectura, lectura_id)
+    if not lectura:
+        return jsonify({"msg": f"Lectura con ID {lectura_id} no encontrada."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos JSON"}), 400
+
+    # Validar campos básicos
+    if 'fecha_hora' not in data or data.get('temperatura') is None: # Temperatura puede ser 0
+        return jsonify({"msg": "Faltan campos requeridos: fecha_hora, temperatura"}), 400
+
+    try:
+        # Convertir fecha_hora de string a datetime
+        fecha_dt = datetime.fromisoformat(data['fecha_hora'])
+        temperatura_float = float(data['temperatura'])
+        
+        humedad_float = None
+        # Determinar si la humedad es requerida/permitida basado en el dispositivo asociado
+        # (No se permite cambiar el dispositivo asociado en una actualización de lectura)
+        if lectura.aire_id and lectura.aire:
+            if lectura.aire.tipo != 'Confort': # Humedad requerida si no es Confort
+                if data.get('humedad') is None or str(data.get('humedad')).strip() == '':
+                    return jsonify({"msg": "Humedad es requerida para este tipo de aire."}), 400
+                humedad_float = float(data['humedad'])
+            elif data.get('humedad') is not None and str(data.get('humedad')).strip() != '': # Humedad opcional para Confort
+                 humedad_float = float(data['humedad'])
+        elif lectura.otro_equipo_id and lectura.otro_equipo: # Asumimos que otros equipos (ej. Termohigrometro) siempre requieren humedad
+            if data.get('humedad') is None or str(data.get('humedad')).strip() == '':
+                return jsonify({"msg": "Humedad es requerida para este tipo de dispositivo."}), 400
+            humedad_float = float(data['humedad'])
+        else:
+            # Caso raro: lectura sin dispositivo asociado (no debería ocurrir con las constraints)
+            return jsonify({"msg": "La lectura no está asociada a un dispositivo válido."}), 400
+
+        lectura.fecha = fecha_dt
+        lectura.temperatura = temperatura_float
+        lectura.humedad = humedad_float
+
+        db.session.commit()
+        return jsonify(lectura.serialize()), 200
+
+    except (ValueError, TypeError) as ve:
+        db.session.rollback()
+        return jsonify({"msg": f"Error en el formato de los datos: {str(ve)}"}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        print(f"!!! ERROR SQLAlchemy al actualizar lectura ID {lectura_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error de base de datos al actualizar la lectura."}), 500
+    except Exception as e:
+        db.session.rollback()
+        print(f"!!! ERROR inesperado al actualizar lectura ID {lectura_id}: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
 
 #Logica para cargar Excel con valores Temp humedad
 def parse_date_flexible(value):

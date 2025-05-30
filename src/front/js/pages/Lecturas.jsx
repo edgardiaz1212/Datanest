@@ -1,6 +1,6 @@
 // src/front/js/pages/Lecturas.jsx
 import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
-import { Card, Button, Alert, Spinner, Pagination, Form, Row, Col } from 'react-bootstrap';
+import { Card, Button, Alert, Spinner, Pagination, Form, Row, Col, Dropdown } from 'react-bootstrap';
 import { FiPlus } from 'react-icons/fi';
 import { Context } from '../store/appContext';
 import LecturasFilter from '../component/Lecturas/LecturasFilter.jsx';
@@ -25,6 +25,7 @@ const Lecturas = () => {
   const {
     fetchLecturas,
     addLectura,
+    updateLectura,
     deleteLectura,
     clearLecturasError,
     setLecturasError,
@@ -38,6 +39,7 @@ const Lecturas = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingLecturaId, setEditingLecturaId] = useState(null); // <-- Nuevo estado para modo edición
   const [showExcelModal, setShowExcelModal] = useState(false);
   const [formData, setFormData] = useState({
     dispositivo_key: '', // ej: "aire-1" o "otro_equipo-5"
@@ -48,6 +50,7 @@ const Lecturas = () => {
   });
 
   const canDelete = user?.rol === 'admin' || user?.rol === 'supervisor';
+  const canEdit = user?.rol === 'admin' || user?.rol === 'supervisor'; // <-- Permiso para editar
   const canAdd = !!user;
 
   const dispositivosMedibles = useMemo(() => {
@@ -133,12 +136,41 @@ const Lecturas = () => {
     setShowModal(true);
   }, [clearLecturasError]);
 
+  const handleEdit = useCallback((lectura) => {
+    if (!lectura) return;
+    if (clearLecturasError) clearLecturasError();
+    setEditingLecturaId(lectura.id);
+
+    let dispositivoKey = '';
+    if (lectura.aire_id) {
+      dispositivoKey = `aire-${lectura.aire_id}`;
+    } else if (lectura.otro_equipo_id) {
+      dispositivoKey = `otro_equipo-${lectura.otro_equipo_id}`;
+    }
+    
+    const fechaHora = new Date(lectura.fecha);
+    setFormData({
+      dispositivo_key: dispositivoKey,
+      fecha: fechaHora.toISOString().split('T')[0],
+      hora: fechaHora.toTimeString().slice(0,5),
+      temperatura: lectura.temperatura?.toString() ?? '',
+      humedad: lectura.humedad?.toString() ?? '',
+    });
+    setShowModal(true);
+  }, [clearLecturasError]);
+
+
   const handleDelete = useCallback(async (id) => {
     if (window.confirm('¿Está seguro de eliminar esta lectura?')) {
       if (clearLecturasError) clearLecturasError();
       const success = await deleteLectura(id);
       if (success) {
         const currentTableFilters = {};
+        // Si la lectura eliminada era la que se estaba editando, limpiar el modo edición
+        if (editingLecturaId === id) {
+            setEditingLecturaId(null);
+        }
+
         if (filtroDispositivo.id && filtroDispositivo.tipo) {
           currentTableFilters.dispositivo_id = filtroDispositivo.id;
           currentTableFilters.tipo_dispositivo = filtroDispositivo.tipo;
@@ -153,7 +185,7 @@ const Lecturas = () => {
         setLecturasError("Error al eliminar la lectura.");
       }
     }
-  }, [deleteLectura, clearLecturasError, store.lecturasError, filtroDispositivo, currentPage, itemsPerPage, fetchLecturas, lecturas.length, setLecturasError]);
+  }, [deleteLectura, clearLecturasError, store.lecturasError, filtroDispositivo, currentPage, itemsPerPage, fetchLecturas, lecturas.length, setLecturasError, editingLecturaId]);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -161,12 +193,13 @@ const Lecturas = () => {
     setIsSubmitting(true);
 
     const selectedDispositivo = dispositivosMedibles.find(d => d.key === formData.dispositivo_key);
-    if (!selectedDispositivo) {
+    // Para edición, el dispositivo no se puede cambiar y ya está fijado.
+    // Para adición, sí se necesita.
+    if (!editingLecturaId && !selectedDispositivo) {
       if (setLecturasError) setLecturasError("Por favor, seleccione un dispositivo.");
       setIsSubmitting(false);
       return;
     }
-
     const esAireConfort = selectedDispositivo.esAire && selectedDispositivo.tipoOriginal === 'Confort';
     const esTermohigrometro = !selectedDispositivo.esAire;
 
@@ -174,7 +207,7 @@ const Lecturas = () => {
       if (!formData.dispositivo_key || !formData.fecha || !formData.hora || formData.temperatura === '') {
         throw new Error("Todos los campos (Dispositivo, Fecha, Hora, Temp) son requeridos.");
       }
-      if ((esTermohigrometro || (selectedDispositivo.esAire && !esAireConfort)) && (formData.humedad === '' || formData.humedad === null || formData.humedad === undefined)) {
+      if (!editingLecturaId && (esTermohigrometro || (selectedDispositivo.esAire && !esAireConfort)) && (formData.humedad === '' || formData.humedad === null || formData.humedad === undefined)) {
         throw new Error("Humedad es requerida para este tipo de dispositivo.");
       }
 
@@ -183,11 +216,13 @@ const Lecturas = () => {
         throw new Error("Temperatura debe ser un número válido.");
       }
 
-      const humedadRequerida = esTermohigrometro || (selectedDispositivo.esAire && !esAireConfort);
+      // La lógica de humedad requerida aplica principalmente al añadir. Al editar, se toma el valor que tenga.
+      const humedadRequerida = !editingLecturaId && (esTermohigrometro || (selectedDispositivo.esAire && !esAireConfort));
       const humedadNum = humedadRequerida && (formData.humedad !== '' && formData.humedad !== null && formData.humedad !== undefined)
         ? parseFloat(formData.humedad)
-        : null;
-
+        : (formData.humedad !== '' && formData.humedad !== null && formData.humedad !== undefined) 
+          ? parseFloat(formData.humedad) 
+          : null;
       if (humedadRequerida && (formData.humedad !== '' && formData.humedad !== null && formData.humedad !== undefined) && isNaN(humedadNum)) {
         throw new Error("Humedad debe ser un número válido.");
       }
@@ -207,10 +242,18 @@ const Lecturas = () => {
         humedad: esAireConfort ? null : humedadNum
       };
 
-      const success = await addLectura(dispositivoIdNum, payload, tipoDispositivo);
+      let success = false;
+      if (editingLecturaId) {
+        // El payload para updateLectura solo necesita fecha_hora, temperatura, humedad
+        // dispositivoIdNum y tipoDispositivo no son necesarios para la acción de updateLectura
+        success = await updateLectura(editingLecturaId, payload);
+      } else {
+        success = await addLectura(dispositivoIdNum, payload, tipoDispositivo);
+      }
 
       if (success) {
         setShowModal(false);
+        setEditingLecturaId(null); // Resetear modo edición
         const currentTableFilters = {};
         if (filtroDispositivo.id && filtroDispositivo.tipo) {
           currentTableFilters.dispositivo_id = filtroDispositivo.id;
@@ -226,7 +269,7 @@ const Lecturas = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, addLectura, clearLecturasError, setLecturasError, dispositivosMedibles, filtroDispositivo, currentPage, itemsPerPage, fetchLecturas]);
+  }, [formData, addLectura, updateLectura, editingLecturaId, clearLecturasError, setLecturasError, dispositivosMedibles, filtroDispositivo, currentPage, itemsPerPage, fetchLecturas]);
 
   const formatearFecha = useCallback((fechaStr) => {
     if (!fechaStr) return 'N/A';
@@ -325,7 +368,9 @@ const Lecturas = () => {
             <LecturasTable
               lecturas={lecturas}
               loading={loading}
+              canEdit={canEdit} // <-- Pasar permiso
               canDelete={canDelete}
+              onEdit={handleEdit} // <-- Pasar handler
               onDelete={handleDelete}
               onAdd={handleAdd} // Para el botón en estado vacío
               formatearFecha={formatearFecha}
@@ -374,12 +419,14 @@ const Lecturas = () => {
 
       <LecturasAddModal
         show={showModal}
-        onHide={() => !isSubmitting && setShowModal(false)}
+        onHide={() => { if (!isSubmitting) { setShowModal(false); setEditingLecturaId(null); }}}
         dispositivosMedibles={dispositivosMedibles}
         formData={formData}
         onChange={handleChange}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        editingId={editingLecturaId} // <-- Pasar ID para que el modal sepa si es edición
+
       />
       <LecturasExcelUploadModal
         show={showExcelModal}
