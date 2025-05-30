@@ -155,8 +155,8 @@ const Dashboard = () => {
                    {dashboardResumen.ultimasLecturas.map((lectura) => (
                      lectura && lectura.id ? (
                        <tr key={lectura.id}>
-                         <td>{lectura.nombre_aire || 'N/A'}</td>
-                         <td>{lectura.ubicacion_aire || 'N/A'}</td>
+                         <td>{lectura.nombre_dispositivo || 'N/A'}</td>
+                         <td>{lectura.ubicacion_dispositivo || 'N/A'}</td>
                          <td>
                            {lectura.temperatura != null ? `${lectura.temperatura.toFixed(1)} °C` : 'N/A'}
                          </td>
