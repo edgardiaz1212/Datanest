@@ -38,16 +38,20 @@ const EstadisticasPorUbicacion = ({
   ubicacionSeleccionada = null,
   estadisticasUbicacion = [],
   setUbicacionSeleccionada,
-  loadingUbicacion // Este loading es para la tabla/selector
+  loadingUbicacion, // Este loading es para la tabla/selector
+  // --- Nuevas props para rango de fechas ---
+  fechaDesde,
+  setFechaDesde,
+  fechaHasta,
+  setFechaHasta,
+  // --- Nuevas props para datos y carga de las nuevas gráficas ---
+  datosGraficoPromedioHoraTemp,
+  datosGraficoPromedioHoraHum,
+  datosGraficoPorComponenteTemp,
+  datosGraficoPorComponenteHum,
+  loadingGraficasUbicacion // Un estado de carga general para las gráficas de esta pestaña
 }) => {
-  // --- Obtener estado y acciones del Context ---
   const { store, actions } = useContext(Context);
-  const {
-    lecturasUbicacion,
-    lecturasUbicacionLoading, // Loading específico para el gráfico
-    lecturasUbicacionError
-  } = store;
-  // --- Fin Context ---
 
   // --- useEffect para buscar datos del gráfico ---
   useEffect(() => {
@@ -55,42 +59,18 @@ const EstadisticasPorUbicacion = ({
 
     // Llama a la acción para buscar lecturas cuando cambia la ubicación seleccionada
     actions.fetchLecturasPorUbicacion(ubicacionSeleccionada);
-  }, [ubicacionSeleccionada, actions]); // Depende de la ubicación y actions
+    // Si fetchLecturasPorUbicacion se actualiza para tomar fechas, se añadirían aquí:
+    // actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
+  }, [ubicacionSeleccionada, actions, fechaDesde, fechaHasta]); // Depende de la ubicación, fechas y actions
   // --- Fin useEffect ---
 
  // Log para ver qué llega al componente
-  console.log("EstPorUbicacion: Renderizando con lecturasUbicacion:", lecturasUbicacion, 
-              "Loading:", lecturasUbicacionLoading, 
-              "Error:", lecturasUbicacionError,
+  console.log("EstPorUbicacion: Renderizando con datos para gráficas:",
+              "PromedioHoraTemp:", datosGraficoPromedioHoraTemp,
+              "PorComponenteTemp:", datosGraficoPorComponenteTemp,
               "Ubicacion Seleccionada:", ubicacionSeleccionada);
 
-
-
-  // --- Preparar datos para el gráfico ---
-  const chartData = {
-    // Labels se generan a partir de los datos si usas TimeScale
-    // labels: lecturasUbicacion.map(l => format(new Date(l.fecha), 'dd/MM HH:mm')),
-    datasets: [
-      {
-        label: 'Temperatura (°C)',
-        data: lecturasUbicacion.map(l => ({ x: new Date(l.fecha), y: l.temperatura })),
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        yAxisID: 'y', // Asigna al eje Y izquierdo
-        tension: 0.1
-      },
-      {
-        label: 'Humedad (%)',
-        data: lecturasUbicacion.map(l => ({ x: new Date(l.fecha), y: l.humedad })),
-        borderColor: 'rgb(53, 162, 235)',
-        backgroundColor: 'rgba(53, 162, 235, 0.5)',
-        yAxisID: 'y1', // Asigna al eje Y derecho
-        tension: 0.1
-      },
-    ],
-  };
-
-  const chartOptions = {
+  const commonChartOptions = {
     responsive: true,
     maintainAspectRatio: false, // Para controlar altura con CSS o contenedor
     interaction: {
@@ -98,18 +78,6 @@ const EstadisticasPorUbicacion = ({
       intersect: false,
     },
     stacked: false,
-    plugins: {
-      title: {
-        display: true,
-        text: `Variación de Temperatura y Humedad - ${ubicacionSeleccionada || 'Todas'}`,
-      },
-      legend: {
-        position: 'top',
-      },
-      tooltip: {
-        boxPadding: 3
-      }
-    },
     scales: {
       x: {
         type: 'time', // Usar escala de tiempo
@@ -160,8 +128,6 @@ const EstadisticasPorUbicacion = ({
       },
     },
   };
-  // --- Fin preparación gráfico ---
-
 
   return (
     <div>
@@ -188,6 +154,33 @@ const EstadisticasPorUbicacion = ({
             {!loadingUbicacion && (!Array.isArray(ubicaciones) || ubicaciones.length === 0) && <Form.Text muted>No hay ubicaciones disponibles.</Form.Text>}
           </Form.Group>
         </Col>
+        {/* --- Selectores de Fecha --- */}
+        {ubicacionSeleccionada && ( // Mostrar solo si hay una ubicación seleccionada
+          <>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>Fecha Desde</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={fechaDesde || ''}
+                  onChange={e => setFechaDesde(e.target.value)}
+                  disabled={loadingUbicacion || loadingGraficasUbicacion}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group>
+                <Form.Label>Fecha Hasta</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={fechaHasta || ''}
+                  onChange={e => setFechaHasta(e.target.value)}
+                  disabled={loadingUbicacion || loadingGraficasUbicacion}
+                />
+              </Form.Group>
+            </Col>
+          </>
+        )}
       </Row>
 
       {/* Statistics Table (sin cambios) */}
@@ -244,29 +237,64 @@ const EstadisticasPorUbicacion = ({
         </Card.Body>
       </Card>
 
-      {/* --- Sección del Gráfico --- */}
+      {/* --- Sección de Gráficas para Ubicación Seleccionada --- */}
       {ubicacionSeleccionada && ( // Mostrar solo si hay una ubicación seleccionada
-        <Card className="dashboard-card">
-          <Card.Header><h5 className="mb-0">Gráfico de Variaciones: {ubicacionSeleccionada}</h5></Card.Header>
-          <Card.Body>
-            {lecturasUbicacionLoading ? (
-              <div className="text-center p-5">
-                <Spinner animation="border" size="sm" variant="info" className="me-2" /> Cargando datos del gráfico...
-              </div>
-            ) : lecturasUbicacionError ? (
-              <Alert variant="warning">
-                Error al cargar datos del gráfico: {lecturasUbicacionError}
-              </Alert>
-            ) : lecturasUbicacion.length > 0 ? (
-              // Contenedor para el gráfico con altura definida
-              <div style={{ height: '300px', position: 'relative' }}>
-                <Line options={chartOptions} data={chartData} />
-              </div>
-            ) : (
-              <div className="text-center p-5 text-muted">
-                No hay suficientes datos de lecturas para generar el gráfico para "{ubicacionSeleccionada}".
-              </div>
-            )}
+        <>
+          {/* Gráfica 1: Promedios por Hora */}
+          <Row className="mt-4">
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Promedio Temperatura por Hora - ${ubicacionSeleccionada}`}
+                yAxisLabel="Temperatura (°C)"
+                data={datosGraficoPromedioHoraTemp} // Prop desde Estadisticas.jsx
+                loading={loadingGraficasUbicacion}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Promedio Temperatura por Hora - ${ubicacionSeleccionada}`}}}}
+              />
+            </Col>
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Promedio Humedad por Hora - ${ubicacionSeleccionada}`}
+                yAxisLabel="Humedad (%)"
+                data={datosGraficoPromedioHoraHum} // Prop desde Estadisticas.jsx
+                loading={loadingGraficasUbicacion}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Promedio Humedad por Hora - ${ubicacionSeleccionada}`}}}}
+              />
+            </Col>
+          </Row>
+
+          {/* Gráfica 2: Lecturas por Componente */}
+          <Row className="mt-4">
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Temperatura por Dispositivo - ${ubicacionSeleccionada}`}
+                yAxisLabel="Temperatura (°C)"
+                data={datosGraficoPorComponenteTemp} // Prop desde Estadisticas.jsx (debe tener múltiples datasets)
+                loading={loadingGraficasUbicacion}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Temperatura por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
+              />
+            </Col>
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Humedad por Dispositivo - ${ubicacionSeleccionada}`}
+                yAxisLabel="Humedad (%)"
+                data={datosGraficoPorComponenteHum} // Prop desde Estadisticas.jsx (debe tener múltiples datasets)
+                loading={loadingGraficasUbicacion}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Humedad por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
+              />
+            </Col>
+          </Row>
+        </>
+      )}
+
+      {!ubicacionSeleccionada && !loadingUbicacion && (
+        <Card className="mt-4">
+          <Card.Body className="text-center p-5">
+            <FiMapPin size={50} className="text-muted mb-3" />
+            <h4>Seleccione una ubicación para ver sus estadísticas detalladas y gráficos.</h4>
           </Card.Body>
         </Card>
       )}
@@ -276,9 +304,7 @@ const EstadisticasPorUbicacion = ({
   );
 };
 
-// PropTypes (sin cambios)
 EstadisticasPorUbicacion.propTypes = {
-  // ... (propTypes existentes) ...
    ubicaciones: PropTypes.arrayOf(PropTypes.string),
   ubicacionSeleccionada: PropTypes.string,
   setUbicacionSeleccionada: PropTypes.func.isRequired,
@@ -296,6 +322,15 @@ EstadisticasPorUbicacion.propTypes = {
       lecturas_totales: PropTypes.number,
   })),
   loadingUbicacion: PropTypes.bool.isRequired,
+  fechaDesde: PropTypes.string,
+  setFechaDesde: PropTypes.func,
+  fechaHasta: PropTypes.string,
+  setFechaHasta: PropTypes.func,
+  datosGraficoPromedioHoraTemp: PropTypes.object,
+  datosGraficoPromedioHoraHum: PropTypes.object,
+  datosGraficoPorComponenteTemp: PropTypes.object,
+  datosGraficoPorComponenteHum: PropTypes.object,
+  loadingGraficasUbicacion: PropTypes.bool,
 };
 
 export default EstadisticasPorUbicacion;

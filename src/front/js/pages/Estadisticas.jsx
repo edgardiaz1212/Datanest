@@ -1,5 +1,3 @@
-// src/front/js/pages/Estadisticas.jsx
-
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 
 import { Tabs, Tab, Spinner, Alert } from 'react-bootstrap';
@@ -10,7 +8,7 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  Title,
+  Title, // Mantener Title
   Tooltip,
   Legend,
 } from 'chart.js';
@@ -69,6 +67,10 @@ const Estadisticas = () => { // Remove : React.FC
   // --- Local State ---
   const [aireSeleccionado, setAireSeleccionado] = useState(null); // number | null -> null
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null); // string | null -> null
+  // --- State for Date Range Filter ---
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
 
   // Local state for processed chart data and their loading status
   const [graficoGeneralTemp, setGraficoGeneralTemp] = useState(null);
@@ -79,12 +81,16 @@ const Estadisticas = () => { // Remove : React.FC
   const [graficoAireHum, setGraficoAireHum] = useState(null);
   const [loadingChartsGeneralLocal, setLoadingChartsGeneralLocal] = useState(true);
   const [loadingChartsAireLocal, setLoadingChartsAireLocal] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState(sevenDaysAgo.toISOString().split('T')[0]);
+  const [fechaHasta, setFechaHasta] = useState(today.toISOString().split('T')[0]);
 
   // --- Helper Functions for Processing Data (remove type annotations) ---
 
   const procesarLecturasParaGrafico = useCallback((
     lecturas, // : Lectura[]
     umbralesAplicables, // : UmbralConfiguracion[]
+    filterFechaDesde, // : string | null
+    filterFechaHasta, // : string | null
     promediarPorHora = false, // Nuevo parámetro
     maxPuntos = 50 // Máximo de puntos a mostrar (para lecturas individuales o promedios horarios)
   ) => { // : { tempChart: ChartDataType, humChart: ChartDataType } | null
@@ -93,6 +99,21 @@ const Estadisticas = () => { // Remove : React.FC
     let labels = [];
     let tempData = [];
     let humData = [];
+
+    // Filtrar lecturas por rango de fecha si se proporcionan
+    let lecturasFiltradas = lecturas;
+    if (filterFechaDesde && filterFechaHasta) {
+      const desde = new Date(filterFechaDesde);
+      // Ajustar 'hasta' para incluir todo el día
+      const hasta = new Date(filterFechaHasta);
+      hasta.setHours(23, 59, 59, 999);
+
+      lecturasFiltradas = lecturas.filter(l => {
+        const fechaLectura = new Date(l.fecha);
+        return fechaLectura >= desde && fechaLectura <= hasta;
+      });
+    }
+    if (!lecturasFiltradas || lecturasFiltradas.length === 0) return null;
 
     if (promediarPorHora) {
         // 1. Agrupar lecturas por hora
@@ -148,8 +169,8 @@ const Estadisticas = () => { // Remove : React.FC
         humData = limitedPromedios.map(p => p.avgHum);
 
     } else { // Comportamiento original para lecturas individuales
-        const sortedLecturas = [...lecturas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-        const limitedLecturas = sortedLecturas.slice(-maxPuntos);
+        const sortedLecturasFiltradas = [...lecturasFiltradas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const limitedLecturas = sortedLecturasFiltradas.slice(-maxPuntos);
 
         labels = limitedLecturas.map(l => {
             try {
@@ -203,7 +224,7 @@ const Estadisticas = () => { // Remove : React.FC
       tempChart: { labels, datasets: tempDatasets },
       humChart: { labels, datasets: humDatasets }
     };
-  }, []); // Empty dependency array
+  }, []);
 
   const procesarUbicacionesParaGrafico = useCallback((stats) => { // Remove type : EstadisticasUbicacion[]
     if (!stats || !Array.isArray(stats) || stats.length === 0) return null;
@@ -254,7 +275,14 @@ const Estadisticas = () => { // Remove : React.FC
     if (_rawLecturasGenerales && Array.isArray(umbrales)) {
       const umbralesGlobalesActivos = umbrales.filter(u => u.es_global && u.notificar_activo);
       // Llamar con promediarPorHora = true y, por ejemplo, las últimas 48 horas
-      const generalChartData = procesarLecturasParaGrafico(_rawLecturasGenerales, umbralesGlobalesActivos, true, 48);
+      // Para gráficos generales, no aplicamos el filtro de fechaDesde/fechaHasta del estado local,
+      // ya que estos son para el filtro específico de "Por Aire".
+      const generalChartData = procesarLecturasParaGrafico(
+        _rawLecturasGenerales,
+        umbralesGlobalesActivos,
+        null, // Sin filtro de fecha para gráficos generales
+        null, // Sin filtro de fecha para gráficos generales
+        true, 48);
       setGraficoGeneralTemp(generalChartData?.tempChart || null);
       setGraficoGeneralHum(generalChartData?.humChart || null);
     } else {
@@ -291,8 +319,15 @@ const Estadisticas = () => { // Remove : React.FC
       const umbralesParaAire = umbrales.filter(u =>
         u.notificar_activo && (u.es_global || u.aire_id === aireSeleccionado)
       );
-      // Llamar con promediarPorHora = false (o sin el parámetro) para lecturas individuales
-      const aireChartData = procesarLecturasParaGrafico(_rawLecturasAire, umbralesParaAire, false, 50);
+      // Aplicar el filtro de fechaDesde y fechaHasta del estado local
+      const aireChartData = procesarLecturasParaGrafico(
+        _rawLecturasAire,
+        umbralesParaAire,
+        fechaDesde,
+        fechaHasta,
+        false, // No promediar por hora para la vista detallada por aire
+        200 // Mostrar hasta 200 puntos individuales (o ajustar según necesidad)
+      );
       setGraficoAireTemp(aireChartData?.tempChart || null);
       setGraficoAireHum(aireChartData?.humChart || null);
     } else {
@@ -301,7 +336,7 @@ const Estadisticas = () => { // Remove : React.FC
       setGraficoAireHum(null);
     }
     setLoadingChartsAireLocal(false);
-  }, [_rawLecturasAire, umbrales, aireSeleccionado, procesarLecturasParaGrafico]); // Depend on raw data, umbrales, selection
+  }, [_rawLecturasAire, umbrales, aireSeleccionado, fechaDesde, fechaHasta, procesarLecturasParaGrafico]);
 
 
   // --- Render ---
@@ -359,6 +394,10 @@ const Estadisticas = () => { // Remove : React.FC
               // Pass relevant loading states
               loadingAires={statsLoadingGeneral} // Loading state for the 'aires' list (part of initial load)
               loadingAireStats={statsLoadingAire} // Loading state for the specific AC's stats card
+              fechaDesde={fechaDesde}
+              setFechaDesde={setFechaDesde}
+              fechaHasta={fechaHasta}
+              setFechaHasta={setFechaHasta}
               loadingChartsAire={loadingChartsAireLocal} // Loading state for the specific AC's charts
             />
           </Tab>
