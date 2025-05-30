@@ -1906,7 +1906,7 @@ if (!allowedExtensions.includes(fileExtension)) {
         }
       },
 
-      fetchLecturasPorUbicacion: async (ubicacion) => {
+fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = null) => {
         // Limpiar si no hay ubicación
         if (!ubicacion) {
           setStore({
@@ -1922,10 +1922,17 @@ if (!allowedExtensions.includes(fileExtension)) {
           lecturasUbicacionError: null,
         });
         try {
-          // Usar encodeURIComponent por si la ubicación tiene caracteres especiales
-          const url = `${
+          // Construir URL con parámetros de fecha si se proporcionan
+          let url = `${
             process.env.BACKEND_URL
           }/lecturas/ubicacion/${encodeURIComponent(ubicacion)}?limite=100`; // Pide últimas 100
+
+          if (fechaDesde) {
+            url += `&fecha_desde=${encodeURIComponent(fechaDesde)}`;
+          }
+          if (fechaHasta) {
+            url += `&fecha_hasta=${encodeURIComponent(fechaHasta)}`;
+          }
 
           const response = await fetch(url, {
             method: "GET",

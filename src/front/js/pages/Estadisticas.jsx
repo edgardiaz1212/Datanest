@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-
 import { Tabs, Tab, Spinner, Alert } from 'react-bootstrap';
 import {
   Chart as ChartJS,
@@ -32,8 +31,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-// --- Remove TypeScript interfaces ---
 
 // --- Componente Estadisticas (Contenedor Principal) ---
 const Estadisticas = () => { // Remove : React.FC
@@ -94,17 +91,16 @@ const Estadisticas = () => { // Remove : React.FC
 
   // --- Helper Functions for Processing Data (remove type annotations) ---
 
-  const procesarLecturasParaGrafico = useCallback((
+  // Renombrado y refactorizado para devolver datos para TimeScale
+  const procesarLecturasParaTimeScale = useCallback((
     lecturas, // : Lectura[]
-    umbralesAplicables, // : UmbralConfiguracion[]
     filterFechaDesde, // : string | null
     filterFechaHasta, // : string | null
-    promediarPorHora = false, // Nuevo parámetro
-    maxPuntos = 50 // Máximo de puntos a mostrar (para lecturas individuales o promedios horarios)
-  ) => { // : { tempChart: ChartDataType, humChart: ChartDataType } | null
-    if (!lecturas || !Array.isArray(lecturas) || lecturas.length === 0) return null;
+    promediarPorHora = false,
+    maxPuntos = 50
+  ) => { // Devuelve: { tempData: {x: Date, y: number}[], humData: {x: Date, y: number}[] }
+    if (!lecturas || !Array.isArray(lecturas) || lecturas.length === 0) return { tempData: [], humData: [] };
 
-    let labels = [];
     let tempData = [];
     let humData = [];
 
@@ -117,15 +113,16 @@ const Estadisticas = () => { // Remove : React.FC
       hasta.setHours(23, 59, 59, 999);
 
       lecturasFiltradas = lecturas.filter(l => {
-        const fechaLectura = new Date(l.fecha);
-        return fechaLectura >= desde && fechaLectura <= hasta;
+        try {
+          const fechaLectura = new Date(l.fecha);
+          return !isNaN(fechaLectura.getTime()) && fechaLectura >= desde && fechaLectura <= hasta;
+        } catch (e) { return false; }
       });
     }
-    if (!lecturasFiltradas || lecturasFiltradas.length === 0) return null;
+    if (!lecturasFiltradas || lecturasFiltradas.length === 0) return { tempData: [], humData: [] };
 
     if (promediarPorHora) {
-        // 1. Agrupar lecturas por hora
-        const lecturasPorHora = lecturas.reduce((acc, l) => {
+        const lecturasPorHora = lecturasFiltradas.reduce((acc, l) => {
             try {
                 const fechaHora = new Date(l.fecha);
                 if (isNaN(fechaHora.getTime())) return acc; // Saltar fechas inválidas
@@ -136,9 +133,8 @@ const Estadisticas = () => { // Remove : React.FC
                 if (!acc[claveHora]) {
                     acc[claveHora] = {
                         fechaOriginal: fechaHora, // Guardar la primera fecha de esta hora para ordenamiento
-                        temps: [],
-                        hums: [],
-                        count: 0
+                        temps: [], // Almacenar todas las temperaturas de esa hora
+                        hums: []  // Almacenar todas las humedades de esa hora
                     };
                 }
                 if (typeof l.temperatura === 'number' && !isNaN(l.temperatura)) {
@@ -147,91 +143,40 @@ const Estadisticas = () => { // Remove : React.FC
                 if (typeof l.humedad === 'number' && !isNaN(l.humedad)) {
                     acc[claveHora].hums.push(l.humedad);
                 }
-                acc[claveHora].count++;
                 return acc;
             } catch (e) {
                 console.warn("Error procesando fecha en agrupación por hora:", l.fecha, e);
                 return acc;
             }
         }, {});
-
-        // 2. Calcular promedios y ordenar por fecha/hora
-        const promediosHorarios = Object.entries(lecturasPorHora)
-            .map(([clave, data]) => {
+        
+        const promediosHorarios = Object.values(lecturasPorHora)
+            .map(data => {
                 const avgTemp = data.temps.length > 0 ? data.temps.reduce((a, b) => a + b, 0) / data.temps.length : null;
                 const avgHum = data.hums.length > 0 ? data.hums.reduce((a, b) => a + b, 0) / data.hums.length : null;
                 return {
-                    fechaHoraKey: clave, // 'YYYY-MM-DD-HH'
-                    fechaOriginal: data.fechaOriginal,
+                    x: data.fechaOriginal,
                     avgTemp: avgTemp !== null ? parseFloat(avgTemp.toFixed(1)) : null,
                     avgHum: avgHum !== null ? parseFloat(avgHum.toFixed(1)) : null,
                 };
             })
-            .sort((a, b) => a.fechaOriginal.getTime() - b.fechaOriginal.getTime()); // Ordenar cronológicamente
+            .sort((a, b) => a.x.getTime() - b.x.getTime());
 
-        // 3. Limitar al número de puntos (maxPuntos horas más recientes)
         const limitedPromedios = promediosHorarios.slice(-maxPuntos);
+        tempData = limitedPromedios.filter(p => p.avgTemp !== null).map(p => ({ x: p.x, y: p.avgTemp }));
+        humData = limitedPromedios.filter(p => p.avgHum !== null).map(p => ({ x: p.x, y: p.avgHum }));
 
-        labels = limitedPromedios.map(p => format(p.fechaOriginal, 'dd/MM HH:00')); // Formato de label
-        tempData = limitedPromedios.map(p => p.avgTemp);
-        humData = limitedPromedios.map(p => p.avgHum);
-
-    } else { // Comportamiento original para lecturas individuales
-        const sortedLecturasFiltradas = [...lecturasFiltradas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-        const limitedLecturas = sortedLecturasFiltradas.slice(-maxPuntos);
-
-        labels = limitedLecturas.map(l => {
-            try {
-                return format(new Date(l.fecha), 'HH:mm');
-            } catch (e) {
-                console.warn("Error formateando fecha para label:", l.fecha, e);
-                return "Error";
-            }
-        });
-        tempData = limitedLecturas.map(l => (typeof l.temperatura === 'number' && !isNaN(l.temperatura)) ? l.temperatura : null);
-        humData = limitedLecturas.map(l => (typeof l.humedad === 'number' && !isNaN(l.humedad)) ? l.humedad : null);
+    } else { // Lecturas individuales
+        const sortedLecturas = [...lecturasFiltradas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const limitedLecturas = sortedLecturas.slice(-maxPuntos);
+        tempData = limitedLecturas
+            .filter(l => typeof l.temperatura === 'number' && !isNaN(l.temperatura))
+            .map(l => ({ x: new Date(l.fecha), y: l.temperatura }));
+        humData = limitedLecturas
+            .filter(l => typeof l.humedad === 'number' && !isNaN(l.humedad))
+            .map(l => ({ x: new Date(l.fecha), y: l.humedad }));
     }
-
-    // Find applicable thresholds (ensure umbralesAplicables is an array)
-    const validUmbrales = Array.isArray(umbralesAplicables) ? umbralesAplicables : [];
-    const tempMinThreshold = validUmbrales.find(u => u.temp_min !== undefined)?.temp_min;
-    const tempMaxThreshold = validUmbrales.find(u => u.temp_max !== undefined)?.temp_max;
-    const humMinThreshold = validUmbrales.find(u => u.hum_min !== undefined)?.hum_min;
-    const humMaxThreshold = validUmbrales.find(u => u.hum_max !== undefined)?.hum_max;
-
-    // Helper to create threshold datasets
-    const createThresholdDataset = (label, value, color, dataLength) => {
-      if (value === undefined || value === null || dataLength === 0) return null;
-      return {
-        label: label,
-        data: Array(dataLength).fill(value),
-        borderColor: color,
-        borderWidth: 1.5,
-        borderDash: [5, 5], // Dashed line
-        pointRadius: 0, // No points
-        fill: false,
-        tension: 0 // Straight line
-      };
-    };
-
-    // Temperature Datasets
-    const tempDatasets = [
-      { label: 'Temperatura °C', data: tempData, borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)', tension: 0.1 },
-      createThresholdDataset('Temp Mín', tempMinThreshold, 'rgba(54, 162, 235, 0.8)', labels.length), // Blue for min temp
-      createThresholdDataset('Temp Máx', tempMaxThreshold, 'rgba(255, 0, 0, 0.8)', labels.length)      // Red for max temp
-    ].filter(ds => ds !== null); // Filter out null datasets
-
-    // Humidity Datasets
-    const humDatasets = [
-       { label: 'Humedad %', data: humData, borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)', tension: 0.1 },
-       createThresholdDataset('Hum Mín', humMinThreshold, 'rgba(255, 159, 64, 0.8)', labels.length), // Orange for min hum
-       createThresholdDataset('Hum Máx', humMaxThreshold, 'rgba(153, 102, 255, 0.8)', labels.length) // Purple for max hum
-    ].filter(ds => ds !== null);
-
-    return {
-      tempChart: { labels, datasets: tempDatasets },
-      humChart: { labels, datasets: humDatasets }
-    };
+    return { tempData, humData };
   }, []);
 
   const procesarUbicacionesParaGrafico = useCallback((stats) => { // Remove type : EstadisticasUbicacion[]
@@ -284,21 +229,46 @@ const Estadisticas = () => { // Remove : React.FC
       const umbralesGlobalesActivos = umbrales.filter(u => u.es_global && u.notificar_activo);
       // Llamar con promediarPorHora = true y, por ejemplo, las últimas 48 horas
       // Para gráficos generales, no aplicamos el filtro de fechaDesde/fechaHasta del estado local,
-      // ya que estos son para el filtro específico de "Por Aire".
-      const generalChartData = procesarLecturasParaGrafico(
+      // ya que estos son para el filtro específico de "Por Aire" o "Por Ubicación".
+      const { tempData: generalTempData, humData: generalHumData } = procesarLecturasParaTimeScale(
         _rawLecturasGenerales,
-        umbralesGlobalesActivos,
         null, // Sin filtro de fecha para gráficos generales
         null, // Sin filtro de fecha para gráficos generales
-        true, 48);
-      setGraficoGeneralTemp(generalChartData?.tempChart || null);
-      setGraficoGeneralHum(generalChartData?.humChart || null);
+        true, 48 // Promediar, últimas 48 horas
+      );
+
+      const createThresholdDataset = (label, value, color) => {
+        if (value === undefined || value === null) return null;
+        // Para TimeScale, los umbrales también necesitan datos {x,y} o ser una anotación.
+        // Por simplicidad aquí, si tenemos datos, extendemos el umbral a lo largo del rango de datos.
+        // Una mejor solución sería usar el plugin de anotaciones de Chart.js.
+        // Esta es una aproximación simple:
+        const dataPoints = generalTempData.length > 0 ? generalTempData : (generalHumData.length > 0 ? generalHumData : []);
+        if (dataPoints.length === 0) return null;
+        const firstX = dataPoints[0].x;
+        const lastX = dataPoints[dataPoints.length - 1].x;
+
+        return {
+          label: label,
+          data: [{x: firstX, y: value}, {x: lastX, y: value}], // Línea de umbral
+          borderColor: color,
+          borderWidth: 1.5,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+          type: 'line' // Asegurar que se renderice como línea
+        };
+      };
+
+      setGraficoGeneralTemp({ datasets: [{ label: 'Temperatura °C', data: generalTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
+      setGraficoGeneralHum({ datasets: [{ label: 'Humedad %', data: generalHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
     } else {
       setGraficoGeneralTemp(null);
       setGraficoGeneralHum(null);
     }
     setLoadingChartsGeneralLocal(false);
-  }, [_rawLecturasGenerales, umbrales, procesarLecturasParaGrafico]); // Depend on raw data and umbrales
+  }, [_rawLecturasGenerales, umbrales, procesarLecturasParaTimeScale]); // Depend on raw data and umbrales
 
   // Process comparison charts when location stats change
   useEffect(() => {
@@ -328,47 +298,109 @@ const Estadisticas = () => { // Remove : React.FC
         u.notificar_activo && (u.es_global || u.aire_id === aireSeleccionado)
       );
       // Aplicar el filtro de fechaDesde y fechaHasta del estado local
-      const aireChartData = procesarLecturasParaGrafico(
+      const { tempData: aireTempData, humData: aireHumData } = procesarLecturasParaTimeScale(
         _rawLecturasAire,
-        umbralesParaAire,
         fechaDesde,
         fechaHasta,
         false, // No promediar por hora para la vista detallada por aire
         200 // Mostrar hasta 200 puntos individuales (o ajustar según necesidad)
       );
-      setGraficoAireTemp(aireChartData?.tempChart || null);
-      setGraficoAireHum(aireChartData?.humChart || null);
+
+      setGraficoAireTemp({ datasets: [{ label: 'Temperatura °C', data: aireTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
+      setGraficoAireHum({ datasets: [{ label: 'Humedad %', data: aireHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
     } else {
       // Clear charts if no AC selected or data missing
       setGraficoAireTemp(null);
       setGraficoAireHum(null);
     }
     setLoadingChartsAireLocal(false);
-  }, [_rawLecturasAire, umbrales, aireSeleccionado, fechaDesde, fechaHasta, procesarLecturasParaGrafico]);
-  
+  }, [_rawLecturasAire, umbrales, aireSeleccionado, fechaDesde, fechaHasta, procesarLecturasParaTimeScale]);
+
   // --- Effect for "Por Ubicación" charts ---
   useEffect(() => {
-    setLoadingChartsUbicacionLocal(true); // Start loading
-    // Similar a la lógica de "Por Aire", pero usando store.lecturasUbicacion
-    // y los estados de fecha específicos para ubicación si los tienes.
-    // Aquí necesitarás procesar store.lecturasUbicacion para generar:
-    // 1. Datos promediados por hora para la ubicación seleccionada.
-    // 2. Datos agrupados por cada dispositivo dentro de esa ubicación.
-    if (ubicacionSeleccionada && store.lecturasUbicacion.length > 0) {
-      // Lógica de procesamiento para setGraficoUbicacionPromedioTemp, etc.
-      // Ejemplo (muy simplificado, necesitarás adaptarlo):
-      // const dataProcesada = procesarLecturasParaGrafico(store.lecturasUbicacion, [], fechaDesdeUbic, fechaHastaUbic, true);
-      // setGraficoUbicacionPromedioTemp(dataProcesada?.tempChart || null);
-      // setGraficoUbicacionPromedioHum(dataProcesada?.humChart || null);
-      // ... y para las otras gráficas ...
-    } else {
-      setGraficoUbicacionPromedioTemp(null);
-      setGraficoUbicacionPromedioHum(null);
-      setGraficoUbicacionComponentesTemp(null);
-      setGraficoUbicacionComponentesHum(null);
-    }
-    setLoadingChartsUbicacionLocal(false); // End loading
-  }, [ubicacionSeleccionada, store.lecturasUbicacion, fechaDesde, fechaHasta, procesarLecturasParaGrafico, umbrales]); // Asumiendo que usas las mismas fechas por ahora
+    const fetchAndProcessUbicacionData = async () => {
+      setLoadingChartsUbicacionLocal(true); // Start loading
+      if (ubicacionSeleccionada) {
+        // Fetch readings for selected location with date range
+        await actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
+        const lecturas = store.lecturasUbicacion || [];
+        if (lecturas.length > 0) {
+          // Process general average per hour
+          const { tempData: promedioTempData, humData: promedioHumData } = procesarLecturasParaTimeScale(
+            lecturas, fechaDesde, fechaHasta, true, 200 // Max 200 promedios horarios
+          );
+
+          setGraficoUbicacionPromedioTemp({ datasets: [{ label: 'Temperatura Promedio °C', data: promedioTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
+          setGraficoUbicacionPromedioHum({ datasets: [{ label: 'Humedad Promedio %', data: promedioHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
+
+
+          // Process combined data per device (air conditioners) in location
+          // Group readings by device id
+          const readingsByDevice = lecturas.reduce((acc, lectura) => {
+            if (!lectura.dispositivo_id) return acc;
+            if (!acc[lectura.dispositivo_id]) acc[lectura.dispositivo_id] = [];
+            acc[lectura.dispositivo_id].push(lectura);
+            return acc;
+          }, {});
+
+          // For each device, process readings to get temp and hum datasets
+          const tempDatasets = [];
+          const humDatasets = [];
+          const colors = [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+          ];
+          let colorIndex = 0;
+
+          for (const [deviceId, deviceReadings] of Object.entries(readingsByDevice)) {
+            // Identificar el nombre del dispositivo
+            const aireInfo = aires.find(a => a.id === parseInt(deviceId)); // Asumiendo que deviceId es de un aire
+            const deviceName = aireInfo ? aireInfo.nombre : `Dispositivo ${deviceId}`;
+
+            const { tempData: deviceTempData, humData: deviceHumData } = procesarLecturasParaTimeScale(
+              deviceReadings, fechaDesde, fechaHasta, true, 200 // Promediar por hora, max 200 puntos
+            );
+
+            if (deviceTempData.length > 0 || deviceHumData.length > 0) {
+              const color = colors[colorIndex % colors.length];
+              colorIndex++;
+              if (deviceTempData.length > 0) {
+                tempDatasets.push({
+                  label: `Temp ${deviceName}`, data: deviceTempData, borderColor: color, tension: 0.1, fill: false
+                });
+              }
+              if (deviceHumData.length > 0) {
+                humDatasets.push({
+                  label: `Hum ${deviceName}`, data: deviceHumData, borderColor: color, tension: 0.1, fill: false
+                });
+              }
+            }
+          }
+
+          // Chart.js con TimeScale no necesita 'labels' explícitos en la estructura de datos principal
+          setGraficoUbicacionComponentesTemp({ datasets: tempDatasets });
+          setGraficoUbicacionComponentesHum({ datasets: humDatasets });
+        } else {
+          setGraficoUbicacionPromedioTemp(null);
+          setGraficoUbicacionPromedioHum(null);
+          setGraficoUbicacionComponentesTemp(null);
+          setGraficoUbicacionComponentesHum(null);
+        }
+      } else {
+        setGraficoUbicacionPromedioTemp(null);
+        setGraficoUbicacionPromedioHum(null);
+        setGraficoUbicacionComponentesTemp(null);
+        setGraficoUbicacionComponentesHum(null);
+      }
+      setLoadingChartsUbicacionLocal(false); // End loading
+    };
+
+    fetchAndProcessUbicacionData();
+  }, [ubicacionSeleccionada, fechaDesde, fechaHasta, procesarLecturasParaTimeScale, umbrales, actions, store.lecturasUbicacion, aires, store.otrosEquiposList]); // Añadidas dependencias
 
   // --- Render ---
   // Determine overall initial loading state

@@ -54,20 +54,6 @@ const EstadisticasPorUbicacion = ({
 }) => {
   const { store, actions } = useContext(Context);
 
-  // DEBUG: Check if the functions are received as props
-  console.log("EstPorUbicacion PROPS: setFechaDesde type:", typeof setFechaDesde, "setFechaHasta type:", typeof setFechaHasta);
-
-  // --- useEffect para buscar datos del gráfico ---
-  useEffect(() => {
-        console.log("EstPorUbicacion: Ubicación seleccionada cambió a:", ubicacionSeleccionada);
-
-    // Llama a la acción para buscar lecturas cuando cambia la ubicación seleccionada
-    actions.fetchLecturasPorUbicacion(ubicacionSeleccionada);
-    // Si fetchLecturasPorUbicacion se actualiza para tomar fechas, se añadirían aquí:
-    // actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
-  }, [ubicacionSeleccionada, actions, fechaDesde, fechaHasta]); // Depende de la ubicación, fechas y actions
-  // --- Fin useEffect ---
-
  // Log para ver qué llega al componente
   console.log("EstPorUbicacion: Renderizando con datos para gráficas:",
               "PromedioHoraTemp:", datosGraficoPromedioHoraTemp,
