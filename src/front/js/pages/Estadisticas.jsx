@@ -7,10 +7,12 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  Title, // Mantener Title
+  Title,
   Tooltip,
   Legend,
+  TimeScale // Import TimeScale
 } from 'chart.js';
+import 'chartjs-adapter-date-fns'; // Import the date adapter
 import { format } from 'date-fns'; // Use date-fns for formatting
 import { FiBarChart2, FiMapPin, FiWind } from 'react-icons/fi';
 // Import your Flux context
@@ -29,7 +31,8 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  TimeScale // Register TimeScale
 );
 
 // --- Componente Estadisticas (Contenedor Principal) ---

@@ -14,10 +14,19 @@ const opcionesLineaBase = {
     scales: {
       y: {
         title: { display: true }, // Y-axis label text will be added dynamically
-        beginAtZero: true // <--- AÑADIDO: Asegura que el eje Y comience en 0
+        beginAtZero: true
       },
       x: {
-        title: { display: true, text: 'Hora (HH:mm)' }
+        type: 'time', // Specify x-axis is time-based
+        time: {
+          tooltipFormat: 'dd MMM yyyy HH:mm', // Format for tooltips
+          displayFormats: {
+            hour: 'HH:mm',       // e.g., 14:30
+            day: 'dd MMM',       // e.g., 23 Jan
+            month: 'MMM yyyy'    // e.g., Jan 2023
+          }
+        },
+        title: { display: true, text: 'Fecha y Hora' } // Generic title for time axis
       }
     }
   };
@@ -61,7 +70,10 @@ const ChartContainer = ({
             <div className="d-flex justify-content-center align-items-center h-100"> {/* Centering spinner */}
                <Spinner animation="border" size="sm" variant="primary" className="me-2" /> Cargando gráfico...
             </div>
-          ) : data && data.labels && data.datasets ? ( // Check data structure
+          ) : data && 
+              data.datasets && 
+              data.datasets.length > 0 && 
+              data.datasets.some(ds => ds.data && ds.data.length > 0) ? ( // Modified data check
              type === 'line' ? (
                 // IIFE to calculate and render Line chart
                 (() => {
