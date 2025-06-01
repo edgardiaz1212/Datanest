@@ -1914,8 +1914,8 @@ if (!allowedExtensions.includes(fileExtension)) {
         }
       },
 
-fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = null) => {
-        // Limpiar si no hay ubicación
+      fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = null) => {
+        // Limpiar datos y detener si no hay ubicación seleccionada
         if (!ubicacion) {
           setStore({
             lecturasUbicacion: [],
@@ -1925,16 +1925,19 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
           return;
         }
 
+        // Indicar que la carga de datos para la ubicación ha comenzado
         setStore({
           lecturasUbicacionLoading: true,
           lecturasUbicacionError: null,
         });
+
         try {
-          // Construir URL con parámetros de fecha si se proporcionan
+          // Construir la URL base. Se pide un límite de 100 lecturas por defecto.
           let url = `${
             process.env.BACKEND_URL
-          }/lecturas/ubicacion/${encodeURIComponent(ubicacion)}?limite=100`; // Pide últimas 100
+          }/lecturas/ubicacion/${encodeURIComponent(ubicacion)}?limite=100`;
 
+          // Añadir parámetros de fecha si están definidos
           if (fechaDesde) {
             url += `&fecha_desde=${encodeURIComponent(fechaDesde)}`;
           }
@@ -1942,12 +1945,14 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
             url += `&fecha_hasta=${encodeURIComponent(fechaHasta)}`;
           }
 
+          // Realizar la petición al backend
           const response = await fetch(url, {
             method: "GET",
             headers: getAuthHeaders(),
           });
 
           if (!response.ok) {
+            // Si la respuesta no es exitosa, procesar el error
             const errorData = await response.json();
             if (response.status === 401) getActions().logoutTrackerUser();
             throw new Error(errorData.msg || `Error ${response.status}`);
@@ -1955,10 +1960,11 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
 
           const data = await response.json();
           setStore({
-            lecturasUbicacion: data || [],
+            lecturasUbicacion: Array.isArray(data) ? data : [], // Asegurar que siempre sea un array
             lecturasUbicacionLoading: false,
           });
         } catch (error) {
+          // Capturar errores de red o errores lanzados
           console.error(
             `Error fetching lecturas for ubicacion ${ubicacion}:`,
             error
@@ -1971,7 +1977,6 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
           });
         }
       },
-
       fetchEstadisticasIniciales: async () => {
         // Rutas protegidas, necesitan token
         setStore({ /* ... loading states ... */ statsError: null });

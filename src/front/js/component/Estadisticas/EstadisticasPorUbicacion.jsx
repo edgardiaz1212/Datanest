@@ -56,6 +56,8 @@ const EstadisticasPorUbicacion = ({
   // Estado local para los gráficos de esta pestaña
   const [graficoPromedioHoraTempLocal, setGraficoPromedioHoraTempLocal] = useState(null);
   const [graficoPromedioHoraHumLocal, setGraficoPromedioHoraHumLocal] = useState(null);
+  const [graficoPorDispositivoTempLocal, setGraficoPorDispositivoTempLocal] = useState(null);
+  const [graficoPorDispositivoHumLocal, setGraficoPorDispositivoHumLocal] = useState(null);
   const [loadingGraficasLocal, setLoadingGraficasLocal] = useState(false);
 
   // Definición local de procesarLecturasParaTimeScale para encapsulación
@@ -155,14 +157,71 @@ const EstadisticasPorUbicacion = ({
             );
             setGraficoPromedioHoraTempLocal({ datasets: [{ label: 'Temperatura Promedio °C', data: promedioTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
             setGraficoPromedioHoraHumLocal({ datasets: [{ label: 'Humedad Promedio %', data: promedioHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
+
+            // --- Lógica para Gráficas por Dispositivo ---
+            const readingsByDevice = lecturasFetched.reduce((acc, lectura) => {
+              const deviceId = lectura.dispositivo_id; // Este ID es de Aire o OtroEquipo
+              if (!deviceId) return acc;
+              if (!acc[deviceId]) {
+                  acc[deviceId] = {
+                      nombre: lectura.dispositivo_nombre || `Dispositivo ${deviceId}`,
+                      lecturas: []
+                  };
+              }
+              acc[deviceId].lecturas.push(lectura);
+              return acc;
+            }, {});
+
+            const tempDatasetsDevice = [];
+            const humDatasetsDevice = [];
+            const deviceColors = [
+                'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+                'rgba(199, 199, 199, 1)', 'rgba(83, 102, 83, 1)', 'rgba(210, 130, 30, 1)',
+                'rgba(30, 210, 130, 1)', 'rgba(130, 30, 210, 1)', 'rgba(100, 100, 100, 1)'
+            ];
+            let colorIndex = 0;
+
+            for (const deviceId in readingsByDevice) {
+                const deviceData = readingsByDevice[deviceId];
+                const { tempData: deviceTempData, humData: deviceHumData } = procesarLecturasParaTimeScaleLocal(
+                    deviceData.lecturas,
+                    fechaDesde,
+                    fechaHasta,
+                    false, // No promediar por hora para detalle por dispositivo
+                    300    // Máximo 300 puntos por dispositivo
+                );
+
+                const color = deviceColors[colorIndex % deviceColors.length];
+                colorIndex++;
+
+                if (deviceTempData.length > 0) {
+                    tempDatasetsDevice.push({
+                        label: `Temp ${deviceData.nombre}`, data: deviceTempData, borderColor: color, tension: 0.1, fill: false
+                    });
+                }
+                if (deviceHumData.length > 0) {
+                    humDatasetsDevice.push({
+                        label: `Hum ${deviceData.nombre}`, data: deviceHumData, borderColor: color, tension: 0.1, fill: false,
+                        yAxisID: 'y1' // <-- ASEGURAR QUE EL GRÁFICO DE HUMEDAD USE EL EJE Y1
+                    });
+                }
+            }
+            setGraficoPorDispositivoTempLocal({ datasets: tempDatasetsDevice });
+            setGraficoPorDispositivoHumLocal({ datasets: humDatasetsDevice });
+
           } else {
             setGraficoPromedioHoraTempLocal(null);
             setGraficoPromedioHoraHumLocal(null);
+            setGraficoPorDispositivoTempLocal(null);
+            setGraficoPorDispositivoHumLocal(null);
           }
         } catch (error) {
             console.error("Error al obtener o procesar lecturas por ubicación:", error);
             setGraficoPromedioHoraTempLocal(null);
             setGraficoPromedioHoraHumLocal(null);
+            setGraficoPorDispositivoTempLocal(null);
+            setGraficoPorDispositivoHumLocal(null);
         } finally {
             setLoadingGraficasLocal(false);
         }
@@ -170,6 +229,8 @@ const EstadisticasPorUbicacion = ({
         // Limpiar gráficos si no hay ubicación o rango de fechas
         setGraficoPromedioHoraTempLocal(null);
         setGraficoPromedioHoraHumLocal(null);
+        setGraficoPorDispositivoTempLocal(null);
+        setGraficoPorDispositivoHumLocal(null);
         setLoadingGraficasLocal(false); // Asegurar que el loading esté en false
       }
     };
@@ -184,6 +245,7 @@ const EstadisticasPorUbicacion = ({
   console.log("EstPorUbicacion: Renderizando con datos locales para gráficas:",
               "PromedioHoraTempLocal:", graficoPromedioHoraTempLocal,
               "Ubicacion Seleccionada:", ubicacionSeleccionada,
+              "GraficoPorDispositivoTempLocal:", graficoPorDispositivoTempLocal,
               "LoadingGraficasLocal:", loadingGraficasLocal);
 
   const commonChartOptions = {
@@ -386,6 +448,29 @@ const EstadisticasPorUbicacion = ({
             </Col>
           </Row>
 
+          {/* Gráficas por Dispositivo */}
+          <Row className="mt-4">
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Temperatura por Dispositivo - ${ubicacionSeleccionada}`}
+                yAxisLabel="Temperatura (°C)"
+                data={graficoPorDispositivoTempLocal}
+                loading={loadingGraficasLocal}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Temperatura por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
+              />
+            </Col>
+            <Col md={6} className="mb-4">
+              <ChartContainer
+                title={`Humedad por Dispositivo - ${ubicacionSeleccionada}`}
+                yAxisLabel="Humedad (%)"
+                data={graficoPorDispositivoHumLocal}
+                loading={loadingGraficasLocal}
+                type={'line'}
+                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Humedad por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
+              />
+            </Col>
+          </Row>
         </>
       )}
 

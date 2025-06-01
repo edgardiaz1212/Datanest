@@ -4031,12 +4031,25 @@ def obtener_lecturas_por_ubicacion_route(ubicacion):
     Requiere autenticación.
     Acepta query param 'limite' (default 50).
     """
+    limite_default = 2000 # Aumentar el límite si no se pasan fechas, o ajustar según necesidad
     try:
-        limite = request.args.get('limite', default=50, type=int)
-        if limite <= 0 or limite > 500: 
+        limite_str = request.args.get('limite')
+        fecha_desde_str = request.args.get('desde')
+        fecha_hasta_str = request.args.get('hasta')
+
+        limite = limite_default
+        if limite_str:
+            try:
+                limite = int(limite_str)
+                if not (0 < limite <= 5000): # Ajustar el máximo según sea necesario
+                    limite = limite_default
+            except ValueError:
+                limite = limite_default
+        elif fecha_desde_str and fecha_hasta_str: # Si se proporcionan fechas, el límite puede ser mayor o no aplicarse estrictamente
             limite = 50
-    except ValueError:
-        limite = 50
+        
+    except ValueError: # Para el parseo inicial de limite si falla
+        limite = limite_default
 
     try:
         print(f"DEBUG RUTA LECTURAS UBICACION: Buscando para ubicación='{ubicacion}', limite={limite}", file=sys.stderr)
@@ -4065,15 +4078,35 @@ def obtener_lecturas_por_ubicacion_route(ubicacion):
                 Lectura.aire_id.in_(aire_ids_en_ubicacion),
                 Lectura.otro_equipo_id.in_(termo_ids_en_ubicacion)
             ))\
-            .order_by(Lectura.fecha.desc())
-        
+            .order_by(Lectura.fecha.asc()) # Cambiar a ascendente para gráficos de series temporales
+
+        if fecha_desde_str and fecha_hasta_str:
+            try:
+                fecha_desde_dt = datetime.strptime(fecha_desde_str, '%Y-%m-%d')
+                # Ajustar fecha_hasta para incluir todo el día
+                fecha_hasta_dt = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=999999)
+                
+                lecturas_query = lecturas_query.filter(Lectura.fecha >= fecha_desde_dt, Lectura.fecha <= fecha_hasta_dt)
+                print(f"DEBUG RUTA LECTURAS UBICACION: Filtrando por fecha: {fecha_desde_dt} a {fecha_hasta_dt}", file=sys.stderr)
+            except ValueError:
+                print(f"WARN RUTA LECTURAS UBICACION: Formato de fecha inválido. No se aplicará filtro de fecha.", file=sys.stderr)
+                # Si las fechas son inválidas, podrías optar por devolver un error 400 o continuar sin filtro de fecha
+                # return jsonify({"msg": "Formato de fecha inválido. Usar YYYY-MM-DD."}), 400
+                # Por ahora, si las fechas son inválidas, se ignora el filtro de fecha y se aplica solo el límite.
+                lecturas_query = lecturas_query.order_by(Lectura.fecha.desc()) # Revertir a desc si no hay filtro de fecha para obtener las últimas
+        else:
+            lecturas_query = lecturas_query.order_by(Lectura.fecha.desc()) # Ordenar por descendente si no hay filtro de fecha
+
         lecturas = lecturas_query.limit(limite).all()
         
         print(f"DEBUG RUTA LECTURAS UBICACION: Número de lecturas encontradas (antes de reverse): {len(lecturas)}", file=sys.stderr)
         if lecturas:
             print(f"DEBUG RUTA LECTURAS UBICACION: Primera lectura (más reciente): {lecturas[0].serialize() if lecturas else 'N/A'}", file=sys.stderr)
 
-        lecturas.reverse() # Ordenar por fecha ascendente para el gráfico
+        if fecha_desde_str and fecha_hasta_str: # Si se filtró por fecha y se ordenó ASC, no se necesita reverse
+            pass
+        elif lecturas: # Si no hubo filtro de fecha, se ordenó DESC, así que revertir para el gráfico
+            lecturas.reverse()
 
         serialized_data = [l.serialize() for l in lecturas]
         print(f"DEBUG RUTA LECTURAS UBICACION: Devolviendo {len(serialized_data)} lecturas serializadas.", file=sys.stderr)
