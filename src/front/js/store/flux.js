@@ -2119,7 +2119,7 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
         }
       },
 
-      fetchEstadisticasAire: async (aireId) => {
+      fetchEstadisticasAire: async (aireId, fechaDesde = null, fechaHasta = null) => { // Aceptar fechas
         // Clear state and exit if no aireId is provided
         if (aireId === null || aireId === undefined) {
           setStore({
@@ -2163,12 +2163,18 @@ fetchLecturasPorUbicacion: async (ubicacion, fechaDesde = null, fechaHasta = nul
             }
           };
           // Fetch stats and readings concurrently
+          const paramsLecturas = new URLSearchParams();
+          // Ajustar per_page según sea necesario, o quitarlo si el backend devuelve todo para el rango
+          paramsLecturas.append('per_page', '500'); // Traer más puntos si se filtra por fecha
+          if (fechaDesde) paramsLecturas.append('fecha_desde', fechaDesde);
+          if (fechaHasta) paramsLecturas.append('fecha_hasta', fechaHasta);
+
           const [statsResponse, lecturasResponse] = await Promise.all([
             fetch(`${process.env.BACKEND_URL}/aires/${aireId}/estadisticas`, {
               headers: getAuthHeaders(),
             }),
             fetch(
-              `${process.env.BACKEND_URL}/aires/${aireId}/lecturas?per_page=50`, // Cambiado a per_page
+              `${process.env.BACKEND_URL}/aires/${aireId}/lecturas?${paramsLecturas.toString()}`,
               { headers: getAuthHeaders() }
             ), // Fetch last 50 readings
           ]);

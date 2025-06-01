@@ -289,9 +289,15 @@ const Estadisticas = () => { // Remove : React.FC
 
   // Fetch and process specific AC data when aireSeleccionado changes
   useEffect(() => {
-    // Fetch data using Flux action
-    fetchEstadisticasAire(aireSeleccionado);
-  }, [aireSeleccionado, fetchEstadisticasAire]); // Depend only on selection and action
+    if (aireSeleccionado !== null) {
+      // Pasar fechaDesde y fechaHasta al action
+      // La acción fetchEstadisticasAire en flux.js debe ser modificada para aceptar y usar estas fechas
+      actions.fetchEstadisticasAire(aireSeleccionado, fechaDesde, fechaHasta);
+    } else {
+      // Limpiar datos si no hay aire seleccionado
+      actions.fetchEstadisticasAire(null); // Esto debería limpiar los datos en el store
+    }
+  }, [aireSeleccionado, fechaDesde, fechaHasta, actions.fetchEstadisticasAire]); // Añadir fechaDesde y fechaHasta como dependencias
 
   // Process specific AC charts when raw data or umbrales change
   useEffect(() => {
@@ -303,8 +309,8 @@ const Estadisticas = () => { // Remove : React.FC
       // Aplicar el filtro de fechaDesde y fechaHasta del estado local
       const { tempData: aireTempData, humData: aireHumData } = procesarLecturasParaTimeScale(
         _rawLecturasAire,
-        fechaDesde,
-        fechaHasta,
+        null, // Ya no es estrictamente necesario filtrar aquí si _rawLecturasAire ya viene filtrado por fecha desde el backend
+        null, // Sin embargo, dejarlo no causa problemas y puede ser un fallback.
         false, // No promediar por hora para la vista detallada por aire
         200 // Mostrar hasta 200 puntos individuales (o ajustar según necesidad)
       );
@@ -317,7 +323,7 @@ const Estadisticas = () => { // Remove : React.FC
       setGraficoAireHum(null);
     }
     setLoadingChartsAireLocal(false);
-  }, [_rawLecturasAire, umbrales, aireSeleccionado, fechaDesde, fechaHasta, procesarLecturasParaTimeScale]);
+  }, [_rawLecturasAire, umbrales, aireSeleccionado, procesarLecturasParaTimeScale]); // Quitar fechaDesde, fechaHasta si _rawLecturasAire ya está filtrado
 
   // --- Effect for "Por Ubicación" charts ---
   useEffect(() => {
