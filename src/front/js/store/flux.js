@@ -1933,16 +1933,19 @@ if (!allowedExtensions.includes(fileExtension)) {
 
         try {
           // Construir la URL base. Se pide un límite de 100 lecturas por defecto.
-          let url = `${
-            process.env.BACKEND_URL
-          }/lecturas/ubicacion/${encodeURIComponent(ubicacion)}?limite=100`;
+          let url = `${process.env.BACKEND_URL}/lecturas/ubicacion/${encodeURIComponent(ubicacion)}`;
+          const params = new URLSearchParams(); // Usar URLSearchParams para construir la query string
 
           // Añadir parámetros de fecha si están definidos
           if (fechaDesde) {
-            url += `&fecha_desde=${encodeURIComponent(fechaDesde)}`;
+            params.append('fecha_desde', fechaDesde);
+            params.append('fecha_hasta', fechaHasta);
+            params.append('limite', '2000'); // Límite más alto si hay fechas
+          } else {
+            params.append('limite', '100'); // Límite si no hay fechas
           }
-          if (fechaHasta) {
-            url += `&fecha_hasta=${encodeURIComponent(fechaHasta)}`;
+          if (params.toString()) {
+            url += `?${params.toString()}`;
           }
 
           // Realizar la petición al backend

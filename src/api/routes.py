@@ -4045,8 +4045,9 @@ def obtener_lecturas_por_ubicacion_route(ubicacion):
                     limite = limite_default
             except ValueError:
                 limite = limite_default
-        elif fecha_desde_str and fecha_hasta_str: # Si se proporcionan fechas, el límite puede ser mayor o no aplicarse estrictamente
-            limite = 50
+        elif fecha_desde_str and fecha_hasta_str: # Si se proporcionan fechas
+            if not limite_str: # Si no se pasó un 'limite' explícito en la URL
+                 limite = 2000 # Un límite más alto por defecto cuando hay fechas (ej. 2000)
         
     except ValueError: # Para el parseo inicial de limite si falla
         limite = limite_default

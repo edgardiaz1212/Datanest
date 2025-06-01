@@ -144,10 +144,13 @@ const EstadisticasPorUbicacion = ({
         try {
           // La acción actualiza store.lecturasUbicacion
           await actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
+          console.log(`EstPorUbicacion - Acción fetchLecturasPorUbicacion llamada para: ${ubicacionSeleccionada}, Desde: ${fechaDesde}, Hasta: ${fechaHasta}`);
           // Acceder a los datos actualizados del store
           const lecturasFetched = store.lecturasUbicacion || [];
+          console.log("EstPorUbicacion - Lecturas Fetched del Store:", JSON.parse(JSON.stringify(lecturasFetched.slice(0, 10)))); // Loguear solo las primeras 10 para no saturar consola
 
           if (lecturasFetched.length > 0) {
+            console.log("EstPorUbicacion - Procesando lecturas para gráficos...");
             const { tempData: promedioTempData, humData: promedioHumData } = procesarLecturasParaTimeScaleLocal(
               lecturasFetched,
               fechaDesde, // Se pasan para mantener la consistencia del contexto, aunque lecturasFetched ya debería estar filtrado
@@ -155,22 +158,44 @@ const EstadisticasPorUbicacion = ({
               true, // Promediar por hora
               200   // Máximo 200 puntos
             );
+            console.log("EstPorUbicacion - Datos Promedio Hora Temp:", JSON.parse(JSON.stringify(promedioTempData.slice(0,5))));
             setGraficoPromedioHoraTempLocal({ datasets: [{ label: 'Temperatura Promedio °C', data: promedioTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
             setGraficoPromedioHoraHumLocal({ datasets: [{ label: 'Humedad Promedio %', data: promedioHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
 
             // --- Lógica para Gráficas por Dispositivo ---
+            console.log("EstPorUbicacion - Iniciando agrupación por dispositivo...");
             const readingsByDevice = lecturasFetched.reduce((acc, lectura) => {
-              const deviceId = lectura.dispositivo_id; // Este ID es de Aire o OtroEquipo
-              if (!deviceId) return acc;
+              // Determinar el ID del dispositivo y el nombre
+              let deviceId = null;
+              let deviceName = lectura.nombre_dispositivo; // Usar el nombre que ya viene del backend
+
+              if (lectura.aire_id) {
+                deviceId = `aire-${lectura.aire_id}`; // Prefijo para unicidad
+              } else if (lectura.otro_equipo_id) {
+                deviceId = `otro-${lectura.otro_equipo_id}`; // Prefijo para unicidad
+              }
+
+              if (!deviceId) { // Si no tiene ni aire_id ni otro_equipo_id, no se puede agrupar
+                // console.warn("EstPorUbicacion - Lectura sin aire_id ni otro_equipo_id:", JSON.parse(JSON.stringify(lectura)));
+                return acc;
+              }
+
+              if (!deviceName) { // Fallback si nombre_dispositivo no viene (aunque el log muestra que sí)
+                deviceName = `Dispositivo ${deviceId}`;
+              }
+
               if (!acc[deviceId]) {
                   acc[deviceId] = {
-                      nombre: lectura.dispositivo_nombre || `Dispositivo ${deviceId}`,
+                      nombre: deviceName, // Usar el nombre determinado
                       lecturas: []
                   };
               }
               acc[deviceId].lecturas.push(lectura);
               return acc;
             }, {});
+            console.log("EstPorUbicacion - Lecturas agrupadas por dispositivo (primeros 2 dispositivos):", 
+              Object.fromEntries(Object.entries(readingsByDevice).slice(0, 2).map(([key, value]) => [key, {...value, lecturas: value.lecturas.length + " lecturas"}]))
+            );
 
             const tempDatasetsDevice = [];
             const humDatasetsDevice = [];
@@ -183,15 +208,20 @@ const EstadisticasPorUbicacion = ({
             let colorIndex = 0;
 
             for (const deviceId in readingsByDevice) {
+                
                 const deviceData = readingsByDevice[deviceId];
+                console.log(`EstPorUbicacion - Procesando para Dispositivo: ${deviceData.nombre} (ID: ${deviceId}), ${deviceData.lecturas.length} lecturas`);
                 const { tempData: deviceTempData, humData: deviceHumData } = procesarLecturasParaTimeScaleLocal(
                     deviceData.lecturas,
                     fechaDesde,
                     fechaHasta,
                     false, // No promediar por hora para detalle por dispositivo
-                    300    // Máximo 300 puntos por dispositivo
+                    500    // Máximo 500 puntos por dispositivo (aumentado)
                 );
-
+                
+                console.log(`  ${deviceData.nombre} - DeviceTempData (${deviceTempData.length}):`, JSON.parse(JSON.stringify(deviceTempData.slice(0, 3))));
+                console.log(`  ${deviceData.nombre} - DeviceHumData (${deviceHumData.length}):`, JSON.parse(JSON.stringify(deviceHumData.slice(0, 3))));
+                
                 const color = deviceColors[colorIndex % deviceColors.length];
                 colorIndex++;
 
@@ -207,17 +237,21 @@ const EstadisticasPorUbicacion = ({
                     });
                 }
             }
+            console.log("EstPorUbicacion - Temp Datasets por Dispositivo (final):", JSON.parse(JSON.stringify(tempDatasetsDevice.map(ds => ({label: ds.label, dataLength: ds.data.length})))));
+            console.log("EstPorUbicacion - Hum Datasets por Dispositivo (final):", JSON.parse(JSON.stringify(humDatasetsDevice.map(ds => ({label: ds.label, dataLength: ds.data.length})))));
+
             setGraficoPorDispositivoTempLocal({ datasets: tempDatasetsDevice });
             setGraficoPorDispositivoHumLocal({ datasets: humDatasetsDevice });
 
           } else {
+            console.log("EstPorUbicacion - No hay lecturasFetched, limpiando gráficos.");
             setGraficoPromedioHoraTempLocal(null);
             setGraficoPromedioHoraHumLocal(null);
             setGraficoPorDispositivoTempLocal(null);
             setGraficoPorDispositivoHumLocal(null);
           }
         } catch (error) {
-            console.error("Error al obtener o procesar lecturas por ubicación:", error);
+            console.error("EstPorUbicacion - Error en fetchAndProcessDataForLocationCharts:", error);
             setGraficoPromedioHoraTempLocal(null);
             setGraficoPromedioHoraHumLocal(null);
             setGraficoPorDispositivoTempLocal(null);
@@ -227,6 +261,7 @@ const EstadisticasPorUbicacion = ({
         }
       } else {
         // Limpiar gráficos si no hay ubicación o rango de fechas
+        // console.log("EstPorUbicacion - Sin ubicación seleccionada o rango de fechas, limpiando gráficos.");
         setGraficoPromedioHoraTempLocal(null);
         setGraficoPromedioHoraHumLocal(null);
         setGraficoPorDispositivoTempLocal(null);
@@ -242,11 +277,11 @@ const EstadisticasPorUbicacion = ({
 
 
   // Log para ver qué se renderiza
-  console.log("EstPorUbicacion: Renderizando con datos locales para gráficas:",
-              "PromedioHoraTempLocal:", graficoPromedioHoraTempLocal,
-              "Ubicacion Seleccionada:", ubicacionSeleccionada,
-              "GraficoPorDispositivoTempLocal:", graficoPorDispositivoTempLocal,
-              "LoadingGraficasLocal:", loadingGraficasLocal);
+  // console.log("EstPorUbicacion: Renderizando con datos locales para gráficas:",
+  //             "PromedioHoraTempLocal:", graficoPromedioHoraTempLocal ? graficoPromedioHoraTempLocal.datasets[0].data.length : 0,
+  //             "Ubicacion Seleccionada:", ubicacionSeleccionada,
+  //             "GraficoPorDispositivoTempLocal:", graficoPorDispositivoTempLocal ? graficoPorDispositivoTempLocal.datasets.map(d => d.data.length) : [],
+  //             "LoadingGraficasLocal:", loadingGraficasLocal);
 
   const commonChartOptions = {
     responsive: true,
