@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from 'react'; // Añadir useContext
+import React, { useState, useEffect, useContext, useCallback } from 'react'; // Añadir useState, useCallback
 import PropTypes from 'prop-types';
 import { Card, Row, Col, Form, Spinner, Table, Alert } from 'react-bootstrap'; // Añadir Alert
 import { FiMapPin, FiThermometer, FiDroplet, FiUsers, FiActivity } from 'react-icons/fi';
@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns'; // Adaptador para date-fns
+import { format } from 'date-fns'; // Importar format
 import ChartContainer from './ChartContainer.jsx'; // <-- AÑADIR ESTA LÍNEA
 // --- Fin Importaciones de Chart.js ---
 
@@ -43,22 +44,147 @@ const EstadisticasPorUbicacion = ({
   // --- Nuevas props para rango de fechas ---
   fechaDesde,
   setFechaDesde,
-  fechaHasta,
-  setFechaHasta,
-  // --- Nuevas props para datos y carga de las nuevas gráficas ---
-  datosGraficoPromedioHoraTemp,
-  datosGraficoPromedioHoraHum,
-  datosGraficoPorComponenteTemp,
-  datosGraficoPorComponenteHum,
-  loadingGraficasUbicacion // Un estado de carga general para las gráficas de esta pestaña
+  fechaHasta, // Mantener fechaHasta y setFechaHasta
+  setFechaHasta, // Mantener fechaHasta y setFechaHasta
+  // Ya no se reciben datos de gráficos pre-procesados ni su loading
+  // datosGraficoPromedioHoraTemp,
+  // datosGraficoPromedioHoraHum,
+  // loadingGraficasUbicacion
 }) => {
   const { store, actions } = useContext(Context);
 
- // Log para ver qué llega al componente
-  console.log("EstPorUbicacion: Renderizando con datos para gráficas:",
-              "PromedioHoraTemp:", datosGraficoPromedioHoraTemp,
-              "PorComponenteTemp:", datosGraficoPorComponenteTemp,
-              "Ubicacion Seleccionada:", ubicacionSeleccionada);
+  // Estado local para los gráficos de esta pestaña
+  const [graficoPromedioHoraTempLocal, setGraficoPromedioHoraTempLocal] = useState(null);
+  const [graficoPromedioHoraHumLocal, setGraficoPromedioHoraHumLocal] = useState(null);
+  const [loadingGraficasLocal, setLoadingGraficasLocal] = useState(false);
+
+  // Definición local de procesarLecturasParaTimeScale para encapsulación
+  const procesarLecturasParaTimeScaleLocal = useCallback((
+    lecturas,
+    filterFechaDesde,
+    filterFechaHasta,
+    promediarPorHora = false,
+    maxPuntos = 50
+  ) => {
+    if (!lecturas || !Array.isArray(lecturas) || lecturas.length === 0) return { tempData: [], humData: [] };
+
+    let tempData = [];
+    let humData = [];
+
+    let lecturasFiltradas = lecturas;
+    if (filterFechaDesde && filterFechaHasta) {
+      const desde = new Date(filterFechaDesde);
+      const hasta = new Date(filterFechaHasta);
+      hasta.setHours(23, 59, 59, 999);
+      lecturasFiltradas = lecturas.filter(l => {
+        try {
+          const fechaLectura = new Date(l.fecha);
+          return !isNaN(fechaLectura.getTime()) && fechaLectura >= desde && fechaLectura <= hasta;
+        } catch (e) { return false; }
+      });
+    }
+    if (!lecturasFiltradas || lecturasFiltradas.length === 0) return { tempData: [], humData: [] };
+
+    if (promediarPorHora) {
+        const lecturasPorHora = lecturasFiltradas.reduce((acc, l) => {
+            try {
+                const fechaHora = new Date(l.fecha);
+                if (isNaN(fechaHora.getTime())) return acc;
+                const claveHora = format(fechaHora, 'yyyy-MM-dd-HH');
+                if (!acc[claveHora]) {
+                    acc[claveHora] = { fechaOriginal: fechaHora, temps: [], hums: [] };
+                }
+                if (typeof l.temperatura === 'number' && !isNaN(l.temperatura)) {
+                    acc[claveHora].temps.push(l.temperatura);
+                }
+                if (typeof l.humedad === 'number' && !isNaN(l.humedad)) {
+                    acc[claveHora].hums.push(l.humedad);
+                }
+                return acc;
+            } catch (e) {
+                console.warn("Error procesando fecha en agrupación por hora:", l.fecha, e);
+                return acc;
+            }
+        }, {});
+        
+        const promediosHorarios = Object.values(lecturasPorHora)
+            .map(data => {
+                const avgTemp = data.temps.length > 0 ? data.temps.reduce((a, b) => a + b, 0) / data.temps.length : null;
+                const avgHum = data.hums.length > 0 ? data.hums.reduce((a, b) => a + b, 0) / data.hums.length : null;
+                return {
+                    x: data.fechaOriginal,
+                    avgTemp: avgTemp !== null ? parseFloat(avgTemp.toFixed(1)) : null,
+                    avgHum: avgHum !== null ? parseFloat(avgHum.toFixed(1)) : null,
+                };
+            })
+            .sort((a, b) => a.x.getTime() - b.x.getTime());
+
+        const limitedPromedios = promediosHorarios.slice(-maxPuntos);
+        tempData = limitedPromedios.filter(p => p.avgTemp !== null).map(p => ({ x: p.x, y: p.avgTemp }));
+        humData = limitedPromedios.filter(p => p.avgHum !== null).map(p => ({ x: p.x, y: p.avgHum }));
+    } else {
+        const sortedLecturas = [...lecturasFiltradas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        const limitedLecturas = sortedLecturas.slice(-maxPuntos);
+        tempData = limitedLecturas
+            .filter(l => typeof l.temperatura === 'number' && !isNaN(l.temperatura))
+            .map(l => ({ x: new Date(l.fecha), y: l.temperatura }));
+        humData = limitedLecturas
+            .filter(l => typeof l.humedad === 'number' && !isNaN(l.humedad))
+            .map(l => ({ x: new Date(l.fecha), y: l.humedad }));
+    }
+    return { tempData, humData };
+  }, []);
+
+  useEffect(() => {
+    const fetchAndProcessDataForLocationCharts = async () => {
+      if (ubicacionSeleccionada && fechaDesde && fechaHasta) {
+        setLoadingGraficasLocal(true);
+        try {
+          // La acción actualiza store.lecturasUbicacion
+          await actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
+          // Acceder a los datos actualizados del store
+          const lecturasFetched = store.lecturasUbicacion || [];
+
+          if (lecturasFetched.length > 0) {
+            const { tempData: promedioTempData, humData: promedioHumData } = procesarLecturasParaTimeScaleLocal(
+              lecturasFetched,
+              fechaDesde, // Se pasan para mantener la consistencia del contexto, aunque lecturasFetched ya debería estar filtrado
+              fechaHasta,
+              true, // Promediar por hora
+              200   // Máximo 200 puntos
+            );
+            setGraficoPromedioHoraTempLocal({ datasets: [{ label: 'Temperatura Promedio °C', data: promedioTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
+            setGraficoPromedioHoraHumLocal({ datasets: [{ label: 'Humedad Promedio %', data: promedioHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
+          } else {
+            setGraficoPromedioHoraTempLocal(null);
+            setGraficoPromedioHoraHumLocal(null);
+          }
+        } catch (error) {
+            console.error("Error al obtener o procesar lecturas por ubicación:", error);
+            setGraficoPromedioHoraTempLocal(null);
+            setGraficoPromedioHoraHumLocal(null);
+        } finally {
+            setLoadingGraficasLocal(false);
+        }
+      } else {
+        // Limpiar gráficos si no hay ubicación o rango de fechas
+        setGraficoPromedioHoraTempLocal(null);
+        setGraficoPromedioHoraHumLocal(null);
+        setLoadingGraficasLocal(false); // Asegurar que el loading esté en false
+      }
+    };
+
+    fetchAndProcessDataForLocationCharts();
+    // Dependencias: se ejecuta cuando cambia la ubicación, las fechas, o las acciones/funciones de procesamiento.
+    // NO incluir store.lecturasUbicacion aquí para evitar bucles si este efecto es el que llama a la acción que lo modifica.
+  }, [ubicacionSeleccionada, fechaDesde, fechaHasta, actions, procesarLecturasParaTimeScaleLocal]);
+
+
+  // Log para ver qué se renderiza
+  console.log("EstPorUbicacion: Renderizando con datos locales para gráficas:",
+              "PromedioHoraTempLocal:", graficoPromedioHoraTempLocal,
+              "Ubicacion Seleccionada:", ubicacionSeleccionada,
+              "LoadingGraficasLocal:", loadingGraficasLocal);
 
   const commonChartOptions = {
     responsive: true,
@@ -157,7 +283,7 @@ const EstadisticasPorUbicacion = ({
                     console.log("onChange fechaDesde - typeof setFechaDesde:", typeof setFechaDesde); // DEBUG
                     if (typeof setFechaDesde === 'function') setFechaDesde(e.target.value);
                   }}
-                  disabled={loadingUbicacion || loadingGraficasUbicacion}
+                  disabled={loadingUbicacion || loadingGraficasLocal}
                 />
               </Form.Group>
             </Col>
@@ -171,7 +297,7 @@ const EstadisticasPorUbicacion = ({
                     console.log("onChange fechaHasta - typeof setFechaHasta:", typeof setFechaHasta); // DEBUG
                     if (typeof setFechaHasta === 'function') setFechaHasta(e.target.value);
                   }}
-                  disabled={loadingUbicacion || loadingGraficasUbicacion}
+                  disabled={loadingUbicacion || loadingGraficasLocal}
                 />
               </Form.Group>
             </Col>
@@ -242,8 +368,8 @@ const EstadisticasPorUbicacion = ({
               <ChartContainer
                 title={`Promedio Temperatura por Hora - ${ubicacionSeleccionada}`}
                 yAxisLabel="Temperatura (°C)"
-                data={datosGraficoPromedioHoraTemp} // Prop desde Estadisticas.jsx
-                loading={loadingGraficasUbicacion}
+                data={graficoPromedioHoraTempLocal} // Usar estado local
+                loading={loadingGraficasLocal}      // Usar estado local
                 type={'line'}
                 chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Promedio Temperatura por Hora - ${ubicacionSeleccionada}`}}}}
               />
@@ -252,37 +378,14 @@ const EstadisticasPorUbicacion = ({
               <ChartContainer
                 title={`Promedio Humedad por Hora - ${ubicacionSeleccionada}`}
                 yAxisLabel="Humedad (%)"
-                data={datosGraficoPromedioHoraHum} // Prop desde Estadisticas.jsx
-                loading={loadingGraficasUbicacion}
+                data={graficoPromedioHoraHumLocal}  // Usar estado local
+                loading={loadingGraficasLocal}       // Usar estado local
                 type={'line'}
                 chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Promedio Humedad por Hora - ${ubicacionSeleccionada}`}}}}
               />
             </Col>
           </Row>
 
-          {/* Gráfica 2: Lecturas por Componente */}
-          <Row className="mt-4">
-            <Col md={6} className="mb-4">
-              <ChartContainer
-                title={`Temperatura por Dispositivo - ${ubicacionSeleccionada}`}
-                yAxisLabel="Temperatura (°C)"
-                data={datosGraficoPorComponenteTemp} // Prop desde Estadisticas.jsx (debe tener múltiples datasets)
-                loading={loadingGraficasUbicacion}
-                type={'line'}
-                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Temperatura por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
-              />
-            </Col>
-            <Col md={6} className="mb-4">
-              <ChartContainer
-                title={`Humedad por Dispositivo - ${ubicacionSeleccionada}`}
-                yAxisLabel="Humedad (%)"
-                data={datosGraficoPorComponenteHum} // Prop desde Estadisticas.jsx (debe tener múltiples datasets)
-                loading={loadingGraficasUbicacion}
-                type={'line'}
-                chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Humedad por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
-              />
-            </Col>
-          </Row>
         </>
       )}
 
@@ -322,11 +425,10 @@ EstadisticasPorUbicacion.propTypes = {
   setFechaDesde: PropTypes.func.isRequired,
   fechaHasta: PropTypes.string.isRequired,
   setFechaHasta: PropTypes.func.isRequired,
-  datosGraficoPromedioHoraTemp: PropTypes.object,
-  datosGraficoPromedioHoraHum: PropTypes.object,
-  datosGraficoPorComponenteTemp: PropTypes.object,
-  datosGraficoPorComponenteHum: PropTypes.object,
-  loadingGraficasUbicacion: PropTypes.bool,
+  // Se eliminan las props de datos de gráficos y su loading
+  // datosGraficoPromedioHoraTemp: PropTypes.object,
+  // datosGraficoPromedioHoraHum: PropTypes.object,
+  // loadingGraficasUbicacion: PropTypes.bool,
 };
 
 export default EstadisticasPorUbicacion;

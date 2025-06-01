@@ -81,14 +81,12 @@ const Estadisticas = () => { // Remove : React.FC
   const [graficoAireTemp, setGraficoAireTemp] = useState(null);
   const [graficoAireHum, setGraficoAireHum] = useState(null);
   // For "Por Ubicacion" tab
-  const [graficoUbicacionPromedioTemp, setGraficoUbicacionPromedioTemp] = useState(null);
-  const [graficoUbicacionPromedioHum, setGraficoUbicacionPromedioHum] = useState(null);
-  const [graficoUbicacionComponentesTemp, setGraficoUbicacionComponentesTemp] = useState(null);
-  const [graficoUbicacionComponentesHum, setGraficoUbicacionComponentesHum] = useState(null);
+  // Estos estados se mueven a EstadisticasPorUbicacion.jsx
+  // const [graficoUbicacionPromedioTemp, setGraficoUbicacionPromedioTemp] = useState(null);
+  // const [graficoUbicacionPromedioHum, setGraficoUbicacionPromedioHum] = useState(null);
 
   const [loadingChartsGeneralLocal, setLoadingChartsGeneralLocal] = useState(true);
   const [loadingChartsAireLocal, setLoadingChartsAireLocal] = useState(false);
-  const [loadingChartsUbicacionLocal, setLoadingChartsUbicacionLocal] = useState(false); // State for Ubicacion charts loading
   const [fechaDesde, setFechaDesde] = useState(sevenDaysAgo.toISOString().split('T')[0]);
   const [fechaHasta, setFechaHasta] = useState(today.toISOString().split('T')[0]);
 
@@ -297,7 +295,7 @@ const Estadisticas = () => { // Remove : React.FC
       // Limpiar datos si no hay aire seleccionado
       actions.fetchEstadisticasAire(null); // Esto debería limpiar los datos en el store
     }
-  }, [aireSeleccionado, fechaDesde, fechaHasta, actions.fetchEstadisticasAire]); // Añadir fechaDesde y fechaHasta como dependencias
+  }, [aireSeleccionado, fechaDesde, fechaHasta]); // Añadir fechaDesde y fechaHasta como dependencias
 
   // Process specific AC charts when raw data or umbrales change
   useEffect(() => {
@@ -325,91 +323,8 @@ const Estadisticas = () => { // Remove : React.FC
     setLoadingChartsAireLocal(false);
   }, [_rawLecturasAire, umbrales, aireSeleccionado, procesarLecturasParaTimeScale]); // Quitar fechaDesde, fechaHasta si _rawLecturasAire ya está filtrado
 
-  // --- Effect for "Por Ubicación" charts ---
-  useEffect(() => {
-    const fetchAndProcessUbicacionData = async () => {
-      setLoadingChartsUbicacionLocal(true); // Start loading
-      if (ubicacionSeleccionada) {
-        // Fetch readings for selected location with date range
-        await actions.fetchLecturasPorUbicacion(ubicacionSeleccionada, fechaDesde, fechaHasta);
-        const lecturas = store.lecturasUbicacion || [];
-        if (lecturas.length > 0) {
-          // Process general average per hour
-          const { tempData: promedioTempData, humData: promedioHumData } = procesarLecturasParaTimeScale(
-            lecturas, fechaDesde, fechaHasta, true, 200 // Max 200 promedios horarios
-          );
-
-          setGraficoUbicacionPromedioTemp({ datasets: [{ label: 'Temperatura Promedio °C', data: promedioTempData, borderColor: 'rgba(255, 99, 132, 1)', tension: 0.1 }] });
-          setGraficoUbicacionPromedioHum({ datasets: [{ label: 'Humedad Promedio %', data: promedioHumData, borderColor: 'rgba(54, 162, 235, 1)', tension: 0.1 }] });
-
-
-          // Process combined data per device (air conditioners) in location
-          // Group readings by device id
-          const readingsByDevice = lecturas.reduce((acc, lectura) => {
-            if (!lectura.dispositivo_id) return acc;
-            if (!acc[lectura.dispositivo_id]) acc[lectura.dispositivo_id] = [];
-            acc[lectura.dispositivo_id].push(lectura);
-            return acc;
-          }, {});
-
-          // For each device, process readings to get temp and hum datasets
-          const tempDatasets = [];
-          const humDatasets = [];
-          const colors = [
-            'rgba(255, 99, 132, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)',
-            'rgba(153, 102, 255, 1)',
-            'rgba(255, 159, 64, 1)',
-          ];
-          let colorIndex = 0;
-
-          for (const [deviceId, deviceReadings] of Object.entries(readingsByDevice)) {
-            // Identificar el nombre del dispositivo
-            const aireInfo = aires.find(a => a.id === parseInt(deviceId)); // Asumiendo que deviceId es de un aire
-            const deviceName = aireInfo ? aireInfo.nombre : `Dispositivo ${deviceId}`;
-
-            const { tempData: deviceTempData, humData: deviceHumData } = procesarLecturasParaTimeScale(
-              deviceReadings, fechaDesde, fechaHasta, true, 200 // Promediar por hora, max 200 puntos
-            );
-
-            if (deviceTempData.length > 0 || deviceHumData.length > 0) {
-              const color = colors[colorIndex % colors.length];
-              colorIndex++;
-              if (deviceTempData.length > 0) {
-                tempDatasets.push({
-                  label: `Temp ${deviceName}`, data: deviceTempData, borderColor: color, tension: 0.1, fill: false
-                });
-              }
-              if (deviceHumData.length > 0) {
-                humDatasets.push({
-                  label: `Hum ${deviceName}`, data: deviceHumData, borderColor: color, tension: 0.1, fill: false
-                });
-              }
-            }
-          }
-
-          // Chart.js con TimeScale no necesita 'labels' explícitos en la estructura de datos principal
-          setGraficoUbicacionComponentesTemp({ datasets: tempDatasets });
-          setGraficoUbicacionComponentesHum({ datasets: humDatasets });
-        } else {
-          setGraficoUbicacionPromedioTemp(null);
-          setGraficoUbicacionPromedioHum(null);
-          setGraficoUbicacionComponentesTemp(null);
-          setGraficoUbicacionComponentesHum(null);
-        }
-      } else {
-        setGraficoUbicacionPromedioTemp(null);
-        setGraficoUbicacionPromedioHum(null);
-        setGraficoUbicacionComponentesTemp(null);
-        setGraficoUbicacionComponentesHum(null);
-      }
-      setLoadingChartsUbicacionLocal(false); // End loading
-    };
-
-    fetchAndProcessUbicacionData();
-  }, [ubicacionSeleccionada, fechaDesde, fechaHasta, procesarLecturasParaTimeScale, umbrales, actions, store.lecturasUbicacion, aires, store.otrosEquiposList]); // Añadidas dependencias
+  // El useEffect para cargar y procesar datos de gráficos de "Por Ubicación"
+  // ha sido movido a EstadisticasPorUbicacion.jsx
 
   // --- Render ---
   // Determine overall initial loading state
@@ -487,11 +402,10 @@ const Estadisticas = () => { // Remove : React.FC
               setFechaDesde={setFechaDesde}
               fechaHasta={fechaHasta}
               setFechaHasta={setFechaHasta}
-              datosGraficoPromedioHoraTemp={graficoUbicacionPromedioTemp}
-              datosGraficoPromedioHoraHum={graficoUbicacionPromedioHum}
-              datosGraficoPorComponenteTemp={graficoUbicacionComponentesTemp}
-              datosGraficoPorComponenteHum={graficoUbicacionComponentesHum}
-              loadingGraficasUbicacion={loadingChartsUbicacionLocal} // Pasar el estado de carga correcto
+              // Ya no se pasan datos de gráficos ni su loading desde aquí
+              // datosGraficoPromedioHoraTemp={graficoUbicacionPromedioTemp}
+              // datosGraficoPromedioHoraHum={graficoUbicacionPromedioHum}
+              // loadingGraficasUbicacion={loadingChartsUbicacionLocal}
             />
           </Tab>
         </Tabs>

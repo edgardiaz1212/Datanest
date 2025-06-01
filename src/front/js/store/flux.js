@@ -930,16 +930,24 @@ const getState = ({ getStore, getActions, setStore }) => {
           }
           const data = await response.json();
           if (Array.isArray(data)) {
-        
-
-            setStore({ aires: data, airesLoading: false, airesError: null }); // Limpiar error en éxito
+            const currentAires = getStore().aires;
+            // Only update store if the data has actually changed to prevent unnecessary re-renders
+            // A simple JSON.stringify comparison can work for moderately sized arrays of simple objects.
+            // For very large/complex data, consider a more sophisticated deep-equal check or versioning.
+            if (JSON.stringify(currentAires) !== JSON.stringify(data)) {
+              console.log("fetchAires: New aires data detected, updating store.");
+              setStore({ aires: data, airesLoading: false, airesError: null });
+            } else {
+              console.log("fetchAires: Aires data is the same, not updating store reference.");
+              // Still update loading/error state even if data is the same
+              setStore({ airesLoading: false, airesError: null });
+            }
             return data; // Devolver datos para posible encadenamiento
  
           } else {
             // Este caso debería ser idealmente capturado por response.ok o ser un código de error específico del servidor
             setStore({
-                airesError: "Formato de respuesta inesperado del servidor al listar aires.",
-                
+                airesError: "Formato de respuesta inesperado del servidor al listar aires.",                
                 airesLoading: false
                 // NO establecer aires: [] aquí.
             });
@@ -949,8 +957,8 @@ const getState = ({ getStore, getActions, setStore }) => {
           console.error("Error in fetchAires:", error);
           setStore({
             airesError: error.message || "Error cargando la lista de aires.",
-            airesLoading: false
-            // No limpiar store.aires aquí para no perder datos si ya existían y esto fue un error de red temporal
+            airesLoading: false,
+            // No limpiar store.aires aquí para no perder datos si ya existían y esto fue un error de red temporal.
           });
           return null;
         }
