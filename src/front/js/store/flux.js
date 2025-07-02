@@ -678,7 +678,9 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       fetchTrackerUsers: async () => {
         // Ruta protegida, necesita token
+        const store = getStore();
         setStore({ loading: true, error: null });
+    
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/tracker/users?activos=false`,
@@ -713,6 +715,8 @@ const getState = ({ getStore, getActions, setStore }) => {
 
       updateTrackerUser: async (userId, updatedData) => {
         // Ruta protegida, necesita token
+        const store = getStore();
+        const actions = getActions();
         setStore({ loading: true, error: null });
         try {
           const response = await fetch(
@@ -725,28 +729,23 @@ const getState = ({ getStore, getActions, setStore }) => {
           );
           const responseData = await response.json();
           if (response.ok) {
+            // En lugar de actualizar localmente, refetch la lista completa para asegurar consistencia
+            await actions.fetchTrackerUsers();
             setStore({ loading: false, error: null });
-            const updatedList = getStore().trackerUsers.map((user) =>
-              user.id === userId ? { ...user, ...responseData } : user
-            );
-            setStore({ trackerUsers: updatedList });
             console.log("Tracker user updated successfully:", responseData);
             return true;
           } else {
-            if (response.status === 401) getActions().logoutTrackerUser();
-            setStore({
-              error: responseData.msg || "Error al actualizar usuario",
-              loading: false,
-            });
+             // Si la respuesta no es OK, maneja el error
+             if (response.status === 401) actions.logoutTrackerUser(); // Ejemplo de manejo de 401
+             setStore({ error: responseData.msg || "Error al actualizar usuario", loading: false });
+   
             console.error("Error updating tracker user:", responseData.msg);
             return false;
           }
         } catch (error) {
           console.error("Network error updating tracker user:", error);
-          setStore({
-            error: "Error de red al actualizar usuario.",
-            loading: false,
-          });
+          setStore({ error: "Error de red al actualizar usuario.", loading: false });
+
           return false;
         }
       },

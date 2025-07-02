@@ -96,8 +96,10 @@ const Usuarios = () => {
     if (id === currentUser?.id) return; // Prevent self-deactivation
 
     // Call the update action with only the 'activo' field changed
+    // La acción `updateTrackerUser` ya actualiza el estado localmente.
+    // No se necesita hacer nada más aquí, el componente se re-renderizará solo.
     await updateTrackerUser(id, { activo: !currentStatus });
-    // The store update will trigger a re-render
+ 
   };
 
   // Submit EDIT form (calls Flux action)
@@ -125,7 +127,7 @@ const Usuarios = () => {
     setIsSubmitting(false); // Indicate submission end
     if (success) {
       setShowAddModal(false); // Close modal on success
-      // fetchTrackerUsers(); // Action already fetches users on success
+      
     }
     // Error display is handled by the global 'error' state
   };
