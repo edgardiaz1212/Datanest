@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Card, Row, Col, Form, Spinner, Table } from 'react-bootstrap';
+import { Card, Row, Col, Form, Spinner, Table, Alert } from 'react-bootstrap';
 import { FiMapPin, FiThermometer, FiDroplet, FiWind } from 'react-icons/fi';
 import ChartContainer from './ChartContainer.jsx';
 
@@ -14,8 +14,26 @@ const EstadisticasPorAire = ({
   graficoAireHum = null,
   loadingAires, 
   loadingAireStats, 
-  loadingChartsAire
+  loadingChartsAire,
+  selectedAireDetails = null, // New prop for full AC details
 }) => {
+console.log("aireSeleccionado", selectedAireDetails)
+    // Determine if alert should be shown based on operativa status
+    const showAlert = selectedAireDetails && (
+      selectedAireDetails.evaporadora_operativa === 'no_operativa' || 
+      selectedAireDetails.evaporadora_operativa === 'parcialmente_operativa' ||
+      selectedAireDetails.condensadora_operativa === 'no_operativa' || 
+      selectedAireDetails.condensadora_operativa === 'parcialmente_operativa'
+    );
+    console.log(showAlert)
+
+    // Compose alert messages
+    const evaporadoraMessage = (selectedAireDetails && 
+      (selectedAireDetails.evaporadora_operativa === 'no_operativa' || selectedAireDetails.evaporadora_operativa === 'parcialmente_operativa')) 
+      ? `Alerta: La evaporadora está ${selectedAireDetails.evaporadora_operativa.replace('_', ' ')}.` : '';
+    const condensadoraMessage = (selectedAireDetails && 
+      (selectedAireDetails.condensadora_operativa === 'no_operativa' || selectedAireDetails.condensadora_operativa === 'parcialmente_operativa')) 
+      ? `Alerta: La condensadora está ${selectedAireDetails.condensadora_operativa.replace('_', ' ')}.` : '';
 
     return (
     <div>
@@ -43,6 +61,22 @@ const EstadisticasPorAire = ({
             {/* Optional: Loading/Empty message */}
             {loadingAires && <Form.Text muted>Cargando lista de aires...</Form.Text>}
             {!loadingAires && (!Array.isArray(aires) || aires.length === 0) && <Form.Text muted>No hay aires disponibles.</Form.Text>}
+
+            {/* Alert balloons for evaporadora and condensadora status */}
+            {showAlert && (
+              <div className="mt-2">
+                {evaporadoraMessage && (
+                  <Alert variant="warning" className="mb-2" >
+                    {evaporadoraMessage}
+                  </Alert>
+                )}
+                {condensadoraMessage && (
+                  <Alert variant="warning" >
+                    {condensadoraMessage}
+                  </Alert>
+                )}
+              </div>
+            )}
           </Form.Group>
         </Col>
       </Row>
@@ -55,7 +89,7 @@ const EstadisticasPorAire = ({
         </div>
       )}
 
-      {/* Content when AC is selected and stats are loaded */}
+      {/* Content when AC is selected and stats are loaded */}      
       {!loadingAireStats && aireSeleccionado !== null && estadisticasAire ? (
         <>
           {/* Stats Summary Card */}

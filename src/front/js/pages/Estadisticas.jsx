@@ -291,9 +291,15 @@ const Estadisticas = () => { // Remove : React.FC
       // Pasar fechaDesde y fechaHasta al action
       // La acción fetchEstadisticasAire en flux.js debe ser modificada para aceptar y usar estas fechas
       actions.fetchEstadisticasAire(aireSeleccionado, fechaDesde, fechaHasta);
+      // Also fetch full AC details for alert balloon
+      actions.fetchAireDetails(aireSeleccionado);
     } else {
       // Limpiar datos si no hay aire seleccionado
       actions.fetchEstadisticasAire(null); // Esto debería limpiar los datos en el store
+      // Clear selected Aire details
+      // Assuming there is an action or directly set store
+      // For now, call fetchAireDetails with null or clear selectedAireDetails
+      actions.fetchAireDetails(null);
     }
   }, [aireSeleccionado, fechaDesde, fechaHasta]); // Añadir fechaDesde y fechaHasta como dependencias
 
@@ -386,6 +392,7 @@ const Estadisticas = () => { // Remove : React.FC
               fechaHasta={fechaHasta}
               setFechaHasta={setFechaHasta}
               loadingChartsAire={loadingChartsAireLocal} // Loading state for the specific AC's charts
+              selectedAireDetails={store.selectedAireDetails} // Pass selected Aire details for operational status
             />
           </Tab>
 
