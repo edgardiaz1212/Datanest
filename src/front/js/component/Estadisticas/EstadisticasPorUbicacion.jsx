@@ -485,7 +485,7 @@ const EstadisticasPorUbicacion = ({
 
           {/* Gráficas por Dispositivo */}
           <Row className="mt-4">
-            <Col md={6} className="mb-4">
+            <Col md={12} className="mb-4">
               <ChartContainer
                 title={`Temperatura por Dispositivo - ${ubicacionSeleccionada}`}
                 yAxisLabel="Temperatura (°C)"
@@ -495,7 +495,7 @@ const EstadisticasPorUbicacion = ({
                 chartOptions={{...commonChartOptions, plugins: { ...commonChartOptions.plugins, title: { display: true, text: `Temperatura por Dispositivo - ${ubicacionSeleccionada}`}, legend: { display: true, position: 'bottom' }}}}
               />
             </Col>
-            <Col md={6} className="mb-4">
+            <Col md={12} className="mb-4">
               <ChartContainer
                 title={`Humedad por Dispositivo - ${ubicacionSeleccionada}`}
                 yAxisLabel="Humedad (%)"
