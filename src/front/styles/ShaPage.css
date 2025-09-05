@@ -1,0 +1,29 @@
+/* src/front/styles/ShaPage.css */
+.map-container {
+  position: relative;
+  width: 100%;
+  /* Puedes ajustar la altura máxima si es necesario */
+  max-height: 70vh; 
+  overflow: auto; /* Permite scroll si el mapa es más grande que el contenedor */
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+}
+
+.map-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.extintor-icon {
+  position: absolute;
+  transform: translate(-50%, -50%); /* Centra el ícono en las coordenadas */
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+  z-index: 10;
+}
+
+.extintor-icon:hover {
+  transform: translate(-50%, -50%) scale(1.5); /* Agranda el ícono al pasar el cursor */
+  z-index: 11;
+}

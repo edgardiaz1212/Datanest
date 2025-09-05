@@ -648,6 +648,7 @@ class ContactoProveedor(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
+    nombre_contacto = db.Column(db.String(200), nullable=False)
     cargo =db.Column(db.String(100), nullable=True)
     telefono_contacto = db.Column(db.String(50), nullable=True)
     email_contacto = db.Column(db.String(120), nullable=True)
@@ -815,4 +816,99 @@ class AuditLog(db.Model):
             "entity_id": self.entity_id,
             "entity_description": self.entity_description,
             "details": self.details,
+        }
+
+class Extintor(db.Model):
+    __tablename__ = 'extintores'
+    id = db.Column(db.Integer, primary_key=True)
+    # Identificación y Ubicación
+    tag = db.Column(db.String(50), nullable=False, unique=True, comment="Tag o ID único del extintor")
+    piso = db.Column(db.String(50), nullable=False, comment="Piso donde se encuentra, ej: 'Piso 1', 'PB', 'Azotea'")
+    ubicacion_exacta = db.Column(db.String(255), nullable=False, comment="Descripción textual de la ubicación, ej: 'Pasillo A, al lado de la puerta'")
+    
+    # Características
+    tipo = db.Column(db.String(50), nullable=False, comment="Tipo de extintor, ej: 'PQS', 'CO2', 'Agua'")
+    capacidad_kg = db.Column(db.Float, nullable=False, comment="Capacidad en kilogramos o litros")
+    
+    # Fechas importantes
+    fecha_fabricacion = db.Column(db.Date, nullable=True)
+    fecha_ultima_recarga = db.Column(db.Date, nullable=False)
+    fecha_proxima_recarga = db.Column(db.Date, nullable=False)
+    
+    # Estado
+    estado = db.Column(db.String(50), nullable=False, default='Operativo', comment="Ej: Operativo, Vencido, Obstruido, Faltante")
+    
+    # Coordenadas para el mapa visual
+    coordenada_x = db.Column(db.Integer, nullable=True, comment="Posición X en píxeles en el mapa del piso")
+    coordenada_y = db.Column(db.Integer, nullable=True, comment="Posición Y en píxeles en el mapa del piso")
+
+    # Relación
+    revisiones = db.relationship('RevisionExtintor', back_populates='extintor', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<Extintor(id={self.id}, tag='{self.tag}', tipo='{self.tipo}')>"
+
+    def serialize(self):
+        # Serializar las revisiones también
+        revisiones_serializadas = sorted(
+            [r.serialize() for r in self.revisiones], 
+            key=lambda r: r['fecha_revision'], 
+            reverse=True
+        )
+        
+        return {
+            'id': self.id,
+            'tag': self.tag,
+            'piso': self.piso,
+            'ubicacion_exacta': self.ubicacion_exacta,
+            'tipo': self.tipo,
+            'capacidad_kg': self.capacidad_kg,
+            'fecha_fabricacion': self.fecha_fabricacion.isoformat() if self.fecha_fabricacion else None,
+            'fecha_ultima_recarga': self.fecha_ultima_recarga.isoformat() if self.fecha_ultima_recarga else None,
+            'fecha_proxima_recarga': self.fecha_proxima_recarga.isoformat() if self.fecha_proxima_recarga else None,
+            'estado': self.estado,
+            'coordenada_x': self.coordenada_x,
+            'coordenada_y': self.coordenada_y,
+            'revisiones': revisiones_serializadas
+        }
+
+class RevisionExtintor(db.Model):
+    __tablename__ = 'revisiones_extintor'
+    id = db.Column(db.Integer, primary_key=True)
+    extintor_id = db.Column(db.Integer, db.ForeignKey('extintores.id'), nullable=False)
+    fecha_revision = db.Column(db.Date, nullable=False)
+    observaciones = db.Column(db.Text, nullable=True)
+    realizado_por = db.Column(db.String(100), nullable=True)
+
+    # Relación
+    extintor = db.relationship('Extintor', back_populates='revisiones')
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'extintor_id': self.extintor_id,
+            'fecha_revision': self.fecha_revision.isoformat() if self.fecha_revision else None,
+            'observaciones': self.observaciones,
+            'realizado_por': self.realizado_por
+        }
+
+class MapaPiso(db.Model):
+    __tablename__ = 'mapas_pisos'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_piso = db.Column(db.String(100), nullable=False, unique=True)
+    nombre_archivo_original = db.Column(db.String(255), nullable=False)
+    datos_archivo = db.Column(LargeBinary, nullable=False)
+    tipo_mime = db.Column(db.String(100), nullable=False)
+    fecha_carga = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MapaPiso {self.id}: {self.nombre_piso}>'
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "nombre_piso": self.nombre_piso,
+            "nombre_archivo_original": self.nombre_archivo_original,
+            "tipo_mime": self.tipo_mime,
+            "fecha_carga": self.fecha_carga.isoformat() if self.fecha_carga else None,
         }

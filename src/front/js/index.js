@@ -20,7 +20,7 @@ import Mantenimientos from "./pages/Mantenimientos.jsx";
 import Umbrales from "./pages/Umbrales.jsx";
 import Usuarios from "./pages/Usuarios.jsx";
 import Perfil from "./pages/Perfil.jsx";
-import NotFound from "./pages/NotFound.jsx"; 
+import NotFound from "./pages/NotFound.jsx";
 import Formulary from "./pages/Formulary.jsx";
 import DataTable from "./pages/DataTable.jsx";
 import CompleteData from "./pages/CompleteData.jsx";
@@ -28,71 +28,77 @@ import EditData from "./pages/EditData.jsx";
 import Home from "./pages/Home.jsx"; // Página pública Home
 import Reportes from "./pages/Reportes.jsx"; // Página de reportes
 import Proveedores from "./pages/Proveedores.jsx"; // Página de proveedores
-import ActividadesProveedor  from "./pages/ActividadesProveedor.jsx";
+import ActividadesProveedor from "./pages/ActividadesProveedor.jsx";
 import ExternalServices from "./pages/ExternalServices.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
 import AlertasActivas from "./pages/AlertasActivas.jsx";
 import GestionDiagnosticos from "./pages/GestionDiagnosticos.jsx";
-import AiresDetailsPage from "./pages/AiresDetailsPage.jsx"
+import AiresDetailsPage from "./pages/AiresDetailsPage.jsx";
+import ShaPage from "./pages/ShaPage.jsx"; // Debes crear este componente de página
 // Tus otros imports (CSS)
 import "../styles/index.css";
 import "../styles/layout.css";
 
-
-
 // Componente principal de la aplicación
 const App = () => {
-    const basename = process.env.BASENAME || "";
+  const basename = process.env.BASENAME || "";
 
-    // Envuelve la App con el proveedor de contexto
-    const AppWithContext = injectContext(() => (
-        <BrowserRouter basename={basename}>
-            {/* Layout AHORA envuelve TODAS las rutas */}
-            <Routes>
-                <Route element={<Layout />}>
-                    {/* Rutas Públicas y de Formulario (ahora dentro del Layout) */}
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/forba7d" element={<Formulary />} />
-                    <Route path="/register-data/:user_id" element={<DataTable />} />
-                    <Route path="/complete-data" element={<CompleteData />} />
-                    <Route path="/edit-data/" element={<EditData />} />
+  // Envuelve la App con el proveedor de contexto
+  const AppWithContext = injectContext(() => (
+    <BrowserRouter basename={basename}>
+      {/* Layout AHORA envuelve TODAS las rutas */}
+      <Routes>
+        <Route element={<Layout />}>
+          {/* Rutas Públicas y de Formulario (ahora dentro del Layout) */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forba7d" element={<Formulary />} />
+          <Route path="/register-data/:user_id" element={<DataTable />} />
+          <Route path="/complete-data" element={<CompleteData />} />
+          <Route path="/edit-data/" element={<EditData />} />
 
-                    {/* Rutas Protegidas / Monitoreo */}
-                    {/* La redirección a /dashboard si se accede a "/" ya no es necesaria aquí,
+          {/* Rutas Protegidas / Monitoreo */}
+          {/* La redirección a /dashboard si se accede a "/" ya no es necesaria aquí,
                         porque "/" ahora tiene su propio elemento <Home />.
                         Si quieres que "/" redirija a dashboard SIEMPRE,
                         puedes poner <Route path="/" element={<Navigate replace to="/dashboard" />} />
                         ANTES de la ruta de <Home /> o quitar <Home />.
                     */}
-                    {/* <Route path="/" element={<Navigate replace to="/dashboard" />} /> */}
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/aires" element={<Aires />} />
-                    <Route path="/lecturas" element={<Lecturas />} />
-                    <Route path="/estadisticas" element={<Estadisticas />} />
-                    <Route path="/otros-equipos" element={<OtrosEquipos />} />
-                    <Route path="/mantenimientos" element={<Mantenimientos />} />
-                    <Route path="/umbrales" element={<Umbrales />} />
-                    <Route path="/usuarios" element={<Usuarios />} />
-                     <Route path="/perfil" element={<Perfil />} />
-                     <Route path="/reportes" element={<Reportes />} />
-                     <Route path="/proveedores" element={<Proveedores />} />
-                     <Route path="/actividades-proveedor" element={<ActividadesProveedor />} />
-                     <Route path="/servicios-externos" element={<ExternalServices />} />
-                     <Route path="/documentos" element={<DocumentsPage />} />
-                     <Route path="/alertas-activas" element={<AlertasActivas />} />
-                     <Route path="/gestion-diagnosticos" element={<GestionDiagnosticos />} />
-                     <Route path="/aires/:aireId" element={<AiresDetailsPage/>} />
+          {/* <Route path="/" element={<Navigate replace to="/dashboard" />} /> */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/aires" element={<Aires />} />
+          <Route path="/lecturas" element={<Lecturas />} />
+          <Route path="/estadisticas" element={<Estadisticas />} />
+          <Route path="/otros-equipos" element={<OtrosEquipos />} />
+          <Route path="/mantenimientos" element={<Mantenimientos />} />
+          <Route path="/umbrales" element={<Umbrales />} />
+          <Route path="/usuarios" element={<Usuarios />} />
+          <Route path="/perfil" element={<Perfil />} />
+          <Route path="/reportes" element={<Reportes />} />
+          <Route path="/proveedores" element={<Proveedores />} />
+          <Route
+            path="/actividades-proveedor"
+            element={<ActividadesProveedor />}
+          />
+          <Route path="/servicios-externos" element={<ExternalServices />} />
+          <Route path="/documentos" element={<DocumentsPage />} />
+          <Route path="/alertas-activas" element={<AlertasActivas />} />
+          <Route
+            path="/gestion-diagnosticos"
+            element={<GestionDiagnosticos />}
+          />
+          <Route path="/aires/:aireId" element={<AiresDetailsPage />} />
+          <Route path="/sha" element={<ShaPage />} />
 
-                    {/* Ruta para 404 Not Found (también dentro del Layout) */}
-                    <Route path="*" element={<NotFound />} />
-                </Route>
-            </Routes>
-        </BrowserRouter>
-    ));
+          {/* Ruta para 404 Not Found (también dentro del Layout) */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  ));
 
-    return <AppWithContext />;
+  return <AppWithContext />;
 };
 
 // Renderiza tu aplicación

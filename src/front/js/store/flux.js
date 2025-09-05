@@ -126,6 +126,15 @@ const getState = ({ getStore, getActions, setStore }) => {
       detailedAlertsList: [],
       detailedAlertsLoading: false,
       detailedAlertsError: null,
+      // --- SHA (Seguridad e Higiene) State ---
+      extintores: [],
+      extintoresLoading: false,
+      extintoresError: null,
+      pisosExtintores: [], // Lista de pisos únicos
+      // --- Mapas de Pisos State ---
+      mapasPisos: [],
+      mapasPisosLoading: false,
+      mapasPisosError: null,
     },
     actions: {
       // Use getActions to call a function within a function
@@ -3326,6 +3335,190 @@ fetchAllDiagnosticRecords: async (filters = {}) => {
         return null;
     }
 },
+
+      // --- Mapas de Pisos Actions ---
+      fetchMapasPisos: async () => {
+        setStore({ mapasPisosLoading: true, mapasPisosError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/mapas`, {
+            method: "GET",
+            headers: getAuthHeaders(),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorData.msg || `Error ${response.status}`);
+          }
+          const data = await response.json();
+          setStore({ mapasPisos: data || [], mapasPisosLoading: false });
+          return true;
+        } catch (error) {
+          console.error("Error fetching mapas de pisos:", error);
+          setStore({
+            mapasPisosError: error.message || "Error cargando mapas de pisos.",
+            mapasPisosLoading: false,
+          });
+          return false;
+        }
+      },
+
+      uploadMapaPiso: async (formData) => {
+        setStore({ mapasPisosLoading: true, mapasPisosError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/mapas`, {
+            method: "POST",
+            headers: getAuthHeaders(false), // No content-type for FormData
+            body: formData,
+          });
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(responseData.msg || `Error ${response.status}`);
+          }
+          await getActions().fetchMapasPisos(); // Refresh list
+          return true;
+        } catch (error) {
+          console.error("Error uploading mapa de piso:", error);
+          setStore({
+            mapasPisosError: error.message || "Error al subir el mapa.",
+            mapasPisosLoading: false,
+          });
+          return false;
+        }
+      },
+
+      deleteMapaPiso: async (mapaId) => {
+        setStore({ mapasPisosLoading: true, mapasPisosError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/mapas/${mapaId}`, {
+            method: "DELETE",
+            headers: getAuthHeaders(false),
+          });
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorData.msg || `Error ${response.status}`);
+          }
+          await getActions().fetchMapasPisos(); // Refresh list
+          return true;
+        } catch (error) {
+          console.error("Error deleting mapa de piso:", error);
+          setStore({
+            mapasPisosError: error.message || "Error al eliminar el mapa.",
+            mapasPisosLoading: false,
+          });
+          return false;
+        }
+      },
+
+      // --- SHA (Extintores) Actions ---
+      fetchPisosExtintores: async () => {
+        setStore({ extintoresLoading: true, extintoresError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/extintores/pisos`, {
+            method: "GET",
+            headers: getAuthHeaders(),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorData.msg || `Error ${response.status}`);
+          }
+          const data = await response.json();
+          setStore({ pisosExtintores: data || [], extintoresLoading: false });
+          return true;
+        } catch (error) {
+          console.error("Error fetching pisos de extintores:", error);
+          setStore({
+            extintoresError: error.message || "Error cargando lista de pisos.",
+            extintoresLoading: false,
+          });
+          return false;
+        }
+      },
+
+      fetchExtintores: async (piso = null) => {
+        setStore({ extintoresLoading: true, extintoresError: null });
+        let url = `${process.env.BACKEND_URL}/sha/extintores`;
+        if (piso) {
+          url += `?piso=${encodeURIComponent(piso)}`;
+        }
+        try {
+          const response = await fetch(url, {
+            method: "GET",
+            headers: getAuthHeaders(),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(errorData.msg || `Error ${response.status}`);
+          }
+          const data = await response.json();
+          setStore({ extintores: data || [], extintoresLoading: false });
+          return true;
+        } catch (error) {
+          console.error("Error fetching extintores:", error);
+          setStore({
+            extintoresError: error.message || "Error cargando extintores.",
+            extintoresLoading: false,
+          });
+          return false;
+        }
+      },
+
+      addExtintor: async (extintorData) => {
+        setStore({ extintoresLoading: true, extintoresError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/extintores`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(extintorData),
+          });
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(responseData.msg || `Error ${response.status}`);
+          }
+          // Refrescar la lista de extintores y pisos
+          await getActions().fetchExtintores();
+          await getActions().fetchPisosExtintores();
+          return true;
+        } catch (error) {
+          console.error("Error adding extintor:", error);
+          setStore({
+            extintoresError: error.message || "Error al agregar el extintor.",
+            extintoresLoading: false,
+          });
+          return false;
+        }
+      },
+
+      updateExtintor: async (extintorId, extintorData) => {
+        setStore({ extintoresLoading: true, extintoresError: null });
+        try {
+          const response = await fetch(`${process.env.BACKEND_URL}/sha/extintores/${extintorId}`, {
+            method: "PUT",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(extintorData),
+          });
+          const responseData = await response.json();
+          if (!response.ok) {
+            if (response.status === 401) getActions().logoutTrackerUser();
+            throw new Error(responseData.msg || `Error ${response.status}`);
+          }
+          // Refrescar la lista de extintores y pisos
+          await getActions().fetchExtintores();
+          await getActions().fetchPisosExtintores();
+          return true;
+        } catch (error) {
+          console.error("Error updating extintor:", error);
+          setStore({
+            extintoresError: error.message || "Error al actualizar el extintor.",
+            extintoresLoading: false,
+          });
+          return false;
+        }
+      },
     },
   };
 };

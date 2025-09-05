@@ -10,7 +10,8 @@ import {
 import { Context } from '../store/appContext'; // To check user role
 import { HiOutlineDocumentReport } from 'react-icons/hi'
 import { GrDocumentStore } from "react-icons/gr"
-import { LuBriefcaseConveyorBelt } from "react-icons/lu";
+import { LuBriefcaseConveyorBelt, LuFireExtinguisher  } from "react-icons/lu";
+import { GiPlagueDoctorProfile } from 'react-icons/gi';
 
 const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
   const navigate = useNavigate();
@@ -27,17 +28,19 @@ const SidebarMonitoreo = ({ sidebarCollapsed, toggleSidebar }) => {
     { path: '/reportes', icon: HiOutlineDocumentReport, label: 'Reportes' },
     {path: '/proveedores', icon: FiBriefcase, label: 'Proveedores' },
     {path: '/actividades-proveedor', icon: LuBriefcaseConveyorBelt, label: 'Actividades Proveedor' },
+    {path: '/sha', icon: LuFireExtinguisher, label: 'SHA Extintores' },
     {path: '/servicios-externos', icon: FiExternalLink, label: 'Servicios Externos' },
     {path: '/documentos', icon: GrDocumentStore, label: 'Procedimientos y Planillas' },
+    
     
 
     
   ];
 
   const adminLinks = [
-    { path: '/gestion-diagnosticos', icon: FiAlertCircle, label: 'Gestión Diagnósticos AA' },
+    { path: '/gestion-diagnosticos', icon: GiPlagueDoctorProfile , label: 'Gestión Diagnósticos AA' },
     { path: '/umbrales', icon: FiAlertCircle, label: 'Umbrales' },
-    { path: '/usuarios', icon: FiUsers, label: 'Usuarios' },
+    { path: '/usuarios', icon: FiUsers, label: 'Configuración' },
     
   ];
 

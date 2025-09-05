@@ -1,8 +1,8 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g # Ensure g is imported if used elsewhere, not directly here
-from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, RegistroDiagnosticoAire, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum
+from flask import Flask, request, jsonify, url_for, Blueprint, send_file, current_app, g
+from api.models import db, UserForm, Equipment, Description, Rack, TrackerUsuario, RegistroDiagnosticoAire, AireAcondicionado,Lectura, Mantenimiento, UmbralConfiguracion, OtroEquipo, Proveedor, ContactoProveedor, ActividadProveedor,  EstatusActividad, DocumentoExterno, OperativaStateEnum, DiagnosticoComponente, TipoAireRelevanteEnum, ParteACEnum, Extintor, RevisionExtintor, MapaPiso
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -4844,3 +4844,222 @@ def get_alertas_activas_detalladas_route():
     except Exception as e:
         print(f"Error en get_alertas_activas_detalladas_route: {e}", file=sys.stderr)
         return jsonify({"msg": "Error al obtener detalles de alertas activas."}), 500
+
+# --- Rutas para Seguridad e Higiene (SHA) - Extintores ---
+
+@api.route('/sha/extintores', methods=['GET'])
+@jwt_required()
+def get_extintores():
+    """Obtiene todos los extintores, opcionalmente filtrados por piso."""
+    piso_filter = request.args.get('piso')
+    query = Extintor.query
+    if piso_filter:
+        query = query.filter_by(piso=piso_filter)
+    
+    try:
+        extintores = query.order_by(Extintor.piso, Extintor.tag).all()
+        return jsonify([e.serialize() for e in extintores]), 200
+    except Exception as e:
+        print(f"Error obteniendo extintores: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener la lista de extintores."}), 500
+
+@api.route('/sha/extintores/pisos', methods=['GET'])
+@jwt_required()
+def get_pisos_extintores():
+    """Obtiene una lista única de los pisos donde hay extintores."""
+    try:
+        # 1. Obtener pisos que ya tienen extintores registrados
+        pisos_con_extintores_q = db.session.query(distinct(Extintor.piso)).all()
+        pisos_con_extintores = {p[0] for p in pisos_con_extintores_q if p[0]}
+
+        # 2. Obtener pisos que tienen un mapa cargado desde la configuración
+        pisos_con_mapa_q = db.session.query(MapaPiso.nombre_piso).all()
+        pisos_con_mapa = {p[0] for p in pisos_con_mapa_q if p[0]}
+
+        # 3. Unir ambas listas, eliminar duplicados y ordenar alfabéticamente
+        todos_los_pisos = sorted(list(pisos_con_extintores.union(pisos_con_mapa)))
+
+        return jsonify(todos_los_pisos), 200
+    except Exception as e:
+        print(f"Error obteniendo pisos de extintores: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener la lista de pisos."}), 500
+
+@api.route('/sha/extintores', methods=['POST'])
+@jwt_required()
+def add_extintor():
+    """Añade un nuevo extintor."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos."}), 400
+
+    required_fields = ['tag', 'piso', 'ubicacion_exacta', 'tipo', 'capacidad_kg', 'fecha_ultima_recarga', 'fecha_proxima_recarga']
+    if not all(field in data for field in required_fields):
+        missing = [field for field in required_fields if field not in data]
+        return jsonify({"msg": f"Faltan campos requeridos: {', '.join(missing)}"}), 400
+
+    try:
+        nuevo_extintor = Extintor(
+            tag=data['tag'],
+            piso=data['piso'],
+            ubicacion_exacta=data['ubicacion_exacta'],
+            tipo=data['tipo'],
+            capacidad_kg=float(data['capacidad_kg']),
+            fecha_ultima_recarga=datetime.strptime(data['fecha_ultima_recarga'], '%Y-%m-%d').date(),
+            fecha_proxima_recarga=datetime.strptime(data['fecha_proxima_recarga'], '%Y-%m-%d').date(),
+            fecha_fabricacion=datetime.strptime(data['fecha_fabricacion'], '%Y-%m-%d').date() if data.get('fecha_fabricacion') else None,
+            estado=data.get('estado', 'Operativo'),
+            coordenada_x=int(data['coordenada_x']) if data.get('coordenada_x') is not None else None,
+            coordenada_y=int(data['coordenada_y']) if data.get('coordenada_y') is not None else None
+        )
+        db.session.add(nuevo_extintor)
+        db.session.commit()
+        return jsonify(nuevo_extintor.serialize()), 201
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un extintor con el tag '{data['tag']}'."}), 409
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error en el formato de los datos: {e}"}), 400
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado añadiendo extintor: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+@api.route('/sha/extintores/<int:extintor_id>', methods=['PUT'])
+@jwt_required()
+def update_extintor(extintor_id):
+    """Actualiza un extintor existente."""
+    extintor = db.session.get(Extintor, extintor_id)
+    if not extintor:
+        return jsonify({"msg": "Extintor no encontrado."}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No se recibieron datos."}), 400
+
+    try:
+        extintor.tag = data.get('tag', extintor.tag)
+        extintor.piso = data.get('piso', extintor.piso)
+        extintor.ubicacion_exacta = data.get('ubicacion_exacta', extintor.ubicacion_exacta)
+        extintor.tipo = data.get('tipo', extintor.tipo)
+        extintor.capacidad_kg = float(data.get('capacidad_kg', extintor.capacidad_kg))
+        extintor.estado = data.get('estado', extintor.estado)
+        extintor.coordenada_x = int(data['coordenada_x']) if data.get('coordenada_x') is not None else extintor.coordenada_x
+        extintor.coordenada_y = int(data['coordenada_y']) if data.get('coordenada_y') is not None else extintor.coordenada_y
+        
+        if data.get('fecha_ultima_recarga'):
+            extintor.fecha_ultima_recarga = datetime.strptime(data['fecha_ultima_recarga'], '%Y-%m-%d').date()
+        if data.get('fecha_proxima_recarga'):
+            extintor.fecha_proxima_recarga = datetime.strptime(data['fecha_proxima_recarga'], '%Y-%m-%d').date()
+        if data.get('fecha_fabricacion'):
+            extintor.fecha_fabricacion = datetime.strptime(data['fecha_fabricacion'], '%Y-%m-%d').date()
+
+        db.session.commit()
+        return jsonify(extintor.serialize()), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": f"Ya existe un extintor con el tag '{data.get('tag')}'."}), 409
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({"msg": f"Error en el formato de los datos: {e}"}), 400
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error inesperado actualizando extintor: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error inesperado en el servidor."}), 500
+
+# --- Rutas para Mapas de Pisos (SHA) ---
+
+@api.route('/sha/mapas', methods=['POST'])
+@jwt_required()
+def upload_mapa_piso_route():
+    """Sube un nuevo mapa de piso o actualiza uno existente."""
+    current_user_id = get_jwt_identity()
+    logged_in_user = db.session.get(TrackerUsuario, current_user_id)
+    if not logged_in_user or logged_in_user.rol not in ['admin']:
+        return jsonify({"msg": "Acceso no autorizado para subir mapas"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"msg": "No se encontró el archivo en la solicitud ('file')"}), 400
+
+    file = request.files['file']
+    nombre_piso = request.form.get('nombre_piso')
+
+    if not nombre_piso:
+        return jsonify({"msg": "El campo 'nombre_piso' es requerido."}), 400
+    
+    if file.filename == '':
+        return jsonify({"msg": "No se seleccionó ningún archivo."}), 400
+
+    allowed_extensions = {'png', 'jpg', 'jpeg'}
+    if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+        return jsonify({"msg": "Tipo de archivo no permitido. Usar .png, .jpg, .jpeg"}), 400
+
+    try:
+        file_content = file.read()
+        if not file_content:
+            return jsonify({"msg": "El archivo parece estar vacío."}), 400
+
+        # Buscar si ya existe un mapa para ese piso
+        mapa_existente = MapaPiso.query.filter_by(nombre_piso=nombre_piso).first()
+
+        if mapa_existente:
+            # Actualizar el mapa existente
+            mapa_existente.nombre_archivo_original = secure_filename(file.filename)
+            mapa_existente.datos_archivo = file_content
+            mapa_existente.tipo_mime = file.mimetype
+            mapa_existente.fecha_carga = datetime.utcnow()
+            db.session.commit()
+            return jsonify(mapa_existente.serialize()), 200
+        else:
+            # Crear un nuevo mapa
+            nuevo_mapa = MapaPiso(
+                nombre_piso=nombre_piso,
+                nombre_archivo_original=secure_filename(file.filename),
+                datos_archivo=file_content,
+                tipo_mime=file.mimetype
+            )
+            db.session.add(nuevo_mapa)
+            db.session.commit()
+            return jsonify(nuevo_mapa.serialize()), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error subiendo mapa de piso: {e}", file=sys.stderr)
+        traceback.print_exc()
+        return jsonify({"msg": "Error al guardar el mapa en la base de datos."}), 500
+
+@api.route('/sha/mapas', methods=['GET'])
+@jwt_required()
+def get_mapas_pisos_route():
+    """Obtiene la lista de todos los mapas de pisos."""
+    try:
+        mapas = db.session.query(MapaPiso).order_by(MapaPiso.nombre_piso).all()
+        results = []
+        for mapa in mapas:
+            mapa_data = mapa.serialize()
+            mapa_data['url_descarga'] = url_for('api.download_mapa_piso_route', mapa_id=mapa.id, _external=True)
+            results.append(mapa_data)
+        return jsonify(results), 200
+    except Exception as e:
+        print(f"Error obteniendo mapas de pisos: {e}", file=sys.stderr)
+        return jsonify({"msg": "Error al obtener la lista de mapas."}), 500
+
+@api.route('/sha/mapas/<int:mapa_id>/download', methods=['GET'])
+@jwt_required()
+def download_mapa_piso_route(mapa_id):
+    """Descarga el archivo de un mapa específico."""
+    mapa = db.session.get(MapaPiso, mapa_id)
+    if not mapa or not mapa.datos_archivo:
+        return jsonify({"msg": "Mapa no encontrado o sin contenido."}), 404
+    return send_file(io.BytesIO(mapa.datos_archivo), mimetype=mapa.tipo_mime, as_attachment=False, download_name=mapa.nombre_archivo_original)
+
+@api.route('/sha/mapas/<int:mapa_id>', methods=['DELETE'])
+@jwt_required()
+def delete_mapa_piso_route(mapa_id):
+    """Elimina un mapa de piso."""
+    mapa = db.session.get(MapaPiso, mapa_id)
+    if not mapa:
+        return jsonify({"msg": "Mapa no encontrado."}), 404
+    db.session.delete(mapa)
+    db.session.commit()
+    return '', 204
