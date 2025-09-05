@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Card, Table, Button, Modal, Form, Row, Col, Spinner, Alert, Badge, Tabs, Tab, Image } from 'react-bootstrap';
+import { Card, Table, Button, Modal, Form, Row, Col, Spinner, Alert, Badge, Tabs, Tab } from 'react-bootstrap';
 import { FiEdit, FiCheckCircle, FiUserX, FiUser, FiUsers, FiMail, FiCalendar, FiClock, FiShield, FiCheck, FiX, FiPlus, FiMap, FiUpload, FiTrash2 } from 'react-icons/fi';
 import { Context } from '../store/appContext';
+import ProtectedImage from '../component/ProtectedImage.jsx';
 
 const Usuarios = () => {
 
@@ -361,7 +362,9 @@ const Usuarios = () => {
                     <Col key={mapa.id}>
                       <Card className="h-100">
                         <Card.Header className="fw-bold">{mapa.nombre_piso}</Card.Header>
-                        <Image src={mapa.url_descarga} thumbnail fluid style={{ objectFit: 'cover', height: '200px' }} />
+                        <div style={{ height: '200px', overflow: 'hidden' }}>
+                          <ProtectedImage src={mapa.url_descarga} alt={`Mapa de ${mapa.nombre_piso}`} className="card-img-top" style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
+                        </div>
                         <Card.Body className="d-flex flex-column">
                           <Card.Text className="small text-muted">
                             Archivo: {mapa.nombre_archivo_original}<br />
@@ -493,4 +496,3 @@ const Usuarios = () => {
 };
 
 export default Usuarios;
-

@@ -16,6 +16,7 @@ import {
 import { FiMapPin, FiPlus, FiEdit } from "react-icons/fi";
 import { FaFireExtinguisher, FaMapMarkedAlt } from "react-icons/fa";
 import { Context } from "../store/appContext";
+import ProtectedImage from "../component/ProtectedImage.jsx";
 import "../../styles/ShaPage.css"; // Necesitaremos CSS personalizado
 
 const ShaPage = () => {
@@ -35,6 +36,7 @@ const ShaPage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentExtintor, setCurrentExtintor] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tempPinCoords, setTempPinCoords] = useState({ x: null, y: null });
 
   useEffect(() => {
     // Cargar datos iniciales al montar el componente
@@ -48,7 +50,6 @@ const ShaPage = () => {
     if (pisosExtintores.length > 0 && !selectedPiso) {
       setSelectedPiso(pisosExtintores[0]);
     }
-    
   }, [pisosExtintores]);
 
   const handleShowModal = (extintor = null) => {
@@ -63,6 +64,8 @@ const ShaPage = () => {
           ? extintor.fecha_proxima_recarga.split("T")[0]
           : "",
       });
+      // Set temp pin to existing coordinates for visual feedback
+      setTempPinCoords({ x: extintor.coordenada_x, y: extintor.coordenada_y });
     } else {
       setIsEditing(false);
       setCurrentExtintor({
@@ -74,9 +77,11 @@ const ShaPage = () => {
         fecha_ultima_recarga: "",
         fecha_proxima_recarga: "",
         estado: "Operativo",
-        coordenada_x: 0,
-        coordenada_y: 0,
+        coordenada_x: null,
+        coordenada_y: null,
       });
+      // Reset temp pin when adding a new one
+      setTempPinCoords({ x: null, y: null });
     }
     setShowModal(true);
   };
@@ -85,6 +90,8 @@ const ShaPage = () => {
     setShowModal(false);
     setCurrentExtintor(null);
     setIsEditing(false);
+    // Reset temp pin on close
+    setTempPinCoords({ x: null, y: null });
   };
 
   const handleFormChange = (e) => {
@@ -108,6 +115,30 @@ const ShaPage = () => {
     if (success) {
       handleCloseModal();
     }
+  };
+
+  const handleMapClick = (e) => {
+    // Only allow placing pins if the modal is open for adding/editing
+    if (!showModal) return;
+
+    // This prevents setting coordinates if an existing extinguisher icon is clicked
+    if (e.target.closest(".extintor-icon")) {
+      return;
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(e.clientX - rect.left);
+    const y = Math.round(e.clientY - rect.top);
+
+    // Update the form fields in the modal
+    setCurrentExtintor((prev) => ({
+      ...prev,
+      coordenada_x: x,
+      coordenada_y: y,
+    }));
+
+    // Update the temporary pin for visual feedback
+    setTempPinCoords({ x, y });
   };
 
   const extintoresFiltrados = extintores.filter((e) => e.piso === selectedPiso);
@@ -178,15 +209,20 @@ const ShaPage = () => {
                   <Spinner animation="border" />
                 </div>
               ) : (
-                <div className="map-container">
+                <div
+                  className={`map-container ${
+                    showModal ? "is-placing-pin" : ""
+                  }`}
+                  onClick={handleMapClick}
+                >
                   {mapaActual ? (
-                    <img
+                    <ProtectedImage
                       src={currentMapImage}
                       alt={`Mapa de ${selectedPiso}`}
                       className="map-image"
                     />
                   ) : (
-                    <div className="map-placeholder d-flex justify-content-center align-items-center h-100">
+                    <div className="map-placeholder d-flex justify-content-center align-items-center">
                       <div className="text-center text-muted">
                         <FaMapMarkedAlt size={60} className="mb-3" />
                         <h4>
@@ -194,7 +230,8 @@ const ShaPage = () => {
                           {selectedPiso || "este piso"}
                         </h4>
                         <p className="small">
-                          Puedes subir uno desde la sección de Configuración/ Gestión de Pisos.
+                          Puedes subir uno desde la sección de Configuración/
+                          Gestión de Pisos.
                         </p>
                       </div>
                     </div>
@@ -228,6 +265,21 @@ const ShaPage = () => {
                         </OverlayTrigger>
                       )
                   )}
+                  {/* Visual feedback for the new/edited pin location */}
+                  {showModal &&
+                    tempPinCoords.x != null &&
+                    tempPinCoords.y != null && (
+                      <div
+                        className="extintor-icon temp-pin"
+                        style={{
+                          left: `${tempPinCoords.x}px`,
+                          top: `${tempPinCoords.y}px`,
+                        }}
+                        title="Ubicación seleccionada"
+                      >
+                        <FiMapPin size={28} color="#0d6efd" />
+                      </div>
+                    )}
                 </div>
               )}
             </Card.Body>
@@ -314,6 +366,12 @@ const ShaPage = () => {
             {extintoresError && (
               <Alert variant="danger">{extintoresError}</Alert>
             )}
+            <Alert variant="info" className="small p-2">
+              <FiMapPin className="me-2" />
+              {isEditing
+                ? "Haga clic en el mapa para reubicar el extintor."
+                : "Haga clic en el mapa para establecer la ubicación del nuevo extintor."}
+            </Alert>
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">

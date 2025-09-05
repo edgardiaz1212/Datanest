@@ -27,3 +27,22 @@
   transform: translate(-50%, -50%) scale(1.5); /* Agranda el ícono al pasar el cursor */
   z-index: 11;
 }
+
+/* --- Nuevos estilos para la colocación de pines --- */
+
+/* Cambia el cursor cuando el modal está abierto para indicar que se puede hacer clic */
+.map-container.is-placing-pin .map-image,
+.map-container.is-placing-pin .map-placeholder {
+  cursor: crosshair;
+}
+
+/* Estilo para el pin temporal que muestra la ubicación seleccionada */
+.extintor-icon.temp-pin {
+  z-index: 12; /* Asegura que esté por encima de los otros pines */
+  pointer-events: none; /* Evita que el propio pin intercepte los clics */
+  filter: drop-shadow(2px 2px 3px rgba(0, 0, 0, 0.5)); /* Sombra para mejor visibilidad */
+}
+
+.map-placeholder {
+  min-height: 400px; /* Asegura una altura mínima para que el placeholder sea clickeable */
+}
