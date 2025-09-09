@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 7e281f116d7e
+Revision ID: da9a4da792cb
 Revises: 
-Create Date: 2025-05-30 11:06:20.375736
+Create Date: 2025-09-09 13:26:27.568332
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '7e281f116d7e'
+revision = 'da9a4da792cb'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -60,6 +60,32 @@ def upgrade():
     sa.Column('activo', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('nombre')
+    )
+    op.create_table('extintores',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('tag', sa.String(length=50), nullable=False, comment='Tag o ID único del extintor'),
+    sa.Column('piso', sa.String(length=50), nullable=False, comment="Piso donde se encuentra, ej: 'Piso 1', 'PB', 'Azotea'"),
+    sa.Column('ubicacion_exacta', sa.String(length=255), nullable=False, comment="Descripción textual de la ubicación, ej: 'Pasillo A, al lado de la puerta'"),
+    sa.Column('tipo', sa.String(length=50), nullable=False, comment="Tipo de extintor, ej: 'PQS', 'CO2', 'Agua'"),
+    sa.Column('capacidad_kg', sa.Float(), nullable=False, comment='Capacidad en kilogramos o litros'),
+    sa.Column('fecha_fabricacion', sa.Date(), nullable=True),
+    sa.Column('fecha_ultima_recarga', sa.Date(), nullable=False),
+    sa.Column('fecha_proxima_recarga', sa.Date(), nullable=False),
+    sa.Column('estado', sa.String(length=50), nullable=False, comment='Ej: Operativo, Vencido, Obstruido, Faltante'),
+    sa.Column('coordenada_x', sa.Integer(), nullable=True, comment='Posición X en píxeles en el mapa del piso'),
+    sa.Column('coordenada_y', sa.Integer(), nullable=True, comment='Posición Y en píxeles en el mapa del piso'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('tag')
+    )
+    op.create_table('mapas_pisos',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nombre_piso', sa.String(length=100), nullable=False),
+    sa.Column('nombre_archivo_original', sa.String(length=255), nullable=False),
+    sa.Column('datos_archivo', sa.LargeBinary(), nullable=False),
+    sa.Column('tipo_mime', sa.String(length=100), nullable=False),
+    sa.Column('fecha_carga', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('nombre_piso')
     )
     op.create_table('otros_equipos',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -234,6 +260,15 @@ def upgrade():
     sa.ForeignKeyConstraint(['registrado_por_usuario_id'], ['tracker_usuarios.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('revisiones_extintor',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('extintor_id', sa.Integer(), nullable=False),
+    sa.Column('fecha_revision', sa.Date(), nullable=False),
+    sa.Column('observaciones', sa.Text(), nullable=True),
+    sa.Column('realizado_por', sa.String(length=100), nullable=True),
+    sa.ForeignKeyConstraint(['extintor_id'], ['extintores.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('umbrales_configuracion',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aire_id', sa.Integer(), nullable=True),
@@ -285,51 +320,14 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['user_form.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('extintores',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tag', sa.String(length=50), nullable=False, comment="Tag o ID único del extintor"),
-    sa.Column('piso', sa.String(length=50), nullable=False, comment="Piso donde se encuentra, ej: 'Piso 1', 'PB', 'Azotea'"),
-    sa.Column('ubicacion_exacta', sa.String(length=255), nullable=False, comment="Descripción textual de la ubicación, ej: 'Pasillo A, al lado de la puerta'"),
-    sa.Column('tipo', sa.String(length=50), nullable=False, comment="Tipo de extintor, ej: 'PQS', 'CO2', 'Agua'"),
-    sa.Column('capacidad_kg', sa.Float(), nullable=False, comment="Capacidad en kilogramos o litros"),
-    sa.Column('fecha_fabricacion', sa.Date(), nullable=True),
-    sa.Column('fecha_ultima_recarga', sa.Date(), nullable=False),
-    sa.Column('fecha_proxima_recarga', sa.Date(), nullable=False),
-    sa.Column('estado', sa.String(length=50), nullable=False, comment="Ej: Operativo, Vencido, Obstruido, Faltante"),
-    sa.Column('coordenada_x', sa.Integer(), nullable=True, comment="Posición X en píxeles en el mapa del piso"),
-    sa.Column('coordenada_y', sa.Integer(), nullable=True, comment="Posición Y en píxeles en el mapa del piso"),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('tag')
-    )
-    op.create_table('revisiones_extintor',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('extintor_id', sa.Integer(), nullable=False),
-    sa.Column('fecha_revision', sa.Date(), nullable=False),
-    sa.Column('observaciones', sa.Text(), nullable=True),
-    sa.Column('realizado_por', sa.String(length=100), nullable=True),
-    sa.ForeignKeyConstraint(['extintor_id'], ['extintores.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('mapas_pisos',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('nombre_piso', sa.String(length=100), nullable=False),
-    sa.Column('nombre_archivo_original', sa.String(length=255), nullable=False),
-    sa.Column('datos_archivo', sa.LargeBinary(), nullable=False),
-    sa.Column('tipo_mime', sa.String(length=100), nullable=False),
-    sa.Column('fecha_carga', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('nombre_piso')
-    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('mapas_pisos')
-    op.drop_table('revisiones_extintor')
-    op.drop_table('extintores')
     op.drop_table('equipment')
     op.drop_table('umbrales_configuracion')
+    op.drop_table('revisiones_extintor')
     op.drop_table('registros_diagnostico_aire')
     op.drop_table('rack')
     op.drop_table('mantenimientos')
@@ -342,6 +340,8 @@ def downgrade():
     op.drop_table('tracker_usuarios')
     op.drop_table('proveedores')
     op.drop_table('otros_equipos')
+    op.drop_table('mapas_pisos')
+    op.drop_table('extintores')
     op.drop_table('diagnostico_componente')
     op.drop_table('description')
     op.drop_table('aires_acondicionados')

@@ -37,6 +37,12 @@ const ShaPage = () => {
   const [currentExtintor, setCurrentExtintor] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tempPinCoords, setTempPinCoords] = useState({ x: null, y: null });
+  const [showNoPisosWarning, setShowNoPisosWarning] = useState(false);
+
+// Create a combined, unique list of all available floors from extinguishers and maps
+  const pisosDeMapas = mapasPisos.map(m => m.nombre_piso);
+  const todosLosPisos = [...new Set([...pisosExtintores, ...pisosDeMapas])].sort();
+
 
   useEffect(() => {
     // Cargar datos iniciales al montar el componente
@@ -46,11 +52,22 @@ const ShaPage = () => {
   }, []);
 
   useEffect(() => {
-    // Si la lista de pisos se actualiza y no hay ninguno seleccionado, selecciona el primero
-    if (pisosExtintores.length > 0 && !selectedPiso) {
-      setSelectedPiso(pisosExtintores[0]);
+    // Si la lista de pisos (de extintores y mapas) se actualiza y no hay ninguno seleccionado, selecciona el primero.
+    if (todosLosPisos.length > 0 && !selectedPiso) {
+      setSelectedPiso(todosLosPisos[0]);
     }
-  }, [pisosExtintores]);
+  }, [pisosExtintores, mapasPisos]);
+
+  const handleAddClick = () => {
+    // Check if loading is finished and there are no floors
+    if (
+      !extintoresLoading && !mapasPisosLoading && todosLosPisos.length === 0
+    ) {
+      setShowNoPisosWarning(true);
+    } else {
+      handleShowModal();
+    }
+  };
 
   const handleShowModal = (extintor = null) => {
     if (extintor) {
@@ -189,16 +206,25 @@ const ShaPage = () => {
                 <Form.Select
                   value={selectedPiso}
                   onChange={(e) => setSelectedPiso(e.target.value)}
-                  disabled={extintoresLoading}
+                  disabled={extintoresLoading || mapasPisosLoading}
+                  disabled={
+                    extintoresLoading ||
+                    mapasPisosLoading ||
+                    todosLosPisos.length === 0
+                  }
                 >
-                  {pisosExtintores.length > 0 ? (
-                    pisosExtintores.map((piso) => (
+                  {todosLosPisos.length > 0 ? (
+                  {extintoresLoading || mapasPisosLoading ? (
+                    <option>Cargando pisos...</option>
+                  ) : todosLosPisos.length > 0 ? (
+                    todosLosPisos.map((piso) => (
                       <option key={piso} value={piso}>
                         {piso}
                       </option>
                     ))
                   ) : (
                     <option>Cargando pisos...</option>
+                    <option>No hay pisos registrados</option>
                   )}
                 </Form.Select>
               </div>
@@ -295,6 +321,7 @@ const ShaPage = () => {
                 variant="primary"
                 size="sm"
                 onClick={() => handleShowModal()}
+                onClick={handleAddClick}
               >
                 <FiPlus /> Agregar
               </Button>
@@ -395,7 +422,7 @@ const ShaPage = () => {
                     required
                   >
                     <option value="">Seleccione...</option>
-                    {pisosExtintores.map((p) => (
+                    {todosLosPisos.map((p) => (
                       <option key={p} value={p}>
                         {p}
                       </option>
@@ -540,6 +567,34 @@ const ShaPage = () => {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      {/* Modal de advertencia si no hay pisos */}
+      <Modal
+        show={showNoPisosWarning}
+        onHide={() => setShowNoPisosWarning(false)}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Acción Requerida</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="warning">
+            <p className="mb-0">No hay pisos registrados en el sistema.</p>
+          </Alert>
+          <p className="mt-3">
+            Para poder agregar un extintor, primero debe crear un piso.
+          </p>
+          <p>
+            Por favor, diríjase a la sección de{" "}
+            <strong>Configuración / Gestión de Pisos</strong> para subir un
+            mapa. Esto creará el piso automáticamente.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowNoPisosWarning(false)}>
+            Entendido
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );
