@@ -39,10 +39,11 @@ const ShaPage = () => {
   const [tempPinCoords, setTempPinCoords] = useState({ x: null, y: null });
   const [showNoPisosWarning, setShowNoPisosWarning] = useState(false);
 
-// Create a combined, unique list of all available floors from extinguishers and maps
-  const pisosDeMapas = mapasPisos.map(m => m.nombre_piso);
-  const todosLosPisos = [...new Set([...pisosExtintores, ...pisosDeMapas])].sort();
-
+  // Create a combined, unique list of all available floors from extinguishers and maps
+  const pisosDeMapas = mapasPisos.map((m) => m.nombre_piso);
+  const todosLosPisos = [
+    ...new Set([...pisosExtintores, ...pisosDeMapas]),
+  ].sort();
 
   useEffect(() => {
     // Cargar datos iniciales al montar el componente
@@ -61,7 +62,9 @@ const ShaPage = () => {
   const handleAddClick = () => {
     // Check if loading is finished and there are no floors
     if (
-      !extintoresLoading && !mapasPisosLoading && todosLosPisos.length === 0
+      !extintoresLoading &&
+      !mapasPisosLoading &&
+      todosLosPisos.length === 0
     ) {
       setShowNoPisosWarning(true);
     } else {
@@ -167,6 +170,14 @@ const ShaPage = () => {
   );
   const currentMapImage = mapaActual ? mapaActual.url_descarga : null;
 
+  // --- LÓGICA PARA EL MAPA DENTRO DEL MODAL ---
+  const pisoSeleccionadoEnModal = currentExtintor?.piso;
+  const mapaDelModal = pisoSeleccionadoEnModal
+    ? mapasPisos.find((mapa) => mapa.nombre_piso === pisoSeleccionadoEnModal)
+    : null;
+  const urlMapaDelModal = mapaDelModal ? mapaDelModal.url_descarga : null;
+  const extintoresEnMapaModal = pisoSeleccionadoEnModal ? extintores.filter((e) => e.piso === pisoSeleccionadoEnModal) : [];
+
   const renderTooltip = (props, extintor) => (
     <Tooltip id={`tooltip-${extintor.id}`} {...props}>
       <strong>Tag: {extintor.tag}</strong>
@@ -206,14 +217,12 @@ const ShaPage = () => {
                 <Form.Select
                   value={selectedPiso}
                   onChange={(e) => setSelectedPiso(e.target.value)}
-                  disabled={extintoresLoading || mapasPisosLoading}
                   disabled={
                     extintoresLoading ||
                     mapasPisosLoading ||
                     todosLosPisos.length === 0
                   }
                 >
-                  {todosLosPisos.length > 0 ? (
                   {extintoresLoading || mapasPisosLoading ? (
                     <option>Cargando pisos...</option>
                   ) : todosLosPisos.length > 0 ? (
@@ -223,7 +232,6 @@ const ShaPage = () => {
                       </option>
                     ))
                   ) : (
-                    <option>Cargando pisos...</option>
                     <option>No hay pisos registrados</option>
                   )}
                 </Form.Select>
@@ -235,12 +243,7 @@ const ShaPage = () => {
                   <Spinner animation="border" />
                 </div>
               ) : (
-                <div
-                  className={`map-container ${
-                    showModal ? "is-placing-pin" : ""
-                  }`}
-                  onClick={handleMapClick}
-                >
+                <div className="map-container">
                   {mapaActual ? (
                     <ProtectedImage
                       src={currentMapImage}
@@ -317,12 +320,7 @@ const ShaPage = () => {
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Extintores en {selectedPiso}</h5>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleShowModal()}
-                onClick={handleAddClick}
-              >
+              <Button variant="primary" size="sm" onClick={handleAddClick}>
                 <FiPlus /> Agregar
               </Button>
             </Card.Header>
@@ -382,7 +380,7 @@ const ShaPage = () => {
       </Row>
 
       {/* Modal para Agregar/Editar Extintor */}
-      <Modal show={showModal} onHide={handleCloseModal} backdrop="static">
+      <Modal show={showModal} onHide={handleCloseModal} backdrop="static" size="xl">
         <Modal.Header closeButton>
           <Modal.Title>
             {isEditing ? "Editar Extintor" : "Agregar Nuevo Extintor"}
@@ -390,154 +388,161 @@ const ShaPage = () => {
         </Modal.Header>
         <Form onSubmit={handleFormSubmit}>
           <Modal.Body>
-            {extintoresError && (
-              <Alert variant="danger">{extintoresError}</Alert>
-            )}
-            <Alert variant="info" className="small p-2">
-              <FiMapPin className="me-2" />
-              {isEditing
-                ? "Haga clic en el mapa para reubicar el extintor."
-                : "Haga clic en el mapa para establecer la ubicación del nuevo extintor."}
-            </Alert>
+            {extintoresError && <Alert variant="danger">{extintoresError}</Alert>}
             <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Tag / ID</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="tag"
-                    value={currentExtintor?.tag || ""}
-                    onChange={handleFormChange}
-                    required
-                  />
-                </Form.Group>
+              {/* Columna del Mapa en el Modal */}
+              <Col md={7}>
+                <h5 className="mb-3">Ubicación en Mapa</h5>
+                <div className="map-container is-placing-pin" onClick={handleMapClick}>
+                  {urlMapaDelModal ? (
+                    <ProtectedImage
+                      src={urlMapaDelModal}
+                      alt={`Mapa de ${pisoSeleccionadoEnModal}`}
+                      className="map-image"
+                    />
+                  ) : (
+                    <div className="map-placeholder d-flex justify-content-center align-items-center">
+                      <div className="text-center text-muted">
+                        <FaMapMarkedAlt size={60} className="mb-3" />
+                        <h4>No hay mapa para {pisoSeleccionadoEnModal || "el piso seleccionado"}</h4>
+                        <p className="small">Seleccione un piso con mapa o suba uno desde Configuración.</p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Renderizar extintores existentes en el mapa del modal */}
+                  {extintoresEnMapaModal.map((extintor) =>
+                    currentExtintor?.id !== extintor.id &&
+                    extintor.coordenada_x != null &&
+                    extintor.coordenada_y != null && (
+                      <OverlayTrigger
+                        key={`modal-${extintor.id}`}
+                        placement="top"
+                        delay={{ show: 250, hide: 400 }}
+                        overlay={(props) => renderTooltip(props, extintor)}
+                      >
+                        <div
+                          className="extintor-icon"
+                          style={{
+                            left: `${extintor.coordenada_x}px`,
+                            top: `${extintor.coordenada_y}px`,
+                          }}
+                        >
+                          <FaFireExtinguisher
+                            size={24}
+                            color={extintor.estado !== "Operativo" ? "orange" : "red"}
+                          />
+                        </div>
+                      </OverlayTrigger>
+                    )
+                  )}
+                  {/* Pin temporal para la ubicación nueva/editada */}
+                  {tempPinCoords.x != null && tempPinCoords.y != null && (
+                    <div
+                      className="extintor-icon temp-pin"
+                      style={{
+                        left: `${tempPinCoords.x}px`,
+                        top: `${tempPinCoords.y}px`,
+                      }}
+                      title="Ubicación seleccionada"
+                    >
+                      <FiMapPin size={28} color="#0d6efd" />
+                    </div>
+                  )}
+                </div>
               </Col>
-              <Col md={6}>
+
+              {/* Columna del Formulario en el Modal */}
+              <Col md={5}>
+                <h5 className="mb-3">Detalles del Extintor</h5>
+                <Alert variant="info" className="small p-2 mb-3">
+                  <FiMapPin className="me-2" />
+                  {isEditing
+                    ? "Haga clic en el mapa de la izquierda para reubicar."
+                    : "Haga clic en el mapa de la izquierda para ubicar."}
+                </Alert>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tag / ID</Form.Label>
+                      <Form.Control type="text" name="tag" value={currentExtintor?.tag || ""} onChange={handleFormChange} required />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Piso</Form.Label>
+                      <Form.Select name="piso" value={currentExtintor?.piso || ""} onChange={handleFormChange} required>
+                        <option value="">Seleccione...</option>
+                        {todosLosPisos.map((p) => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
                 <Form.Group className="mb-3">
-                  <Form.Label>Piso</Form.Label>
-                  <Form.Select
-                    name="piso"
-                    value={currentExtintor?.piso || ""}
-                    onChange={handleFormChange}
-                    required
-                  >
-                    <option value="">Seleccione...</option>
-                    {todosLosPisos.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  <Form.Label>Ubicación Exacta</Form.Label>
+                  <Form.Control as="textarea" rows={2} name="ubicacion_exacta" value={currentExtintor?.ubicacion_exacta || ""} onChange={handleFormChange} required />
                 </Form.Group>
-              </Col>
-            </Row>
-            <Form.Group className="mb-3">
-              <Form.Label>Ubicación Exacta</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="ubicacion_exacta"
-                value={currentExtintor?.ubicacion_exacta || ""}
-                onChange={handleFormChange}
-                required
-              />
-            </Form.Group>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Tipo</Form.Label>
-                  <Form.Select
-                    name="tipo"
-                    value={currentExtintor?.tipo || "PQS"}
-                    onChange={handleFormChange}
-                    required
-                  >
-                    <option value="PQS">PQS</option>
-                    <option value="CO2">CO2</option>
-                    <option value="Agua">Agua</option>
-                    <option value="Espuma">Espuma AFFF</option>
-                    <option value="Clase K">Clase K</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Capacidad (kg)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.1"
-                    name="capacidad_kg"
-                    value={currentExtintor?.capacidad_kg || ""}
-                    onChange={handleFormChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha Última Recarga</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="fecha_ultima_recarga"
-                    value={currentExtintor?.fecha_ultima_recarga || ""}
-                    onChange={handleFormChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha Próxima Recarga</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="fecha_proxima_recarga"
-                    value={currentExtintor?.fecha_proxima_recarga || ""}
-                    onChange={handleFormChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Coord. X (px)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="coordenada_x"
-                    value={currentExtintor?.coordenada_x ?? 0}
-                    onChange={handleFormChange}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Coord. Y (px)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="coordenada_y"
-                    value={currentExtintor?.coordenada_y ?? 0}
-                    onChange={handleFormChange}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Estado</Form.Label>
-                  <Form.Select
-                    name="estado"
-                    value={currentExtintor?.estado || "Operativo"}
-                    onChange={handleFormChange}
-                  >
-                    <option value="Operativo">Operativo</option>
-                    <option value="Vencido">Vencido</option>
-                    <option value="Obstruido">Obstruido</option>
-                    <option value="Faltante">Faltante</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                  </Form.Select>
-                </Form.Group>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tipo</Form.Label>
+                      <Form.Select name="tipo" value={currentExtintor?.tipo || "PQS"} onChange={handleFormChange} required>
+                        <option value="PQS">PQS</option>
+                        <option value="CO2">CO2</option>
+                        <option value="Agua">Agua</option>
+                        <option value="Espuma">Espuma AFFF</option>
+                        <option value="Clase K">Clase K</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Capacidad (kg)</Form.Label>
+                      <Form.Control type="number" step="0.1" name="capacidad_kg" value={currentExtintor?.capacidad_kg || ""} onChange={handleFormChange} required />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Fecha Última Recarga</Form.Label>
+                      <Form.Control type="date" name="fecha_ultima_recarga" value={currentExtintor?.fecha_ultima_recarga || ""} onChange={handleFormChange} required />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Fecha Próxima Recarga</Form.Label>
+                      <Form.Control type="date" name="fecha_proxima_recarga" value={currentExtintor?.fecha_proxima_recarga || ""} onChange={handleFormChange} required />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Coord. X (px)</Form.Label>
+                      <Form.Control type="number" name="coordenada_x" value={currentExtintor?.coordenada_x ?? ""} onChange={handleFormChange} readOnly />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Coord. Y (px)</Form.Label>
+                      <Form.Control type="number" name="coordenada_y" value={currentExtintor?.coordenada_y ?? ""} onChange={handleFormChange} readOnly />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Estado</Form.Label>
+                      <Form.Select name="estado" value={currentExtintor?.estado || "Operativo"} onChange={handleFormChange}>
+                        <option value="Operativo">Operativo</option>
+                        <option value="Vencido">Vencido</option>
+                        <option value="Obstruido">Obstruido</option>
+                        <option value="Faltante">Faltante</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
               </Col>
             </Row>
           </Modal.Body>
@@ -591,7 +596,10 @@ const ShaPage = () => {
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowNoPisosWarning(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowNoPisosWarning(false)}
+          >
             Entendido
           </Button>
         </Modal.Footer>
