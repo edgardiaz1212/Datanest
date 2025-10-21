@@ -38,8 +38,16 @@ const Layout = () => {
       "/edit-data",
     ];
 
+    // Function to check if path is public, handling dynamic paths
+    const isPublicPath = (pathname) => {
+      return publicPaths.some(
+        (path) =>
+          pathname === path || (path !== "/" && pathname.startsWith(path))
+      );
+    };
+
     // Check if the current path is NOT one of the public paths
-    const requiresAuth = !publicPaths.includes(location.pathname);
+    const requiresAuth = !isPublicPath(location.pathname);
 
     // If the user is NOT authenticated AND the path requires authentication
     if (!store.isAuthenticated && requiresAuth) {
